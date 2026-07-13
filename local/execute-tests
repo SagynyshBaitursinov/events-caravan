@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -e -o pipefail
+
+function main() {
+  ./mvnw test
+}
+
+main

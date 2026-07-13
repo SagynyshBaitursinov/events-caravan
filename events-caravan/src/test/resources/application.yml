@@ -1,0 +1,20 @@
+app:
+  name: event-sourced-ai-memory
+
+spring:
+  application:
+    name: ${app.name}
+
+caravan:
+  event:
+    sourcing:
+      snapshot-store:
+        dynamo-db:
+          table-name: ${app.name}_snapshots
+    store:
+      dynamo-db:
+        table-name: ${app.name}_events
+        query-max-page-size: 5
+    message:
+      queue:
+        name-prefix: ${app.name}

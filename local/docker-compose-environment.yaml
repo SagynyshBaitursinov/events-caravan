@@ -1,0 +1,18 @@
+services:
+  floci:
+    container_name: floci
+    image: floci/floci:latest-compat
+    ports:
+      - "4566:4566"
+    environment:
+      - AWS_DEFAULT_REGION=us-east-1
+      - FLOCI_HOSTNAME=floci
+      - DOCKER_NETWORK=floci-net
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - floci-net
+
+networks:
+  floci-net:
+    name: floci-net

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -e -o pipefail
+
+function main() {
+  trap 'stop_local_env' INT TERM EXIT
+  stop_local_env() {
+    ./local/env-down
+  }
+
+  ./local/env-up
+
+  ./local/execute-tests
+}
+
+main
