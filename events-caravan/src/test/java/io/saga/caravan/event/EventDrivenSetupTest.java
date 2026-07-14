@@ -40,7 +40,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
   UnsureTestFieldSavingEventHandler<?> unsureTestFieldSavingEventHandler;
 
   @Test
-  void cannotProduceEventsOfSameEntityWithSameEventId() {
+  void cannotProduceEventsOfSameEntityWithSameSequenceNumber() {
     var testEventPayload = new TestEventPayload("123", "456");
     String entityId = UUID.randomUUID().toString();
 

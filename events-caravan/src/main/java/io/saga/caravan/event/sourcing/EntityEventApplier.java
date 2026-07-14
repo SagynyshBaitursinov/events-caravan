@@ -3,29 +3,19 @@ package io.saga.caravan.event.sourcing;
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.sourcing.applying.ApplyMethodsCollector;
 import io.saga.caravan.event.sourcing.applying.EventApplyingException;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Map;
+import java.lang.reflect.Modifier;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class EntityEventApplier {
-
-  private static final ClassValue<Map<String, Method>> APPLY_METHODS_BY_EVENT_NAME = new ClassValue<>() {
-    @Override
-    protected Map<String, Method> computeValue(Class<?> type) {
-      return ApplyMethodsCollector.collectApplyEventMethods(
-          type.asSubclass(EventSourcedEntity.class));
-    }
-  };
-
-  public static Map<String, Method> applyEventMethodsOf(Class<? extends EventSourcedEntity> entityClass) {
-    return APPLY_METHODS_BY_EVENT_NAME.get(entityClass);
-  }
 
   public static void apply(EventSourcedEntity entity,
                            Event<?> event) {
     var applyMethod =
-        applyEventMethodsOf(entity.getClass()).get(event.eventName());
+        ApplyMethodsCollector.applyEventMethodsOf(entity.getClass()).get(event.eventName());
 
     if (applyMethod == null) {
       throw new EventApplyingException(
@@ -34,7 +24,11 @@ public final class EntityEventApplier {
     }
 
     try {
-      applyMethod.invoke(entity, event);
+      if (Modifier.isStatic(applyMethod.getModifiers())) {
+        applyMethod.invoke(null, entity, event);
+      } else {
+        applyMethod.invoke(entity, event);
+      }
       incrementEntityVersion(entity, event);
     } catch (IllegalArgumentException | IllegalAccessException illegalAccessException) {
       throw new EventApplyingException(

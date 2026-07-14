@@ -1,7 +1,6 @@
 package io.saga.caravan.event.sourcing.applying;
 
 import io.saga.caravan.event.EventType;
-import io.saga.caravan.event.sourcing.EntityEventApplier;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcedEntityNamesKeeper;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
@@ -31,7 +30,7 @@ public class ApplyEventMethodsValidator implements SmartInitializingSingleton {
 
   private void validateEntity(Class<? extends EventSourcedEntity> entityClass,
                               String entityName) {
-    Map<String, Method> applyEventMethods = EntityEventApplier.applyEventMethodsOf(entityClass);
+    Map<String, Method> applyEventMethods = ApplyMethodsCollector.applyEventMethodsOf(entityClass);
 
     applyEventMethods.forEach((eventName, method) ->
         validatePayloadClass(entityName, eventName, method));
@@ -45,7 +44,8 @@ public class ApplyEventMethodsValidator implements SmartInitializingSingleton {
     var registeredPayloadClass
         = eventPayloadClassMap.get(new EventType(entityName, eventName));
 
-    var parametrizedType = (ParameterizedType) applyEventMethod.getGenericParameterTypes()[0];
+    var parameterTypes = applyEventMethod.getGenericParameterTypes();
+    var parametrizedType = (ParameterizedType) parameterTypes[parameterTypes.length - 1];
     if (!parametrizedType.getActualTypeArguments()[0].equals(registeredPayloadClass)) {
       throw new EventSourcedEntitySetupException(
           "@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for %s.%s"
