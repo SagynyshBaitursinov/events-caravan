@@ -1,6 +1,8 @@
-package io.saga.caravan.event.serialization;
+package io.saga.caravan.event.serialization.jackson;
 
 import io.saga.caravan.event.Event;
+import io.saga.caravan.event.serialization.EventPayloadSerializationException;
+import io.saga.caravan.event.serialization.EventPayloadSerializer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
@@ -8,7 +10,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 @Component
 @RequiredArgsConstructor
-public class DefaultEventPayloadSerializer implements EventPayloadSerializer {
+public class JacksonEventPayloadSerializer implements EventPayloadSerializer {
 
   private final JsonMapper jsonMapper;
 
