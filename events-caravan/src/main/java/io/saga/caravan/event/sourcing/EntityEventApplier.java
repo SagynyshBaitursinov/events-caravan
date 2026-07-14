@@ -1,24 +1,36 @@
 package io.saga.caravan.event.sourcing;
 
 import io.saga.caravan.event.Event;
-import io.saga.caravan.event.EventType;
+import io.saga.caravan.event.sourcing.applying.ApplyMethodsCollector;
 import io.saga.caravan.event.sourcing.applying.EventApplyingException;
-import lombok.RequiredArgsConstructor;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
 
-@RequiredArgsConstructor
-public class EntityEventApplier {
+public final class EntityEventApplier {
 
-  private final Map<EventType, Method> applyMethodProvider;
+  private static final ClassValue<Map<String, Method>> APPLY_METHODS_BY_EVENT_NAME = new ClassValue<>() {
+    @Override
+    protected Map<String, Method> computeValue(Class<?> type) {
+      return ApplyMethodsCollector.collectApplyEventMethods(
+          type.asSubclass(EventSourcedEntity.class));
+    }
+  };
 
-  public void apply(EventSourcedEntity entity,
-                    Event<?> event) {
-    var applyMethod = applyMethodProvider.get(event.eventType());
+  public static Map<String, Method> applyEventMethodsOf(Class<? extends EventSourcedEntity> entityClass) {
+    return APPLY_METHODS_BY_EVENT_NAME.get(entityClass);
+  }
+
+  public static void apply(EventSourcedEntity entity,
+                           Event<?> event) {
+    var applyMethod =
+        applyEventMethodsOf(entity.getClass()).get(event.eventName());
+
     if (applyMethod == null) {
-      throw new EventApplyingException("Cannot apply event as entityEventApplier is not initialized");
+      throw new EventApplyingException(
+          "No @ApplyEvent method for eventName=%s in %s"
+              .formatted(event.eventName(), entity.getClass().getName()));
     }
 
     try {
@@ -37,8 +49,8 @@ public class EntityEventApplier {
     }
   }
 
-  private void incrementEntityVersion(EventSourcedEntity entity,
-                                      Event<?> event) {
+  private static void incrementEntityVersion(EventSourcedEntity entity,
+                                             Event<?> event) {
     try {
       entity.setVersion(event.sequenceNumber());
     } catch (NumberFormatException exception) {

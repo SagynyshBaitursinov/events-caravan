@@ -32,8 +32,4 @@ public class EventSourcedEntityNamesKeeper {
   public Map<Class<? extends EventSourcedEntity>, String> getEntityClassToEntityNameMap() {
     return Collections.unmodifiableMap(entityClassToEntityName);
   }
-
-  public Set<String> getEntityNames() {
-    return Collections.unmodifiableSet(entityNames);
-  }
 }

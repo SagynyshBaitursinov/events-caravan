@@ -9,8 +9,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static io.saga.caravan.event.sourcing.applying.EntityEventApplierFacade.apply;
-
 @Slf4j
 public abstract class EventSourcedEntity extends Entity {
 
@@ -33,7 +31,7 @@ public abstract class EventSourcedEntity extends Entity {
 
     notProducedEvents.add(event);
 
-    apply(this, event);
+    EntityEventApplier.apply(this, event);
   }
 
   private <E> Event<E> buildEvent(String eventName,

@@ -19,7 +19,6 @@ public class EventSourcedEntityRepositoriesConfiguration {
       @Lazy EventStore eventStore,
       @Lazy EventProducer eventProducer,
       @Lazy EventSourcedEntityNamesKeeper eventSourcedEntityNamesKeeper,
-      @Lazy EntityEventApplier eventApplier,
       @Lazy SnapshotStore snapshotStore,
       @Lazy Map<Class<? extends EventSourcedEntity>, SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakerMap) {
 
@@ -30,7 +29,6 @@ public class EventSourcedEntityRepositoriesConfiguration {
         if (bean instanceof EventSourcedEntityRepository<?> eventSourcedEntityRepository) {
           eventSourcedEntityRepository.setEventStore(eventStore);
           eventSourcedEntityRepository.setEventProducer(eventProducer);
-          eventSourcedEntityRepository.setEntityEventApplier(eventApplier);
           eventSourcedEntityRepository.setSnapshotStore(snapshotStore);
           eventSourcedEntityRepository.setSnapshotTaker(
               snapshotTakerMap.get(eventSourcedEntityRepository.entityClass()));

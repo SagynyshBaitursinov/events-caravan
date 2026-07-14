@@ -24,7 +24,6 @@ public abstract class EventSourcedEntityRepository<T extends EventSourcedEntity>
 
   private EventStore eventStore;
   private EventProducer eventProducer;
-  private EntityEventApplier entityEventApplier;
   private SnapshotStore snapshotStore;
 
   @Nullable
@@ -103,7 +102,7 @@ public abstract class EventSourcedEntityRepository<T extends EventSourcedEntity>
         .orElseGet(() -> createWithBlankState(entityReference.entityId()));
 
     eventStore.getEventsOfEntity(entityReference, entity.version())
-        .forEach(event -> entityEventApplier.apply(entity, event));
+        .forEach(event -> EntityEventApplier.apply(entity, event));
 
     if (entity.hasBlankState()) {
       return Optional.empty();

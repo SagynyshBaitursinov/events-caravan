@@ -2,11 +2,9 @@ package io.saga.caravan.event.sourcing.applying;
 
 
 import io.saga.caravan.event.Event;
-import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
 import org.jspecify.annotations.NullMarked;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -25,14 +23,11 @@ class ApplyMethodsCollectorTest {
   static class CarTurnedOffPayload {
   }
 
-  static class OtherPayload {
-  }
-
   @SuppressWarnings("EmptyMethod")
   static class SimpleEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
-    void apply(Event<CarTurnedOnPayload> event) {
+    private void apply(Event<CarTurnedOnPayload> event) {
     }
 
     @Override
@@ -246,7 +241,7 @@ class ApplyMethodsCollectorTest {
 
     @Override
     public String entityName() {
-      return "raw-event-entity";
+      return "not-concrete-event-entity";
     }
   }
 
@@ -264,56 +259,8 @@ class ApplyMethodsCollectorTest {
 
     @Override
     public String entityName() {
-      return "raw-event-entity";
+      return "generic-event-entity";
     }
-  }
-
-  @SuppressWarnings("EmptyMethod")
-  static class WrongPayloadClassEntity extends EventSourcedEntity {
-
-    @ApplyEvent("turned-on")
-    void apply(Event<OtherPayload> event) {
-    }
-
-    @Override
-    public String entityId() {
-      return "1";
-    }
-
-    @Override
-    public String entityName() {
-      return "wrong-payload-class-entity";
-    }
-  }
-
-  @SuppressWarnings("EmptyMethod")
-  static class UnregisteredEventEntity extends EventSourcedEntity {
-
-    @ApplyEvent("broke")
-    void apply(Event<CarTurnedOnPayload> event) {
-    }
-
-    @Override
-    public String entityId() {
-      return "";
-    }
-
-    @Override
-    public String entityName() {
-      return "unregistered-event-entity";
-    }
-  }
-
-  Map<EventType, Class<?>> payloadClassMap;
-  ApplyMethodsCollector collector;
-
-  @BeforeEach
-  void setUp() {
-    payloadClassMap = Map.of(
-        new EventType("car", "turned-on"), CarTurnedOnPayload.class,
-        new EventType("car", "turned-off"), CarTurnedOffPayload.class);
-
-    collector = new ApplyMethodsCollector(payloadClassMap);
   }
 
   @Nested
@@ -321,81 +268,78 @@ class ApplyMethodsCollectorTest {
 
     @Test
     void collectsSingleAnnotatedMethod() {
-      Map<EventType, Method> result =
-          collector.collectApplyEventMethods(SimpleEntity.class, "car");
+      Map<String, Method> result =
+          ApplyMethodsCollector.collectApplyEventMethods(SimpleEntity.class);
 
       assertThat(result)
           .hasSize(1)
-          .containsKey(new EventType("car", "turned-on"));
+          .containsKey("turned-on");
     }
 
     @Test
     void collectedMethodMatchesTheDeclaredOne() throws NoSuchMethodException {
-      Map<EventType, Method> result =
-          collector.collectApplyEventMethods(SimpleEntity.class, "car");
+      Map<String, Method> result =
+          ApplyMethodsCollector.collectApplyEventMethods(SimpleEntity.class);
 
       Method expected = SimpleEntity.class.getDeclaredMethod("apply", Event.class);
-      assertThat(result.get(new EventType("car", "turned-on")))
+      assertThat(result.get("turned-on"))
           .isEqualTo(expected);
     }
 
     @Test
     void setsMethodAccessible() {
-      Map<EventType, Method> result =
-          collector.collectApplyEventMethods(SimpleEntity.class, "car");
+      Map<String, Method> result =
+          ApplyMethodsCollector.collectApplyEventMethods(SimpleEntity.class);
 
-      Method method = result.get(new EventType("car", "turned-on"));
-      assertThat(method.canAccess(new SimpleEntity())).isTrue()
+      Method method = result.get("turned-on");
+      assertThat(method.canAccess(new SimpleEntity()))
           .as("method.setAccessible(true) should have been called")
           .isTrue();
     }
 
     @Test
     void collectsMultipleAnnotatedMethods() {
-      Map<EventType, Method> result =
-          collector.collectApplyEventMethods(MultiEventEntity.class, "car");
+      Map<String, Method> result =
+          ApplyMethodsCollector.collectApplyEventMethods(MultiEventEntity.class);
 
       assertThat(result)
           .hasSize(2)
-          .containsKeys(
-              new EventType("car", "turned-on"),
-              new EventType("car", "turned-off"));
+          .containsKeys("turned-on", "turned-off");
     }
 
     @Test
     void ignoresNonAnnotatedMethods() {
-      Map<EventType, Method> result =
-          collector.collectApplyEventMethods(MixedMethodsEntity.class, "car");
+      Map<String, Method> result =
+          ApplyMethodsCollector.collectApplyEventMethods(MixedMethodsEntity.class);
 
       assertThat(result).hasSize(1);
     }
 
     @Test
     void collectsMethodsFromSuperclass() {
-      Map<EventType, Method> result =
-          collector.collectApplyEventMethods(ChildWithExtraEventEntity.class, "car");
+      Map<String, Method> result =
+          ApplyMethodsCollector.collectApplyEventMethods(ChildWithExtraEventEntity.class);
 
       assertThat(result)
           .hasSize(2)
-          .containsKeys(
-              new EventType("car", "turned-on"),
-              new EventType("car", "turned-off"));
+          .containsKeys("turned-on", "turned-off");
     }
 
     @Test
     void returnsEmptyMapWhenNoAnnotatedMethodsExist() {
-      Map<EventType, Method> result =
-          collector.collectApplyEventMethods(EventSourcedEntity.class, "car");
+      Map<String, Method> result =
+          ApplyMethodsCollector.collectApplyEventMethods(EventSourcedEntity.class);
 
       assertThat(result).isEmpty();
     }
 
     @Test
     void shouldOverrideParentClassApplyMethod() throws NoSuchMethodException {
-      Map<EventType, Method> result = collector.collectApplyEventMethods(ChildWithOverriddenMethod.class, "car");
+      Map<String, Method> result =
+          ApplyMethodsCollector.collectApplyEventMethods(ChildWithOverriddenMethod.class);
 
       Method expected = ChildWithOverriddenMethod.class.getDeclaredMethod("apply", Event.class);
-      assertThat(result.get(new EventType("car", "turned-on")))
+      assertThat(result.get("turned-on"))
           .isEqualTo(expected);
     }
   }
@@ -406,15 +350,15 @@ class ApplyMethodsCollectorTest {
     @Test
     void shouldDetectDuplicates() {
       assertThatThrownBy(() ->
-          collector.collectApplyEventMethods(DuplicateEventEntity.class, "car"))
+          ApplyMethodsCollector.collectApplyEventMethods(DuplicateEventEntity.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
-          .hasMessage("@ApplyEvent method for EventType[entityName=car, eventName=turned-on] is duplicated");
+          .hasMessage("@ApplyEvent method for eventName=turned-on is duplicated in io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$DuplicateEventEntity");
     }
 
     @Test
     void throwsWhenMethodHasNoParameters() {
       assertThatThrownBy(() ->
-          collector.collectApplyEventMethods(NoParamEntity.class, "car"))
+          ApplyMethodsCollector.collectApplyEventMethods(NoParamEntity.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
           .hasMessage("@ApplyEvent method must have only one Event<PayloadClass> parameter, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$NoParamEntity.apply");
     }
@@ -422,7 +366,7 @@ class ApplyMethodsCollectorTest {
     @Test
     void throwsWhenMethodHasTwoParameters() {
       assertThatThrownBy(() ->
-          collector.collectApplyEventMethods(TwoParamEntity.class, "car"))
+          ApplyMethodsCollector.collectApplyEventMethods(TwoParamEntity.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
           .hasMessage("@ApplyEvent method must have only one Event<PayloadClass> parameter, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$TwoParamEntity.apply");
     }
@@ -430,7 +374,7 @@ class ApplyMethodsCollectorTest {
     @Test
     void throwsWhenParameterIsNotEvent() {
       assertThatThrownBy(() ->
-          collector.collectApplyEventMethods(WrongParamTypeEntity.class, "car"))
+          ApplyMethodsCollector.collectApplyEventMethods(WrongParamTypeEntity.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
           .hasMessage("@ApplyEvent method must have only one Event<PayloadClass> parameter, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$WrongParamTypeEntity.apply");
     }
@@ -438,7 +382,7 @@ class ApplyMethodsCollectorTest {
     @Test
     void throwsWhenEventParameterIsRaw() {
       assertThatThrownBy(() ->
-          collector.collectApplyEventMethods(RawEventEntity.class, "car"))
+          ApplyMethodsCollector.collectApplyEventMethods(RawEventEntity.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
           .hasMessage("@ApplyEvent method must have only one Event<PayloadClass> parameter, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$RawEventEntity.apply");
     }
@@ -446,7 +390,7 @@ class ApplyMethodsCollectorTest {
     @Test
     void throwsWhenEventParameterIsNotConcrete() {
       assertThatThrownBy(() ->
-          collector.collectApplyEventMethods(NotConcreteEventEntity.class, "car"))
+          ApplyMethodsCollector.collectApplyEventMethods(NotConcreteEventEntity.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
           .hasMessage("@ApplyEvent Event parameter's payload class must be a concrete class, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$NotConcreteEventEntity.apply");
     }
@@ -454,25 +398,9 @@ class ApplyMethodsCollectorTest {
     @Test
     void throwsWhenEventParameterIsGeneric() {
       assertThatThrownBy(() ->
-          collector.collectApplyEventMethods(GenericEventEntity.class, "car"))
+          ApplyMethodsCollector.collectApplyEventMethods(GenericEventEntity.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
           .hasMessage("@ApplyEvent Event parameter's payload class must be a concrete class, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$GenericEventEntity.apply");
-    }
-
-    @Test
-    void throwsWhenPayloadClassDiffersFromRegistration() {
-      assertThatThrownBy(() ->
-          collector.collectApplyEventMethods(WrongPayloadClassEntity.class, "car"))
-          .isInstanceOf(EventSourcedEntitySetupException.class)
-          .hasMessage("@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$WrongPayloadClassEntity.apply");
-    }
-
-    @Test
-    void throwsWhenEventTypeIsNotInPayloadMap() {
-      assertThatThrownBy(() ->
-          collector.collectApplyEventMethods(UnregisteredEventEntity.class, "car"))
-          .isInstanceOf(EventSourcedEntitySetupException.class)
-          .hasMessage("@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$UnregisteredEventEntity.apply");
     }
   }
 }
