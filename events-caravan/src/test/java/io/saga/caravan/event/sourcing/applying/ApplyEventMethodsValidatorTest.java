@@ -190,6 +190,6 @@ class ApplyEventMethodsValidatorTest {
   void failsFastOnStructurallyBrokenEntities() {
     assertThatThrownBy(() -> validate(StructurallyBrokenEntity.class))
         .isInstanceOf(EventSourcedEntitySetupException.class)
-        .hasMessage("@ApplyEvent method for eventName=turned-on is duplicated in io.saga.caravan.event.sourcing.applying.ApplyEventMethodsValidatorTest$StructurallyBrokenEntity");
+        .hasMessage("@ApplyEvent method for eventName=turned-on is duplicated in entity class io.saga.caravan.event.sourcing.applying.ApplyEventMethodsValidatorTest$StructurallyBrokenEntity");
   }
 }

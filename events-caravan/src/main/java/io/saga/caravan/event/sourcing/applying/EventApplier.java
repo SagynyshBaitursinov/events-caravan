@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Declares classes outside of the entity class that hold {@link ApplyEvent} methods
+ * Declares classes outside the entity class that hold {@link ApplyEvent} methods
  * for this entity, so apply logic can live outside the entity class.
  *
  * <p>Each declared class may hold static methods with
@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface ApplyEventSources {
+public @interface EventApplier {
 
   Class<?>[] value();
 }

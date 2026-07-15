@@ -12,7 +12,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,20 +32,46 @@ public final class ApplyMethodsCollector {
     return APPLY_METHODS_BY_EVENT_NAME.get(entityClass);
   }
 
-  private static Map<String, Method> collectApplyEventMethods(Class<? extends EventSourcedEntity> targetClass) {
-    Map<String, Method> result = collectFromClassHierarchy(targetClass);
+  private static Map<String, Method> collectApplyEventMethods(Class<? extends EventSourcedEntity> entityClass) {
+    Map<String, Method> result = collectFromEntityClassHierarchy(entityClass);
 
-    for (Class<?> sourceClass : applyEventSourcesOf(targetClass)) {
-      collectFromSourceClass(sourceClass, targetClass, result);
+    Map<String, Method> fromEventAppliers = collectFromEventAppliers(entityClass);
+
+    for (Map.Entry<String, Method> entry : fromEventAppliers.entrySet()) {
+      if (result.containsKey(entry.getKey())) {
+        throw new EventSourcedEntitySetupException(
+            "@ApplyEvent method for eventName=%s is duplicated between entity class %s and its @EventApplier classes"
+                .formatted(entry.getKey(), entityClass.getName()));
+      }
+      result.put(entry.getKey(), entry.getValue());
     }
 
     return Collections.unmodifiableMap(result);
   }
 
-  private static Map<String, Method> collectFromClassHierarchy(Class<? extends EventSourcedEntity> targetClass) {
+  private static Map<String, Method> collectFromEventAppliers(Class<? extends EventSourcedEntity> entityClass) {
     Map<String, Method> result = new HashMap<>();
 
-    Class<?> classInHierarchy = targetClass;
+    for (Class<?> sourceClass : eventAppliers(entityClass)) {
+      Map<String, Method> fromEventApplier = collectFromEventApplierClass(sourceClass, entityClass);
+
+      for (Map.Entry<String, Method> entry : fromEventApplier.entrySet()) {
+        if (result.containsKey(entry.getKey())) {
+          throw new EventSourcedEntitySetupException(
+              "@ApplyEvent method for eventName=%s is duplicated between @EventApplier classes of entity class %s"
+                  .formatted(entry.getKey(), entityClass.getName()));
+        }
+        result.put(entry.getKey(), entry.getValue());
+      }
+    }
+
+    return result;
+  }
+
+  private static Map<String, Method> collectFromEntityClassHierarchy(Class<? extends EventSourcedEntity> entityClass) {
+    Map<String, Method> result = new HashMap<>();
+
+    Class<?> classInHierarchy = entityClass;
     while (classInHierarchy != null) {
       Map<String, Method> methodsInClassHierarchy = new HashMap<>();
 
@@ -58,11 +84,11 @@ public final class ApplyMethodsCollector {
 
         var eventName = applyEventAnnotation.value();
 
-        validateEntityMethodSignature(method, classInHierarchy);
+        validateApplyMethodSignature(method, classInHierarchy);
 
         if (methodsInClassHierarchy.containsKey(eventName)) {
           throw new EventSourcedEntitySetupException(
-              "@ApplyEvent method for eventName=%s is duplicated in %s"
+              "@ApplyEvent method for eventName=%s is duplicated in entity class %s"
                   .formatted(eventName, classInHierarchy.getName()));
         }
         methodsInClassHierarchy.put(eventName, method);
@@ -76,54 +102,47 @@ public final class ApplyMethodsCollector {
     return result;
   }
 
-  private static Set<Class<?>> applyEventSourcesOf(Class<? extends EventSourcedEntity> targetClass) {
-    Set<Class<?>> sourceClasses = new LinkedHashSet<>();
+  private static Set<Class<?>> eventAppliers(Class<? extends EventSourcedEntity> entityClass) {
+    Set<Class<?>> eventApplierClasses = new HashSet<>();
 
-    Class<?> classInHierarchy = targetClass;
-    while (classInHierarchy != null) {
-      var applyEventSourcesAnnotation = classInHierarchy.getDeclaredAnnotation(ApplyEventSources.class);
+    var eventApplierAnnotation = entityClass.getDeclaredAnnotation(EventApplier.class);
 
-      if (applyEventSourcesAnnotation != null) {
-        sourceClasses.addAll(List.of(applyEventSourcesAnnotation.value()));
-      }
-      classInHierarchy = classInHierarchy.getSuperclass();
+    if (eventApplierAnnotation != null) {
+      eventApplierClasses.addAll(List.of(eventApplierAnnotation.value()));
     }
 
-    return sourceClasses;
+    return eventApplierClasses;
   }
 
-  private static void collectFromSourceClass(Class<?> sourceClass,
-                                             Class<? extends EventSourcedEntity> targetClass,
-                                             Map<String, Method> result) {
-    for (Method method : sourceClass.getDeclaredMethods()) {
+  private static Map<String, Method> collectFromEventApplierClass(Class<?> eventApplierClass,
+                                                                  Class<? extends EventSourcedEntity> entityClass) {
+    Map<String, Method> result = new HashMap<>();
+
+    for (Method method : eventApplierClass.getDeclaredMethods()) {
       var applyEventAnnotation = method.getAnnotation(ApplyEvent.class);
 
       if (applyEventAnnotation == null) {
         continue;
       }
 
-      validateSourceMethodSignature(method, sourceClass, targetClass);
-
       var eventName = applyEventAnnotation.value();
 
-      var alreadyCollectedMethod = result.get(eventName);
-      if (alreadyCollectedMethod != null) {
+      validateApplyMethodSignature(method, eventApplierClass, entityClass);
+
+      if (result.containsKey(eventName)) {
         throw new EventSourcedEntitySetupException(
-            "@ApplyEvent method for eventName=%s is declared both in %s.%s and %s.%s"
-                .formatted(
-                    eventName,
-                    alreadyCollectedMethod.getDeclaringClass().getName(),
-                    alreadyCollectedMethod.getName(),
-                    method.getDeclaringClass().getName(),
-                    method.getName()));
+            "@ApplyEvent method for eventName=%s is duplicated in @EventApplier class %s"
+                .formatted(eventName, eventApplierClass.getName()));
       }
       result.put(eventName, method);
       method.setAccessible(true);
     }
+
+    return result;
   }
 
-  private static void validateEntityMethodSignature(Method method,
-                                                    Class<?> classInHierarchy) {
+  private static void validateApplyMethodSignature(Method method,
+                                                   Class<?> classInHierarchy) {
     if (method.getParameters().length != 1
         || !(method.getGenericParameterTypes()[0] instanceof ParameterizedType parametrizedType)
         || !parametrizedType.getRawType().equals(Event.class)) {
@@ -135,31 +154,25 @@ public final class ApplyMethodsCollector {
     validateConcretePayload(parametrizedType, method, classInHierarchy);
   }
 
-  private static void validateSourceMethodSignature(Method method,
-                                                    Class<?> sourceClass,
-                                                    Class<? extends EventSourcedEntity> targetClass) {
+  private static void validateApplyMethodSignature(Method method,
+                                                   Class<?> eventApplierClass,
+                                                   Class<? extends EventSourcedEntity> entityClass) {
     if (!Modifier.isStatic(method.getModifiers())) {
       throw new EventSourcedEntitySetupException(
-          "@ApplyEvent method declared outside of an entity class must be static, which is not the case for %s.%s"
-              .formatted(sourceClass.getName(), method.getName()));
+          "@ApplyEvent method declared in  @EventApplier must be static, which is not the case for %s.%s"
+              .formatted(eventApplierClass.getName(), method.getName()));
     }
 
     if (method.getParameters().length != 2
-        || !EventSourcedEntity.class.isAssignableFrom(method.getParameterTypes()[0])
+        || method.getParameterTypes()[0] != entityClass
         || !(method.getGenericParameterTypes()[1] instanceof ParameterizedType parametrizedType)
         || !parametrizedType.getRawType().equals(Event.class)) {
       throw new EventSourcedEntitySetupException(
-          "@ApplyEvent method declared outside of an entity class must have (EntityClass, Event<PayloadClass>) parameters, which is not the case for %s.%s"
-              .formatted(sourceClass.getName(), method.getName()));
+          "@ApplyEvent method declared in @EventApplier must have (%s, Event<PayloadClass>) parameters, which is not the case for %s.%s"
+              .formatted(entityClass.getSimpleName(), eventApplierClass.getName(), method.getName()));
     }
 
-    if (!method.getParameterTypes()[0].isAssignableFrom(targetClass)) {
-      throw new EventSourcedEntitySetupException(
-          "@ApplyEvent method's first parameter must be assignable from %s declaring it in @ApplyEventSources, which is not the case for %s.%s"
-              .formatted(targetClass.getName(), sourceClass.getName(), method.getName()));
-    }
-
-    validateConcretePayload(parametrizedType, method, sourceClass);
+    validateConcretePayload(parametrizedType, method, eventApplierClass);
   }
 
   private static void validateConcretePayload(ParameterizedType eventParameterType,

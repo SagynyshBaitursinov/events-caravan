@@ -10,7 +10,7 @@ import java.lang.annotation.RetentionPolicy;
  * <ul>
  *   <li>Inside the entity class (or its superclass) — an instance method with a single
  *       {@code Event<PayloadClass>} parameter.</li>
- *   <li>Inside a class declared in the entity's {@link ApplyEventSources} — a static method
+ *   <li>Inside a class declared in the entity's {@link EventApplier} — a static method
  *       with {@code (EntityClass entity, Event<PayloadClass> event)} parameters, so apply
  *       logic can live outside the entity class.</li>
  * </ul>

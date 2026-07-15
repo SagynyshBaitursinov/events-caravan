@@ -352,7 +352,7 @@ class ApplyMethodsCollectorTest {
       assertThatThrownBy(() ->
           ApplyMethodsCollector.applyEventMethodsOf(DuplicateEventEntity.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
-          .hasMessage("@ApplyEvent method for eventName=turned-on is duplicated in io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$DuplicateEventEntity");
+          .hasMessage("@ApplyEvent method for eventName=turned-on is duplicated in entity class io.saga.caravan.event.sourcing.applying.ApplyMethodsCollectorTest$DuplicateEventEntity");
     }
 
     @Test
