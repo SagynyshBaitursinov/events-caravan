@@ -7,9 +7,8 @@ import org.springframework.context.annotation.Configuration;
 
 import java.lang.reflect.Modifier;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
-
-import static java.util.stream.Collectors.toMap;
 
 @Configuration
 public class EventPayloadClassMapConfiguration {
@@ -18,22 +17,29 @@ public class EventPayloadClassMapConfiguration {
   public Map<EventType, Class<?>> eventPayloadClassMap(
       Collection<EntityEventsRegistration> entityEventsRegistrations) {
 
-    return entityEventsRegistrations.stream()
-        .flatMap(entityEventsRegistration -> {
-          var entityName = entityEventsRegistration.entityName();
-          return entityEventsRegistration.eventToPayloadClass().entrySet().stream()
-              .map(entry -> {
-                var eventName = entry.getKey();
-                var eventPayloadClass = entry.getValue();
-                validate(eventPayloadClass);
-                return Map.entry(
-                    new EventType(entityName, eventName),
-                    eventPayloadClass);
-              });
-        })
-        .collect(toMap(
-            Map.Entry::getKey,
-            Map.Entry::getValue));
+    Map<EventType, Class<?>> result = new HashMap<>();
+
+    entityEventsRegistrations.forEach(entityEventsRegistration -> {
+      var entityName = entityEventsRegistration.entityName();
+      entityEventsRegistration.eventToPayloadClass()
+          .forEach((eventName, eventPayloadClass) -> {
+            validate(eventPayloadClass);
+            register(result, new EventType(entityName, eventName), eventPayloadClass);
+          });
+    });
+
+    return result;
+  }
+
+  private void register(Map<EventType, Class<?>> eventPayloadClassMap,
+                        EventType eventType,
+                        Class<?> eventPayloadClass) {
+    var alreadyRegisteredClass = eventPayloadClassMap.putIfAbsent(eventType, eventPayloadClass);
+    if (alreadyRegisteredClass != null) {
+      throw new EventPayloadRegistrationException(
+          "Event payload class must be registered exactly once, which is not the case for %s: registered both %s and %s"
+              .formatted(eventType, alreadyRegisteredClass, eventPayloadClass));
+    }
   }
 
   private void validate(Class<?> eventPayloadClass) {
