@@ -1,6 +1,6 @@
 package io.saga.caravan.event.consumer.messaging;
 
-import io.saga.caravan.event.payload.EventPayloadRegistration;
+import io.saga.caravan.event.EntityEventsRegistration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,7 +21,7 @@ public class EventMessageQueueMappingConfiguration {
 
   private static final String QUEUE_NAME_TEMPLATE = "%s_%s";
 
-  private final Collection<EventPayloadRegistration> eventPayloadRegistrations;
+  private final Collection<EntityEventsRegistration> entityEventsRegistrations;
 
   @Bean(name = "entityNameToQueueName")
   public Map<String, String> entityNameToQueueName(
@@ -31,8 +31,8 @@ public class EventMessageQueueMappingConfiguration {
 
     var subscribedEntityNames = subscribedEntityNames();
 
-    eventPayloadRegistrations.stream()
-        .map(EventPayloadRegistration::entityName)
+    entityEventsRegistrations.stream()
+        .map(EntityEventsRegistration::entityName)
         .filter(subscribedEntityNames::contains)
         .forEach(entityName ->
             result.computeIfAbsent(
@@ -45,9 +45,9 @@ public class EventMessageQueueMappingConfiguration {
   }
 
   private Set<String> subscribedEntityNames() {
-    return eventPayloadRegistrations.stream()
-        .filter(EventPayloadRegistration::isIncomingSubscriptionActive)
-        .map(EventPayloadRegistration::entityName)
+    return entityEventsRegistrations.stream()
+        .filter(EntityEventsRegistration::isSubscriptionActive)
+        .map(EntityEventsRegistration::entityName)
         .collect(toSet());
   }
 }

@@ -20,6 +20,7 @@ import java.util.concurrent.Executors;
 
 import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.deleteMessage;
 import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.getQueueUrl;
+import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.pollMessagesFromQueue;
 
 @Slf4j
 @Configuration
@@ -91,7 +92,7 @@ public class SqsMessagePollersConfiguration {
         .messageHandlingExecutor(messageHandlingTaskExecutor)
         .messagingProperties(messagingProperties)
         .queueName(queueName)
-        .pollMessages((pollingRequest) -> SqsUtils.pollMessagesFromQueue(sqsClient, sqsQueueUrl, pollingRequest))
+        .pollMessages((pollingRequest) -> pollMessagesFromQueue(sqsClient, sqsQueueUrl, pollingRequest))
         .consumeMessage(eventMessageConsumer::consume)
         .deleteMessage(message -> deleteMessage(sqsClient, sqsQueueUrl, message))
         .build();

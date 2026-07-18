@@ -1,5 +1,6 @@
 package io.saga.caravan.event.payload;
 
+import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.EventType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,9 +16,9 @@ public class EventPayloadClassMapConfiguration {
 
   @Bean(name = "eventPayloadClassMap")
   public Map<EventType, Class<?>> eventPayloadClassMap(
-      Collection<EventPayloadRegistration> eventPayloadRegistrations) {
+      Collection<EntityEventsRegistration> entityEventsRegistrations) {
 
-    return eventPayloadRegistrations.stream()
+    return entityEventsRegistrations.stream()
         .flatMap(entityEventsRegistration -> {
           var entityName = entityEventsRegistration.entityName();
           return entityEventsRegistration.eventToPayloadClass().entrySet().stream()

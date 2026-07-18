@@ -1,6 +1,6 @@
 package io.saga.caravan.event.sourcing.entity.calculator.snapshotting;
 
-import io.saga.caravan.event.payload.EventPayloadRegistration;
+import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.sourcing.entity.calculator.NumberCarryingPayload;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,8 +16,8 @@ public class SnapshottingCalculatorEventsConfiguration {
   public static final String NUMBER_SUBTRACTED = "number-subtracted";
 
   @Bean
-  public EventPayloadRegistration snapshottingCalculatorEventsRegistration() {
-    return new EventPayloadRegistration() {
+  public EntityEventsRegistration snapshottingCalculatorEventsRegistration() {
+    return new EntityEventsRegistration() {
 
       @Override
       public String entityName() {
@@ -32,7 +32,7 @@ public class SnapshottingCalculatorEventsConfiguration {
       }
 
       @Override
-      public boolean isIncomingSubscriptionActive() {
+      public boolean isSubscriptionActive() {
         return false;
       }
     };
