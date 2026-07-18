@@ -5,6 +5,7 @@ import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.consumer.EventConsumer;
 import io.saga.caravan.event.producer.DuplicateEventProductionException;
 import io.saga.caravan.event.producer.EventProducer;
+import io.saga.caravan.event.producer.EventProductionException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -127,11 +128,9 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
   }
 
   @Test
-  void shouldConsumeTestEventEvenIfItWasProducedAsAnotherClass() {
-    String testEventFieldValue = "interesting test-value";
-    String anotherTestFieldValue = "another-field-value";
+  void shouldNotProduceEventWhosePayloadClassDiffersFromRegistered() {
     var testEventPayload = new AnotherTestEventPayloadRepresentation(
-        testEventFieldValue, anotherTestFieldValue);
+        "interesting test-value", "another-field-value");
 
     var event = Event.builder()
         .entityReference(
@@ -143,19 +142,27 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
         .payload(testEventPayload)
         .build();
 
-    eventProducer.produce(event);
+    assertThatThrownBy(() -> eventProducer.produce(event))
+        .isExactlyInstanceOf(EventProductionException.class)
+        .hasMessageContaining(AnotherTestEventPayloadRepresentation.class.getName())
+        .hasMessageContaining(TestEventPayload.class.getName());
+  }
 
-    await()
-        .atMost(Duration.ofSeconds(15))
-        .pollInterval(Duration.ofMillis(50))
-        .untilAsserted(() -> {
-          assertThat(interestingTestFieldSavingEventHandler.getSavedFields())
-              .contains(testEventFieldValue);
-          assertThat(allTestFieldSavingEventHandler.getSavedFields())
-              .contains(testEventFieldValue);
-          assertThat(anotherTestFieldSavingEventHandler.getSavedFields())
-              .contains(anotherTestFieldValue);
-        });
+  @Test
+  void shouldNotProduceEventOfUnregisteredType() {
+    var event = Event.builder()
+        .entityReference(
+            new EntityReference(
+                TEST_ENTITY, UUID.randomUUID().toString()))
+        .eventName("unregistered-event")
+        .sequenceNumber(1)
+        .timestamp(ZonedDateTime.now())
+        .payload(new TestEventPayload("123", "456"))
+        .build();
+
+    assertThatThrownBy(() -> eventProducer.produce(event))
+        .isExactlyInstanceOf(EventProductionException.class)
+        .hasMessageContaining("unregistered-event");
   }
 
   @Test

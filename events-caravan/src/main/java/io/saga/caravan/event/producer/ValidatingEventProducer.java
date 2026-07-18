@@ -1,0 +1,47 @@
+package io.saga.caravan.event.producer;
+
+import io.saga.caravan.event.Event;
+import io.saga.caravan.event.EventType;
+import lombok.RequiredArgsConstructor;
+
+import java.util.Collection;
+import java.util.Map;
+
+@RequiredArgsConstructor
+public class ValidatingEventProducer implements EventProducer {
+
+  private final EventProducer delegate;
+  private final Map<EventType, Class<?>> eventPayloadClassMap;
+
+  @Override
+  public void produce(Event<?> event) {
+    validate(event);
+    delegate.produce(event);
+  }
+
+  @Override
+  public void produce(Collection<Event<?>> events) {
+    events.forEach(this::validate);
+    delegate.produce(events);
+  }
+
+  private void validate(Event<?> event) {
+    var registeredPayloadClass = eventPayloadClassMap.get(event.eventType());
+
+    if (registeredPayloadClass == null) {
+      throw new EventProductionException(
+          "Cannot produce %s, because its %s has no registered payload class"
+              .formatted(event.eventReference(), event.eventType()));
+    }
+
+    if (!registeredPayloadClass.equals(event.payload().getClass())) {
+      throw new EventProductionException(
+          "Cannot produce %s, because its payload class %s does not match %s registered for %s"
+              .formatted(
+                  event.eventReference(),
+                  event.payload().getClass(),
+                  registeredPayloadClass,
+                  event.eventType()));
+    }
+  }
+}
