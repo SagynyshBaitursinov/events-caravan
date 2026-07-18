@@ -60,6 +60,13 @@ public class ContinuousPollingMessageProcessor {
   }
 
   public synchronized void startContinuousPolling() {
+    if (isStopRequestedButNotAwaited()) {
+      throw new IllegalStateException(
+          ("Cannot start continuous polling of queueName=%s: stop was requested but not awaited, " +
+              "call awaitStopOfContinuousPolling before restarting")
+              .formatted(queueName));
+    }
+
     shouldKeepPolling = true;
 
     if (isContinuousPollingRunning()) {
@@ -68,6 +75,10 @@ public class ContinuousPollingMessageProcessor {
 
     log.info("Starting to continuously poll messages from queueName={}", queueName);
     continuousPolling = pollingExecutor.submit(this::pollUntilStopped);
+  }
+
+  private boolean isStopRequestedButNotAwaited() {
+    return !shouldKeepPolling && continuousPolling != null;
   }
 
   public boolean isContinuousPollingRunning() {

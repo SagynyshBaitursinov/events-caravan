@@ -13,6 +13,7 @@ import org.springframework.core.task.VirtualThreadTaskExecutor;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,11 +44,7 @@ public class SqsMessagePollersConfiguration {
 
   @Bean
   public SmartLifecycle sqsMessagePollersLifecycle(ExecutorService pollingThreadPool) {
-    var sqsMessagePollers = entityNameToQueueName.values().stream()
-        .distinct()
-        .map(queueName ->
-            createSqsQueueMessagePoller(queueName, getQueueUrl(sqsClient, queueName), pollingThreadPool))
-        .toList();
+    var sqsMessagePollers = createSqsMessagePollersForEveryQueue(pollingThreadPool);
 
     return new SmartLifecycle() {
 
@@ -73,6 +70,17 @@ public class SqsMessagePollersConfiguration {
             .anyMatch(ContinuousPollingMessageProcessor::isContinuousPollingRunning);
       }
     };
+  }
+
+  private List<ContinuousPollingMessageProcessor> createSqsMessagePollersForEveryQueue(ExecutorService pollingThreadPool) {
+    return entityNameToQueueName.values().stream()
+        .distinct()
+        .map(queueName ->
+            createSqsQueueMessagePoller(
+                queueName,
+                getQueueUrl(sqsClient, queueName),
+                pollingThreadPool))
+        .toList();
   }
 
   private ContinuousPollingMessageProcessor createSqsQueueMessagePoller(String queueName,
