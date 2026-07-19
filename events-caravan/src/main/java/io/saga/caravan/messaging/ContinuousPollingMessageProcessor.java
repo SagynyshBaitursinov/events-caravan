@@ -29,7 +29,7 @@ public class ContinuousPollingMessageProcessor {
 
   private final PollMessages pollMessages;
   private final ConsumeMessage consumeMessage;
-  private final DeleteMessage deleteMessage;
+  private final DeleteMessages deleteMessages;
 
   private final Semaphore freeProcessingCapacity;
   private final int maxPollersCount;
@@ -37,6 +37,7 @@ public class ContinuousPollingMessageProcessor {
   private volatile boolean shouldKeepPolling;
   private volatile PollingExecutor pollingExecutor;
   private volatile ExecutorService messageProcessingExecutorService;
+  private volatile MessageDeletionBatcher messageDeletionBatcher;
   @Nullable
   private volatile Future<?> primaryContinuousPoller;
 
@@ -45,21 +46,26 @@ public class ContinuousPollingMessageProcessor {
                                            String queueName,
                                            PollMessages pollMessages,
                                            ConsumeMessage consumeMessage,
-                                           DeleteMessage deleteMessage) {
+                                           DeleteMessages deleteMessages) {
     this.queueName = requireNonNull(queueName);
     this.messageProcessingExecutorService = createMessageProcessingExecutorService();
     this.messagingProperties = requireNonNull(messagingProperties);
     this.pollMessages = requireNonNull(pollMessages);
     this.consumeMessage = requireNonNull(consumeMessage);
-    this.deleteMessage = requireNonNull(deleteMessage);
+    this.deleteMessages = requireNonNull(deleteMessages);
 
     this.pollingExecutor = createNewPollingExecutor();
+    this.messageDeletionBatcher = createNewMessageDeletionBatcher();
     this.freeProcessingCapacity = new Semaphore(messagingProperties.concurrency());
     this.maxPollersCount = messagingProperties.maxPollersCount();
   }
 
   private PollingExecutor createNewPollingExecutor() {
     return new PollingExecutor(queueName);
+  }
+
+  private MessageDeletionBatcher createNewMessageDeletionBatcher() {
+    return new MessageDeletionBatcher(queueName, deleteMessages);
   }
 
   private ExecutorService createMessageProcessingExecutorService() {
@@ -86,6 +92,9 @@ public class ContinuousPollingMessageProcessor {
     }
     if (messageProcessingExecutorService.isShutdown()) {
       messageProcessingExecutorService = createMessageProcessingExecutorService();
+    }
+    if (messageDeletionBatcher.isShutdown()) {
+      messageDeletionBatcher = createNewMessageDeletionBatcher();
     }
 
     log.info("Starting to continuously poll messages from queueName={}", queueName);
@@ -206,7 +215,7 @@ public class ContinuousPollingMessageProcessor {
   private void consumeAndDeleteMessage(Message message) {
     try {
       consumeMessage.accept(message);
-      deleteMessage.accept(message);
+      messageDeletionBatcher.enqueueDeletion(message);
     } catch (Exception exception) {
       log.warn(
           "Exception happened when processing message with id={} from queueName={}",
@@ -233,6 +242,7 @@ public class ContinuousPollingMessageProcessor {
 
     awaitPollingThreadsToFinish(deadline);
     awaitInFlightMessageProcessors(deadline);
+    awaitPendingMessageDeletions(deadline);
 
     primaryContinuousPoller = null;
   }
@@ -250,6 +260,20 @@ public class ContinuousPollingMessageProcessor {
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
       pollingExecutor.shutdownNow();
+    }
+  }
+
+  private void awaitPendingMessageDeletions(Instant deadline) {
+    messageDeletionBatcher.shutdown();
+    try {
+      Duration remainingTimeout = Duration.between(Instant.now(), deadline);
+      if (!messageDeletionBatcher.awaitTermination(remainingTimeout.isPositive() ? remainingTimeout : Duration.ZERO)) {
+        log.warn("Pending message deletions for queueName={} did not finish before shutdown deadline", queueName);
+        messageDeletionBatcher.shutdownNow();
+      }
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+      messageDeletionBatcher.shutdownNow();
     }
   }
 

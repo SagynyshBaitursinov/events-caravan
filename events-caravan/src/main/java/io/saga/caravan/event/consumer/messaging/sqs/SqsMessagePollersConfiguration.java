@@ -14,7 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.deleteMessage;
+import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.deleteMessages;
 import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.getQueueUrl;
 import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.pollMessagesFromQueue;
 
@@ -84,7 +84,7 @@ public class SqsMessagePollersConfiguration {
         .queueName(queueName)
         .pollMessages((pollingRequest) -> pollMessagesFromQueue(sqsClient, sqsQueueUrl, pollingRequest))
         .consumeMessage(eventMessageConsumer)
-        .deleteMessage(message -> deleteMessage(sqsClient, sqsQueueUrl, message))
+        .deleteMessages(messages -> deleteMessages(sqsClient, sqsQueueUrl, messages))
         .build();
   }
 }
