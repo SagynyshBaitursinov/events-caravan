@@ -3,13 +3,13 @@ package io.saga.caravan.messaging;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
-import org.springframework.core.task.VirtualThreadTaskExecutor;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
@@ -24,7 +24,6 @@ public class ContinuousPollingMessageProcessor {
   private static final int SECONDS_TO_WAIT_BEFORE_CAPACITY_GETS_AVAILABLE = 1;
   private static final int SECONDS_TO_SLEEP_AFTER_FAILURE = 5;
 
-  private final Executor messageProcessingExecutor;
   private final MessagingProperties messagingProperties;
   private final String queueName;
 
@@ -37,6 +36,7 @@ public class ContinuousPollingMessageProcessor {
 
   private volatile boolean shouldKeepPolling;
   private volatile PollingExecutor pollingExecutor;
+  private volatile ExecutorService messageProcessingExecutorService;
   @Nullable
   private volatile Future<?> primaryContinuousPoller;
 
@@ -46,20 +46,25 @@ public class ContinuousPollingMessageProcessor {
                                            PollMessages pollMessages,
                                            ConsumeMessage consumeMessage,
                                            DeleteMessage deleteMessage) {
-    this.messageProcessingExecutor = createMessageProcessingExecutor(queueName);
-    this.messagingProperties = requireNonNull(messagingProperties);
     this.queueName = requireNonNull(queueName);
+    this.messageProcessingExecutorService = createMessageProcessingExecutorService();
+    this.messagingProperties = requireNonNull(messagingProperties);
     this.pollMessages = requireNonNull(pollMessages);
     this.consumeMessage = requireNonNull(consumeMessage);
     this.deleteMessage = requireNonNull(deleteMessage);
 
-    this.pollingExecutor = new PollingExecutor(queueName);
+    this.pollingExecutor = createNewPollingExecutor();
     this.freeProcessingCapacity = new Semaphore(messagingProperties.concurrency());
     this.maxPollersCount = messagingProperties.maxPollersCount();
   }
 
-  private static Executor createMessageProcessingExecutor(String queueName) {
-    return new VirtualThreadTaskExecutor("proc-" + queueName + "-");
+  private PollingExecutor createNewPollingExecutor() {
+    return new PollingExecutor(queueName);
+  }
+
+  private ExecutorService createMessageProcessingExecutorService() {
+    return Executors.newThreadPerTaskExecutor(
+        Thread.ofVirtual().name("proc-" + queueName + "-", 0).factory());
   }
 
   public synchronized void startContinuousPolling() {
@@ -76,10 +81,14 @@ public class ContinuousPollingMessageProcessor {
       return;
     }
 
-    log.info("Starting to continuously poll messages from queueName={}", queueName);
     if (pollingExecutor.isShutdown()) {
-      pollingExecutor = new PollingExecutor(queueName);
+      pollingExecutor = createNewPollingExecutor();
     }
+    if (messageProcessingExecutorService.isShutdown()) {
+      messageProcessingExecutorService = createMessageProcessingExecutorService();
+    }
+
+    log.info("Starting to continuously poll messages from queueName={}", queueName);
     primaryContinuousPoller = pollingExecutor
         .submit(
             maxPollersCount,
@@ -88,7 +97,7 @@ public class ContinuousPollingMessageProcessor {
   }
 
   private boolean isStopRequestedButNotAwaited() {
-    return !shouldKeepPolling && primaryContinuousPoller != null;
+    return !shouldKeepPolling && isContinuousPollingRunning();
   }
 
   public boolean isContinuousPollingRunning() {
@@ -111,7 +120,7 @@ public class ContinuousPollingMessageProcessor {
 
       Collection<Message> polledMessages = attemptMessagePolling(acquiredPermits);
 
-      if (polledMessages.size() == messagingProperties.maxPollSize()) {
+      if (polledMessages.size() == acquiredPermits) {
         spawnExtraPoller(pollingExecutor);
       } else if (!isPrimaryPoller && polledMessages.isEmpty()) {
         freeProcessingCapacity.release(acquiredPermits);
@@ -136,22 +145,18 @@ public class ContinuousPollingMessageProcessor {
     }
   }
 
-  private Collection<Message> attemptMessagePolling(int acquiredPermits) {
+  private Collection<Message> attemptMessagePolling(int numberOfMessages) {
     try {
-      return pollMessages(acquiredPermits);
+      return pollMessages.apply(
+          PollMessagesRequest.builder()
+              .numberOfMessages(numberOfMessages)
+              .waitForSeconds(messagingProperties.pollWaitSeconds())
+              .build());
     } catch (Exception exception) {
       log.warn("Exception occurred when polling from queueName={}", queueName, exception);
       backOffPostPollingFailure();
       return Collections.emptyList();
     }
-  }
-
-  private Collection<Message> pollMessages(int acquiredPermits) {
-    return pollMessages.apply(
-        PollMessagesRequest.builder()
-            .numberOfMessages(acquiredPermits)
-            .waitForSeconds(messagingProperties.pollWaitSeconds())
-            .build());
   }
 
   private int acquirePermitsForPolling() {
@@ -182,10 +187,10 @@ public class ContinuousPollingMessageProcessor {
 
   private void process(Message message) {
     try {
-      messageProcessingExecutor.execute(
+      messageProcessingExecutorService.execute(
           () -> consumeAndDeleteMessage(message));
     } catch (RejectedExecutionException exception) {
-      log.warn("Exception occurred when processing message with id={}", message.id(), exception);
+      log.warn("Message got rejected from processing with id={}", message.id(), exception);
       freeProcessingCapacity.release();
     }
   }
@@ -227,7 +232,7 @@ public class ContinuousPollingMessageProcessor {
     }
 
     awaitPollingThreadsToFinish(deadline);
-    awaitInFlightMessageHandlers(deadline);
+    awaitInFlightMessageProcessors(deadline);
 
     primaryContinuousPoller = null;
   }
@@ -248,17 +253,17 @@ public class ContinuousPollingMessageProcessor {
     }
   }
 
-  private void awaitInFlightMessageHandlers(Instant deadline) {
-    int concurrency = messagingProperties.concurrency();
-    long remainingMillis = Math.max(0, Duration.between(Instant.now(), deadline).toMillis());
+  private void awaitInFlightMessageProcessors(Instant deadline) {
+    messageProcessingExecutorService.shutdown();
     try {
-      if (freeProcessingCapacity.tryAcquire(concurrency, remainingMillis, MILLISECONDS)) {
-        freeProcessingCapacity.release(concurrency);
-      } else {
-        log.warn("In-flight messages processing for queueName={} did not finish before shutdown deadline", queueName);
+      long remainingMillis = Math.max(0, Duration.between(Instant.now(), deadline).toMillis());
+      if (!messageProcessingExecutorService.awaitTermination(remainingMillis, MILLISECONDS)) {
+        log.warn("In-flight messages processing for queueName={} did not finish before shutdown deadline, interrupting processors", queueName);
+        messageProcessingExecutorService.shutdownNow();
       }
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
+      messageProcessingExecutorService.shutdownNow();
     }
   }
 }

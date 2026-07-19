@@ -10,11 +10,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class PollingExecutor {
 
-  private final ExecutorService executor;
+  private final ExecutorService pollingExecutorService;
   private final AtomicInteger activePollersCount;
 
   public PollingExecutor(String queueName) {
-    this.executor = createExecutorService(queueName);
+    this.pollingExecutorService = createExecutorService(queueName);
     this.activePollersCount = new AtomicInteger();
   }
 
@@ -39,7 +39,7 @@ public class PollingExecutor {
 
     try {
       return Optional.of(
-          executor.submit(() -> {
+          pollingExecutorService.submit(() -> {
             try {
               runnable.run();
             } finally {
@@ -53,18 +53,18 @@ public class PollingExecutor {
   }
 
   public boolean isShutdown() {
-    return executor.isShutdown();
+    return pollingExecutorService.isShutdown();
   }
 
   public void shutdown() {
-    executor.shutdown();
+    pollingExecutorService.shutdown();
   }
 
   public void shutdownNow() {
-    executor.shutdownNow();
+    pollingExecutorService.shutdownNow();
   }
 
   public boolean awaitTermination(Duration timeout) throws InterruptedException {
-    return executor.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    return pollingExecutorService.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
   }
 }
