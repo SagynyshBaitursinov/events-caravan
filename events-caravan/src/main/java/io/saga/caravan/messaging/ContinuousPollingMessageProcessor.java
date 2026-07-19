@@ -3,6 +3,7 @@ package io.saga.caravan.messaging;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.core.task.VirtualThreadTaskExecutor;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -12,6 +13,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -25,7 +27,7 @@ public class ContinuousPollingMessageProcessor {
   private static final int SECONDS_TO_WAIT_BEFORE_CAPACITY_GETS_AVAILABLE = 1;
   private static final int SECONDS_TO_SLEEP_AFTER_FAILURE = 5;
 
-  private final Executor messageHandlingExecutor;
+  private final Executor messageProcessingExecutor;
   private final MessagingProperties messagingProperties;
   private final String queueName;
 
@@ -43,13 +45,12 @@ public class ContinuousPollingMessageProcessor {
   private final AtomicInteger activePollersCount = new AtomicInteger(1);
 
   @Builder
-  public ContinuousPollingMessageProcessor(Executor messageHandlingExecutor,
-                                           MessagingProperties messagingProperties,
+  public ContinuousPollingMessageProcessor(MessagingProperties messagingProperties,
                                            String queueName,
                                            PollMessages pollMessages,
                                            ConsumeMessage consumeMessage,
                                            DeleteMessage deleteMessage) {
-    this.messageHandlingExecutor = requireNonNull(messageHandlingExecutor);
+    this.messageProcessingExecutor = createMessageProcessingExecutor(queueName);
     this.messagingProperties = requireNonNull(messagingProperties);
     this.queueName = requireNonNull(queueName);
     this.pollMessages = requireNonNull(pollMessages);
@@ -61,10 +62,14 @@ public class ContinuousPollingMessageProcessor {
     this.maxPollersCount = messagingProperties.maxPollersCount();
   }
 
+  private static Executor createMessageProcessingExecutor(String queueName) {
+    return new VirtualThreadTaskExecutor("proc-" + queueName + "-");
+  }
+
   private ExecutorService createNewExecutorService(String queueName) {
     return Executors.newThreadPerTaskExecutor(
         Thread.ofPlatform()
-            .name("poller-" + queueName + "-", 0)
+            .name("poll-" + queueName + "-", 0)
             .daemon(false)
             .factory());
   }
@@ -141,13 +146,18 @@ public class ContinuousPollingMessageProcessor {
     if (currentActivePollersCount < maxPollersCount
         && activePollersCount.compareAndSet(currentActivePollersCount, currentActivePollersCount + 1)) {
 
-      pollingExecutor.submit(() -> {
-        try {
-          pollUntilStopped(false);
-        } finally {
-          activePollersCount.decrementAndGet();
-        }
-      });
+      try {
+        pollingExecutor.submit(() -> {
+          try {
+            pollUntilStopped(false);
+          } finally {
+            activePollersCount.decrementAndGet();
+          }
+        });
+      } catch (RejectedExecutionException exception) {
+        activePollersCount.decrementAndGet();
+        log.debug("Not spawning extra poller for queueName={}: polling executor is shut down", queueName);
+      }
     }
   }
 
@@ -197,7 +207,7 @@ public class ContinuousPollingMessageProcessor {
 
   private void process(Message message) {
     try {
-      messageHandlingExecutor.execute(
+      messageProcessingExecutor.execute(
           () -> consumeAndDeleteMessage(message));
     } catch (Exception exception) {
       log.warn("Exception occurred when processing message with id={}", message.id(), exception);
@@ -241,14 +251,14 @@ public class ContinuousPollingMessageProcessor {
       return;
     }
 
-    awaitPollingLoopExit(deadline);
+    awaitPollingThreadsToFinish(deadline);
     awaitInFlightMessageHandlers(deadline);
 
     primaryContinuousPoller = null;
     activePollersCount.set(0);
   }
 
-  private void awaitPollingLoopExit(Instant deadline) {
+  private void awaitPollingThreadsToFinish(Instant deadline) {
     pollingExecutor.shutdown();
     try {
       long remainingMillis = Math.max(0, Duration.between(Instant.now(), deadline).toMillis());

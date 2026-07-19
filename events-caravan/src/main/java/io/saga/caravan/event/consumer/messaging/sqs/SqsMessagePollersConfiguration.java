@@ -8,8 +8,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.task.AsyncTaskExecutor;
-import org.springframework.core.task.VirtualThreadTaskExecutor;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 import java.time.Instant;
@@ -28,7 +26,6 @@ public class SqsMessagePollersConfiguration {
   private final EventMessageConsumer eventMessageConsumer;
   private final Map<String, String> entityNameToQueueName;
   private final MessagingProperties messagingProperties;
-  private final AsyncTaskExecutor messageHandlingTaskExecutor;
 
   public SqsMessagePollersConfiguration(SqsClient sqsClient,
                                         EventMessageConsumer eventMessageConsumer,
@@ -38,7 +35,6 @@ public class SqsMessagePollersConfiguration {
     this.eventMessageConsumer = eventMessageConsumer;
     this.entityNameToQueueName = entityNameToQueueName;
     this.messagingProperties = messagingProperties;
-    this.messageHandlingTaskExecutor = new VirtualThreadTaskExecutor("sqs-process-");
   }
 
   @Bean
@@ -84,7 +80,6 @@ public class SqsMessagePollersConfiguration {
   private ContinuousPollingMessageProcessor createSqsQueueMessagePoller(String queueName,
                                                                         String sqsQueueUrl) {
     return ContinuousPollingMessageProcessor.builder()
-        .messageHandlingExecutor(messageHandlingTaskExecutor)
         .messagingProperties(messagingProperties)
         .queueName(queueName)
         .pollMessages((pollingRequest) -> pollMessagesFromQueue(sqsClient, sqsQueueUrl, pollingRequest))
