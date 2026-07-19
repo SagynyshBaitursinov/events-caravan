@@ -10,12 +10,9 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -39,10 +36,9 @@ public class ContinuousPollingMessageProcessor {
   private final int maxPollersCount;
 
   private volatile boolean shouldKeepPolling;
-  private volatile ExecutorService pollingExecutor;
+  private volatile PollingExecutor pollingExecutor;
   @Nullable
   private volatile Future<?> primaryContinuousPoller;
-  private final AtomicInteger activePollersCount = new AtomicInteger(1);
 
   @Builder
   public ContinuousPollingMessageProcessor(MessagingProperties messagingProperties,
@@ -57,21 +53,13 @@ public class ContinuousPollingMessageProcessor {
     this.consumeMessage = requireNonNull(consumeMessage);
     this.deleteMessage = requireNonNull(deleteMessage);
 
-    this.pollingExecutor = createNewExecutorService(queueName);
+    this.pollingExecutor = new PollingExecutor(queueName);
     this.freeProcessingCapacity = new Semaphore(messagingProperties.concurrency());
     this.maxPollersCount = messagingProperties.maxPollersCount();
   }
 
   private static Executor createMessageProcessingExecutor(String queueName) {
     return new VirtualThreadTaskExecutor("proc-" + queueName + "-");
-  }
-
-  private ExecutorService createNewExecutorService(String queueName) {
-    return Executors.newThreadPerTaskExecutor(
-        Thread.ofPlatform()
-            .name("poll-" + queueName + "-", 0)
-            .daemon(false)
-            .factory());
   }
 
   public synchronized void startContinuousPolling() {
@@ -90,11 +78,13 @@ public class ContinuousPollingMessageProcessor {
 
     log.info("Starting to continuously poll messages from queueName={}", queueName);
     if (pollingExecutor.isShutdown()) {
-      pollingExecutor = createNewExecutorService(queueName);
-      activePollersCount.set(1);
+      pollingExecutor = new PollingExecutor(queueName);
     }
-    primaryContinuousPoller = pollingExecutor.submit(
-        () -> pollUntilStopped(true));
+    primaryContinuousPoller = pollingExecutor
+        .submit(
+            maxPollersCount,
+            () -> pollUntilStopped(pollingExecutor, true))
+        .orElseThrow(() -> new IllegalStateException("Could not start a primary poller"));
   }
 
   private boolean isStopRequestedButNotAwaited() {
@@ -106,20 +96,14 @@ public class ContinuousPollingMessageProcessor {
     return polling != null && !polling.isDone();
   }
 
-  private void pollUntilStopped(boolean isPrimaryPoller) {
-    try {
-      doPollUntilStopped(isPrimaryPoller);
-    } catch (Exception exception) {
-      log.warn("Polling loop for queueName={} terminated with an error", queueName, exception);
-    }
-  }
-
-  private void doPollUntilStopped(boolean isPrimaryPoller) {
+  private void pollUntilStopped(PollingExecutor pollingExecutor,
+                                boolean isPrimaryPoller) {
     while (shouldKeepPolling && !Thread.currentThread().isInterrupted()) {
       var acquiredPermits = acquirePermitsForPolling();
       if (acquiredPermits == 0) {
         continue;
       }
+
       if (!shouldKeepPolling) {
         freeProcessingCapacity.release(acquiredPermits);
         return;
@@ -128,8 +112,9 @@ public class ContinuousPollingMessageProcessor {
       Collection<Message> polledMessages = attemptMessagePolling(acquiredPermits);
 
       if (polledMessages.size() == messagingProperties.maxPollSize()) {
-        spawnExtraPoller();
+        spawnExtraPoller(pollingExecutor);
       } else if (!isPrimaryPoller && polledMessages.isEmpty()) {
+        freeProcessingCapacity.release(acquiredPermits);
         return;
       }
 
@@ -141,23 +126,13 @@ public class ContinuousPollingMessageProcessor {
     }
   }
 
-  private void spawnExtraPoller() {
-    int currentActivePollersCount = activePollersCount.get();
-    if (currentActivePollersCount < maxPollersCount
-        && activePollersCount.compareAndSet(currentActivePollersCount, currentActivePollersCount + 1)) {
-
-      try {
-        pollingExecutor.submit(() -> {
-          try {
-            pollUntilStopped(false);
-          } finally {
-            activePollersCount.decrementAndGet();
-          }
-        });
-      } catch (RejectedExecutionException exception) {
-        activePollersCount.decrementAndGet();
-        log.debug("Not spawning extra poller for queueName={}: polling executor is shut down", queueName);
-      }
+  private void spawnExtraPoller(PollingExecutor pollingExecutor) {
+    try {
+      pollingExecutor.submit(
+          maxPollersCount,
+          () -> pollUntilStopped(pollingExecutor, false));
+    } catch (RejectedExecutionException exception) {
+      log.debug("Not spawning extra poller for queueName={}: polling executor is shut down", queueName);
     }
   }
 
@@ -209,7 +184,7 @@ public class ContinuousPollingMessageProcessor {
     try {
       messageProcessingExecutor.execute(
           () -> consumeAndDeleteMessage(message));
-    } catch (Exception exception) {
+    } catch (RejectedExecutionException exception) {
       log.warn("Exception occurred when processing message with id={}", message.id(), exception);
       freeProcessingCapacity.release();
     }
@@ -255,14 +230,13 @@ public class ContinuousPollingMessageProcessor {
     awaitInFlightMessageHandlers(deadline);
 
     primaryContinuousPoller = null;
-    activePollersCount.set(0);
   }
 
   private void awaitPollingThreadsToFinish(Instant deadline) {
     pollingExecutor.shutdown();
     try {
-      long remainingMillis = Math.max(0, Duration.between(Instant.now(), deadline).toMillis());
-      if (pollingExecutor.awaitTermination(remainingMillis, MILLISECONDS)) {
+      Duration remainingTimeout = Duration.between(Instant.now(), deadline);
+      if (pollingExecutor.awaitTermination(remainingTimeout.isPositive() ? remainingTimeout : Duration.ZERO)) {
         log.info("Gracefully stopped continuous polling of messages from queueName={}", queueName);
       } else {
         log.warn("Polling loop for queueName={} did not finish before shutdown deadline", queueName);
