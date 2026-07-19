@@ -14,7 +14,6 @@ public class SqsPollingConfiguration {
         .maxPollSize(10)
         .minPollSize(3)
         .pollWaitSeconds(5)
-        .postPollingFailureWaitSeconds(5)
         .gracefulShutdownSeconds(0)
         .build();
   }

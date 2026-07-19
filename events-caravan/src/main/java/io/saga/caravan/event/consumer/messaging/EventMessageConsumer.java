@@ -4,18 +4,20 @@ import io.saga.caravan.event.Event;
 import io.saga.caravan.event.consumer.EventConsumer;
 import io.saga.caravan.event.serialization.EventDeserializationException;
 import io.saga.caravan.event.serialization.EventDeserializer;
+import io.saga.caravan.messaging.ConsumeMessage;
 import io.saga.caravan.messaging.Message;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class EventMessageConsumer {
+public class EventMessageConsumer implements ConsumeMessage {
 
   private final EventDeserializer eventDeserializer;
   private final EventConsumer eventConsumer;
 
-  public void consume(Message eventMessage) {
+  @Override
+  public void accept(Message eventMessage) {
     Event<?> event = deserialize(eventMessage);
 
     try {

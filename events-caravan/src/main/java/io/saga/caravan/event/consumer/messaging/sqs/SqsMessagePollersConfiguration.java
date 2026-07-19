@@ -15,8 +15,6 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.deleteMessage;
 import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.getQueueUrl;
@@ -44,8 +42,8 @@ public class SqsMessagePollersConfiguration {
   }
 
   @Bean
-  public SmartLifecycle sqsMessagePollersLifecycle(ExecutorService pollingThreadPool) {
-    var sqsMessagePollers = createSqsMessagePollersForEveryQueue(pollingThreadPool);
+  public SmartLifecycle sqsMessagePollersLifecycle() {
+    var sqsMessagePollers = createSqsMessagePollersForEveryQueue();
 
     return new SmartLifecycle() {
 
@@ -73,37 +71,25 @@ public class SqsMessagePollersConfiguration {
     };
   }
 
-  private List<ContinuousPollingMessageProcessor> createSqsMessagePollersForEveryQueue(ExecutorService pollingThreadPool) {
+  private List<ContinuousPollingMessageProcessor> createSqsMessagePollersForEveryQueue() {
     return entityNameToQueueName.values().stream()
         .distinct()
         .map(queueName ->
             createSqsQueueMessagePoller(
                 queueName,
-                getQueueUrl(sqsClient, queueName),
-                pollingThreadPool))
+                getQueueUrl(sqsClient, queueName)))
         .toList();
   }
 
   private ContinuousPollingMessageProcessor createSqsQueueMessagePoller(String queueName,
-                                                                        String sqsQueueUrl,
-                                                                        ExecutorService pollingThreadPool) {
+                                                                        String sqsQueueUrl) {
     return ContinuousPollingMessageProcessor.builder()
-        .pollingExecutor(pollingThreadPool)
         .messageHandlingExecutor(messageHandlingTaskExecutor)
         .messagingProperties(messagingProperties)
         .queueName(queueName)
         .pollMessages((pollingRequest) -> pollMessagesFromQueue(sqsClient, sqsQueueUrl, pollingRequest))
-        .consumeMessage(eventMessageConsumer::consume)
+        .consumeMessage(eventMessageConsumer)
         .deleteMessage(message -> deleteMessage(sqsClient, sqsQueueUrl, message))
         .build();
-  }
-
-  @Bean(destroyMethod = "shutdownNow")
-  public ExecutorService pollingThreadPool() {
-    return Executors.newThreadPerTaskExecutor(
-        Thread.ofPlatform()
-            .name("sqs-poll-", 1)
-            .daemon(false)
-            .factory());
   }
 }
