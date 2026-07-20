@@ -2,15 +2,20 @@ package io.saga.caravan.messaging;
 
 import lombok.Builder;
 
+import static java.util.Objects.requireNonNull;
+
 @Builder
 public record MessagingProperties(int concurrency,
                                   int maxPollSize,
                                   int minPollSize,
                                   int pollersCountCap,
                                   int pollWaitSeconds,
-                                  int gracefulShutdownSeconds) {
+                                  int gracefulShutdownSeconds,
+                                  MessageBatchDeletionProperties messageBatchDeletionProperties) {
 
   public MessagingProperties {
+    requireNonNull(messageBatchDeletionProperties, "messageBatchDeletionProperties must not be null");
+
     if (concurrency <= 0) {
       throw new IllegalArgumentException("concurrency must be greater than 0");
     }

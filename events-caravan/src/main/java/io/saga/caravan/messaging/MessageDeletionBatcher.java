@@ -18,22 +18,22 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 @Slf4j
 class MessageDeletionBatcher {
 
-  private static final int MAX_DELETE_BATCH_SIZE = 10;
-  private static final int WAIT_TIME_FOR_BATCH_TO_FILL_SECONDS = 1;
-
   private final String queueName;
   private final MessagesDeleter messagesDeleter;
   private final BlockingQueue<Message> pendingDeletions;
+  private final MessageBatchDeletionProperties messageBatchDeletionProperties;
   private final ExecutorService deletionExecutorService;
 
   private volatile boolean shutdownRequested;
 
   MessageDeletionBatcher(String queueName,
                          MessagesDeleter messagesDeleter,
-                         int queueCapacity) {
+                         int queueCapacity,
+                         MessageBatchDeletionProperties messageBatchDeletionProperties) {
     this.queueName = queueName;
     this.messagesDeleter = messagesDeleter;
     this.pendingDeletions = new LinkedBlockingQueue<>(queueCapacity);
+    this.messageBatchDeletionProperties = messageBatchDeletionProperties;
     this.deletionExecutorService = createNewDeletionExecutorService();
     this.deletionExecutorService.execute(this::deleteContinuously);
   }
@@ -61,17 +61,20 @@ class MessageDeletionBatcher {
   }
 
   private List<Message> awaitNextBatch() {
-    List<Message> batch = new ArrayList<>(MAX_DELETE_BATCH_SIZE);
+    int maxDeleteBatchSize = messageBatchDeletionProperties.maxDeleteBatchSize();
+    List<Message> batch = new ArrayList<>(maxDeleteBatchSize);
     try {
-      Instant deadline = Instant.now().plusSeconds(WAIT_TIME_FOR_BATCH_TO_FILL_SECONDS);
+      Instant deadline = Instant.now().plusSeconds(
+          messageBatchDeletionProperties.deletionPeriodSeconds());
       do {
         Instant now = Instant.now();
-        Message nextMessage = pollPendingDeletion(deadline.isAfter(now) ? Duration.between(now, deadline) : Duration.ZERO);
+        Message nextMessage = pollPendingDeletion(
+            deadline.isAfter(now) ? Duration.between(now, deadline) : Duration.ZERO);
         if (nextMessage == null) {
           return batch;
         }
         batch.add(nextMessage);
-      } while (batch.size() < MAX_DELETE_BATCH_SIZE);
+      } while (batch.size() < maxDeleteBatchSize);
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
     }

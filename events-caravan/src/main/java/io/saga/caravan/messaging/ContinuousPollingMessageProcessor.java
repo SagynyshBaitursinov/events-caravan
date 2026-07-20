@@ -65,7 +65,11 @@ public class ContinuousPollingMessageProcessor {
   }
 
   private MessageDeletionBatcher createNewMessageDeletionBatcher() {
-    return new MessageDeletionBatcher(queueName, messagesDeleter, messagingProperties.concurrency());
+    return new MessageDeletionBatcher(
+        queueName,
+        messagesDeleter,
+        messagingProperties.concurrency(),
+        messagingProperties.messageBatchDeletionProperties());
   }
 
   private ExecutorService createMessageProcessingExecutorService() {

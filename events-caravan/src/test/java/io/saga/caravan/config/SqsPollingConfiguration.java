@@ -1,5 +1,6 @@
 package io.saga.caravan.config;
 
+import io.saga.caravan.messaging.MessageBatchDeletionProperties;
 import io.saga.caravan.messaging.MessagingProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +16,11 @@ public class SqsPollingConfiguration {
         .minPollSize(3)
         .pollWaitSeconds(5)
         .gracefulShutdownSeconds(0)
+        .messageBatchDeletionProperties(
+            MessageBatchDeletionProperties.builder()
+                .maxDeleteBatchSize(10)
+                .deletionPeriodSeconds(1)
+                .build())
         .build();
   }
 }
