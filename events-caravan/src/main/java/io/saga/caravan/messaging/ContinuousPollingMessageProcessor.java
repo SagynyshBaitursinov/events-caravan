@@ -27,9 +27,9 @@ public class ContinuousPollingMessageProcessor {
   private final MessagingProperties messagingProperties;
   private final String queueName;
 
-  private final PollMessages pollMessages;
-  private final ConsumeMessage consumeMessage;
-  private final DeleteMessages deleteMessages;
+  private final MessagesPoller messagesPoller;
+  private final MessageConsumer messageConsumer;
+  private final MessagesDeleter messagesDeleter;
 
   private final Semaphore freeProcessingCapacity;
   private final int maxPollersCount;
@@ -44,15 +44,15 @@ public class ContinuousPollingMessageProcessor {
   @Builder
   public ContinuousPollingMessageProcessor(MessagingProperties messagingProperties,
                                            String queueName,
-                                           PollMessages pollMessages,
-                                           ConsumeMessage consumeMessage,
-                                           DeleteMessages deleteMessages) {
+                                           MessagesPoller messagesPoller,
+                                           MessageConsumer messageConsumer,
+                                           MessagesDeleter messagesDeleter) {
     this.queueName = requireNonNull(queueName);
     this.messageProcessingExecutorService = createMessageProcessingExecutorService();
     this.messagingProperties = requireNonNull(messagingProperties);
-    this.pollMessages = requireNonNull(pollMessages);
-    this.consumeMessage = requireNonNull(consumeMessage);
-    this.deleteMessages = requireNonNull(deleteMessages);
+    this.messagesPoller = requireNonNull(messagesPoller);
+    this.messageConsumer = requireNonNull(messageConsumer);
+    this.messagesDeleter = requireNonNull(messagesDeleter);
 
     this.pollingExecutor = createNewPollingExecutor();
     this.messageDeletionBatcher = createNewMessageDeletionBatcher();
@@ -65,7 +65,7 @@ public class ContinuousPollingMessageProcessor {
   }
 
   private MessageDeletionBatcher createNewMessageDeletionBatcher() {
-    return new MessageDeletionBatcher(queueName, deleteMessages);
+    return new MessageDeletionBatcher(queueName, messagesDeleter, messagingProperties.concurrency());
   }
 
   private ExecutorService createMessageProcessingExecutorService() {
@@ -87,6 +87,17 @@ public class ContinuousPollingMessageProcessor {
       return;
     }
 
+    restartComponentsIfShutdown();
+
+    log.info("Starting to continuously poll messages from queueName={}", queueName);
+    primaryContinuousPoller = pollingExecutor
+        .submit(
+            maxPollersCount,
+            () -> pollUntilStopped(pollingExecutor, true))
+        .orElseThrow(() -> new IllegalStateException("Could not start a primary poller"));
+  }
+
+  private void restartComponentsIfShutdown() {
     if (pollingExecutor.isShutdown()) {
       pollingExecutor = createNewPollingExecutor();
     }
@@ -96,13 +107,6 @@ public class ContinuousPollingMessageProcessor {
     if (messageDeletionBatcher.isShutdown()) {
       messageDeletionBatcher = createNewMessageDeletionBatcher();
     }
-
-    log.info("Starting to continuously poll messages from queueName={}", queueName);
-    primaryContinuousPoller = pollingExecutor
-        .submit(
-            maxPollersCount,
-            () -> pollUntilStopped(pollingExecutor, true))
-        .orElseThrow(() -> new IllegalStateException("Could not start a primary poller"));
   }
 
   private boolean isStopRequestedButNotAwaited() {
@@ -156,7 +160,7 @@ public class ContinuousPollingMessageProcessor {
 
   private Collection<Message> attemptMessagePolling(int numberOfMessages) {
     try {
-      return pollMessages.apply(
+      return messagesPoller.apply(
           PollMessagesRequest.builder()
               .numberOfMessages(numberOfMessages)
               .waitForSeconds(messagingProperties.pollWaitSeconds())
@@ -214,7 +218,7 @@ public class ContinuousPollingMessageProcessor {
 
   private void consumeAndDeleteMessage(Message message) {
     try {
-      consumeMessage.accept(message);
+      messageConsumer.accept(message);
       messageDeletionBatcher.enqueueDeletion(message);
     } catch (Exception exception) {
       log.warn(

@@ -1,6 +1,6 @@
 package io.saga.caravan.event.consumer.messaging.sqs;
 
-import io.saga.caravan.event.consumer.messaging.EventMessageConsumer;
+import io.saga.caravan.event.consumer.messaging.EventMessageConsumerConsumer;
 import io.saga.caravan.messaging.ContinuousPollingMessageProcessor;
 import io.saga.caravan.messaging.MessagingProperties;
 import lombok.extern.slf4j.Slf4j;
@@ -23,12 +23,12 @@ import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.pollMessages
 public class SqsMessagePollersConfiguration {
 
   private final SqsClient sqsClient;
-  private final EventMessageConsumer eventMessageConsumer;
+  private final EventMessageConsumerConsumer eventMessageConsumer;
   private final Map<String, String> entityNameToQueueName;
   private final MessagingProperties messagingProperties;
 
   public SqsMessagePollersConfiguration(SqsClient sqsClient,
-                                        EventMessageConsumer eventMessageConsumer,
+                                        EventMessageConsumerConsumer eventMessageConsumer,
                                         @Qualifier("entityNameToQueueName") Map<String, String> entityNameToQueueName,
                                         MessagingProperties messagingProperties) {
     this.sqsClient = sqsClient;
@@ -82,9 +82,9 @@ public class SqsMessagePollersConfiguration {
     return ContinuousPollingMessageProcessor.builder()
         .messagingProperties(messagingProperties)
         .queueName(queueName)
-        .pollMessages((pollingRequest) -> pollMessagesFromQueue(sqsClient, sqsQueueUrl, pollingRequest))
-        .consumeMessage(eventMessageConsumer)
-        .deleteMessages(messages -> deleteMessages(sqsClient, sqsQueueUrl, messages))
+        .messagesPoller((pollingRequest) -> pollMessagesFromQueue(sqsClient, sqsQueueUrl, pollingRequest))
+        .messageConsumer(eventMessageConsumer)
+        .messagesDeleter(messages -> deleteMessages(sqsClient, sqsQueueUrl, messages))
         .build();
   }
 }

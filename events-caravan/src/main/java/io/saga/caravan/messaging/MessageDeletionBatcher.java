@@ -22,27 +22,33 @@ class MessageDeletionBatcher {
   private static final int WAIT_TIME_FOR_BATCH_TO_FILL_SECONDS = 1;
 
   private final String queueName;
-  private final DeleteMessages deleteMessages;
+  private final MessagesDeleter messagesDeleter;
   private final BlockingQueue<Message> pendingDeletions;
   private final ExecutorService deletionExecutorService;
 
   private volatile boolean shutdownRequested;
 
-  MessageDeletionBatcher(String queueName, DeleteMessages deleteMessages) {
+  MessageDeletionBatcher(String queueName,
+                         MessagesDeleter messagesDeleter,
+                         int queueCapacity) {
     this.queueName = queueName;
-    this.deleteMessages = deleteMessages;
-    this.pendingDeletions = new LinkedBlockingQueue<>();
-    this.deletionExecutorService = createNewDeletionExecutorService(queueName);
+    this.messagesDeleter = messagesDeleter;
+    this.pendingDeletions = new LinkedBlockingQueue<>(queueCapacity);
+    this.deletionExecutorService = createNewDeletionExecutorService();
     this.deletionExecutorService.execute(this::deleteContinuously);
   }
 
-  private static ExecutorService createNewDeletionExecutorService(String queueName) {
+  private ExecutorService createNewDeletionExecutorService() {
     return Executors.newSingleThreadExecutor(
-        Thread.ofVirtual().name("delete-" + queueName).factory());
+        Thread.ofVirtual().name("del-" + queueName + "-").factory());
   }
 
   void enqueueDeletion(Message message) {
-    pendingDeletions.add(message);
+    try {
+      pendingDeletions.put(message);
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   private void deleteContinuously() {
@@ -80,7 +86,7 @@ class MessageDeletionBatcher {
 
   private void attemptBatchDeletion(List<Message> batch) {
     try {
-      deleteMessages.accept(batch);
+      messagesDeleter.accept(batch);
     } catch (Exception exception) {
       log.warn(
           "Exception happened when deleting batch of {} messages from queueName={}",
