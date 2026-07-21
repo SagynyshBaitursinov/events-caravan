@@ -11,13 +11,13 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class EventMessageConsumerConsumer implements MessageConsumer {
+public class EventMessageConsumer implements MessageConsumer {
 
   private final EventDeserializer eventDeserializer;
   private final EventConsumer eventConsumer;
 
   @Override
-  public void accept(Message eventMessage) {
+  public void consume(Message eventMessage) {
     Event<?> event = deserialize(eventMessage);
 
     try {

@@ -35,12 +35,12 @@ public final class SqsUtils {
 
     int waitForSecondsLeft = pollMessagesRequest.waitForSeconds();
     int numberOfMessagesYetToPollInTotal = pollMessagesRequest.numberOfMessages();
-    boolean fetchingSubsequentPages = false;
+    boolean isFetchingSubsequentPages = false;
 
     while (waitForSecondsLeft > 0 && numberOfMessagesYetToPollInTotal > 0) {
       var maxNumberOfMessagesInIteration = Math.min(numberOfMessagesYetToPollInTotal, MAX_MESSAGES_PER_POLL);
 
-      var waitTimeSecondsInIteration = fetchingSubsequentPages
+      var waitTimeSecondsInIteration = isFetchingSubsequentPages
           ? 0
           : Math.min(waitForSecondsLeft, MAX_WAIT_TIME_SECONDS);
 
@@ -54,17 +54,17 @@ public final class SqsUtils {
       numberOfMessagesYetToPollInTotal -= iterationPollResult.size();
 
       if (iterationPollResult.isEmpty()) {
-        if (fetchingSubsequentPages) {
+        if (isFetchingSubsequentPages) {
           return result;
         }
 
         waitForSecondsLeft -= waitTimeSecondsInIteration;
       } else {
-        boolean receivedPartialPage = iterationPollResult.size() < maxNumberOfMessagesInIteration;
-        if (receivedPartialPage) {
+        boolean hasReceivedPartialPage = iterationPollResult.size() < maxNumberOfMessagesInIteration;
+        if (hasReceivedPartialPage) {
           return result;
         } else {
-          fetchingSubsequentPages = true;
+          isFetchingSubsequentPages = true;
         }
       }
     }

@@ -34,10 +34,10 @@ public class ContinuousPollingMessageProcessor {
   private final Semaphore freeProcessingCapacity;
   private final int maxPollersCount;
 
-  private volatile boolean shouldKeepPolling;
   private volatile PollingExecutor pollingExecutor;
   private volatile ExecutorService messageProcessingExecutorService;
   private volatile MessageDeletionBatcher messageDeletionBatcher;
+  private volatile boolean shouldKeepPolling;
   @Nullable
   private volatile Future<?> primaryContinuousPoller;
 
@@ -47,17 +47,19 @@ public class ContinuousPollingMessageProcessor {
                                            MessagesPoller messagesPoller,
                                            MessageConsumer messageConsumer,
                                            MessagesDeleter messagesDeleter) {
-    this.queueName = requireNonNull(queueName);
-    this.messageProcessingExecutorService = createMessageProcessingExecutorService();
     this.messagingProperties = requireNonNull(messagingProperties);
+    this.queueName = requireNonNull(queueName);
+
     this.messagesPoller = requireNonNull(messagesPoller);
     this.messageConsumer = requireNonNull(messageConsumer);
     this.messagesDeleter = requireNonNull(messagesDeleter);
 
-    this.pollingExecutor = createNewPollingExecutor();
-    this.messageDeletionBatcher = createNewMessageDeletionBatcher();
     this.freeProcessingCapacity = new Semaphore(messagingProperties.concurrency());
     this.maxPollersCount = messagingProperties.maxPollersCount();
+
+    this.pollingExecutor = createNewPollingExecutor();
+    this.messageProcessingExecutorService = createMessageProcessingExecutorService();
+    this.messageDeletionBatcher = createNewMessageDeletionBatcher();
   }
 
   private PollingExecutor createNewPollingExecutor() {
@@ -164,7 +166,7 @@ public class ContinuousPollingMessageProcessor {
 
   private Collection<Message> attemptMessagePolling(int numberOfMessages) {
     try {
-      return messagesPoller.apply(
+      return messagesPoller.poll(
           PollMessagesRequest.builder()
               .numberOfMessages(numberOfMessages)
               .waitForSeconds(messagingProperties.pollWaitSeconds())
@@ -181,16 +183,12 @@ public class ContinuousPollingMessageProcessor {
         freeProcessingCapacity.availablePermits(),
         messagingProperties.maxPollSize());
 
-    if (permitsTargetToAcquire >= messagingProperties.minPollSize()
-        && freeProcessingCapacity.tryAcquire(permitsTargetToAcquire)) {
+    if (canAcquirePermitsImmediately(permitsTargetToAcquire)) {
       return permitsTargetToAcquire;
     } else {
       try {
-        boolean acquired = freeProcessingCapacity.tryAcquire(
-            messagingProperties.minPollSize(),
-            SECONDS_TO_WAIT_BEFORE_CAPACITY_GETS_AVAILABLE,
-            SECONDS);
-        if (acquired) {
+        boolean isMinimumPollSizeAcquired = waitForPermitsAvailable(messagingProperties.minPollSize());
+        if (isMinimumPollSizeAcquired) {
           return messagingProperties.minPollSize();
         } else {
           return 0;
@@ -200,6 +198,18 @@ public class ContinuousPollingMessageProcessor {
         return 0;
       }
     }
+  }
+
+  private boolean waitForPermitsAvailable(int permits) throws InterruptedException {
+    return freeProcessingCapacity.tryAcquire(
+        permits,
+        SECONDS_TO_WAIT_BEFORE_CAPACITY_GETS_AVAILABLE,
+        SECONDS);
+  }
+
+  private boolean canAcquirePermitsImmediately(int permitsTargetToAcquire) {
+    return permitsTargetToAcquire >= messagingProperties.minPollSize()
+        && freeProcessingCapacity.tryAcquire(permitsTargetToAcquire);
   }
 
   private void process(Message message) {
@@ -222,7 +232,7 @@ public class ContinuousPollingMessageProcessor {
 
   private void consumeAndDeleteMessage(Message message) {
     try {
-      messageConsumer.accept(message);
+      messageConsumer.consume(message);
       messageDeletionBatcher.enqueueDeletion(message);
     } catch (Exception exception) {
       log.warn(
@@ -259,7 +269,8 @@ public class ContinuousPollingMessageProcessor {
     pollingExecutor.shutdown();
     try {
       Duration remainingTimeout = Duration.between(Instant.now(), deadline);
-      if (pollingExecutor.awaitTermination(remainingTimeout.isPositive() ? remainingTimeout : Duration.ZERO)) {
+      if (pollingExecutor.awaitTermination(
+          remainingTimeout.isPositive() ? remainingTimeout : Duration.ZERO)) {
         log.info("Gracefully stopped continuous polling of messages from queueName={}", queueName);
       } else {
         log.warn("Polling loop for queueName={} did not finish before shutdown deadline", queueName);

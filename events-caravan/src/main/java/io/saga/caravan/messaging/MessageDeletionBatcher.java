@@ -89,7 +89,7 @@ class MessageDeletionBatcher {
 
   private void attemptBatchDeletion(List<Message> batch) {
     try {
-      messagesDeleter.accept(batch);
+      messagesDeleter.delete(batch);
     } catch (Exception exception) {
       log.warn(
           "Exception happened when deleting batch of {} messages from queueName={}",

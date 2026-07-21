@@ -1,6 +1,6 @@
 package io.saga.caravan.event.consumer.messaging.sqs;
 
-import io.saga.caravan.event.consumer.messaging.EventMessageConsumerConsumer;
+import io.saga.caravan.event.consumer.messaging.EventMessageConsumer;
 import io.saga.caravan.messaging.ContinuousPollingMessageProcessor;
 import io.saga.caravan.messaging.MessagingProperties;
 import lombok.extern.slf4j.Slf4j;
@@ -23,12 +23,12 @@ import static io.saga.caravan.event.consumer.messaging.sqs.SqsUtils.pollMessages
 public class SqsMessagePollersConfiguration {
 
   private final SqsClient sqsClient;
-  private final EventMessageConsumerConsumer eventMessageConsumer;
+  private final EventMessageConsumer eventMessageConsumer;
   private final Map<String, String> entityNameToQueueName;
   private final MessagingProperties messagingProperties;
 
   public SqsMessagePollersConfiguration(SqsClient sqsClient,
-                                        EventMessageConsumerConsumer eventMessageConsumer,
+                                        EventMessageConsumer eventMessageConsumer,
                                         @Qualifier("entityNameToQueueName") Map<String, String> entityNameToQueueName,
                                         MessagingProperties messagingProperties) {
     this.sqsClient = sqsClient;
