@@ -20,6 +20,7 @@ public class SqsPollingConfiguration {
             MessageBatchDeletionProperties.builder()
                 .maxDeleteBatchSize(10)
                 .deletionPeriodSeconds(1)
+                .deletionParallelism(2)
                 .build())
         .build();
   }

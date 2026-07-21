@@ -7,6 +7,8 @@ import org.mockito.ArgumentCaptor;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,10 +27,13 @@ class MessageDeletionBatcherTest {
     return new Message(id, "body-" + id, Map.of());
   }
 
-  private static MessageBatchDeletionProperties propertiesOf(int maxDeleteBatchSize, int deletionPeriodSeconds) {
+  private static MessageBatchDeletionProperties propertiesOf(int maxDeleteBatchSize,
+                                                             int deletionPeriodSeconds,
+                                                             int deletionParallelism) {
     return MessageBatchDeletionProperties.builder()
         .maxDeleteBatchSize(maxDeleteBatchSize)
         .deletionPeriodSeconds(deletionPeriodSeconds)
+        .deletionParallelism(deletionParallelism)
         .build();
   }
 
@@ -40,7 +45,7 @@ class MessageDeletionBatcherTest {
       MessagesDeleter messagesDeleter = mock(MessagesDeleter.class);
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
-          propertiesOf(3, 30));
+          propertiesOf(3, 30, 1));
 
       Message first = message("1");
       Message second = message("2");
@@ -62,7 +67,7 @@ class MessageDeletionBatcherTest {
       MessagesDeleter messagesDeleter = mock(MessagesDeleter.class);
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
-          propertiesOf(10, 1));
+          propertiesOf(10, 1, 1));
 
       Message message = message("1");
       batcher.enqueueDeletion(message);
@@ -80,7 +85,7 @@ class MessageDeletionBatcherTest {
       MessagesDeleter messagesDeleter = mock(MessagesDeleter.class);
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
-          propertiesOf(2, 1));
+          propertiesOf(2, 1, 1));
 
       List<Message> messages = IntStream.rangeClosed(1, 5)
           .mapToObj(i -> message(String.valueOf(i)))
@@ -117,7 +122,7 @@ class MessageDeletionBatcherTest {
 
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
-          propertiesOf(1, 1));
+          propertiesOf(1, 1, 1));
 
       Message failing = message("1");
       Message succeeding = message("2");
@@ -137,13 +142,75 @@ class MessageDeletionBatcherTest {
   }
 
   @Nested
+  class Parallelism {
+
+    @Test
+    void deletesMultipleBatchesConcurrentlyWhenParallelismIsGreaterThanOne() throws InterruptedException {
+      CountDownLatch bothBatchesStarted = new CountDownLatch(2);
+      CountDownLatch deleteThreadBlocker = new CountDownLatch(1);
+      MessagesDeleter messagesDeleter = (_) -> {
+        bothBatchesStarted.countDown();
+        try {
+          deleteThreadBlocker.await();
+        } catch (InterruptedException exception) {
+          Thread.currentThread().interrupt();
+        }
+      };
+
+      var batcher = new MessageDeletionBatcher(
+          "queue", messagesDeleter, 10,
+          propertiesOf(1, 30, 2));
+
+      batcher.enqueueDeletion(message("1"));
+      batcher.enqueueDeletion(message("2"));
+
+      try {
+        assertThat(bothBatchesStarted.await(2, TimeUnit.SECONDS))
+            .as("both single-message batches should be deleted concurrently instead of queued behind each other")
+            .isTrue();
+      } finally {
+        deleteThreadBlocker.countDown();
+        batcher.shutdownNow();
+      }
+    }
+
+    @Test
+    void keepsBatchesFullSizedEvenWithMultipleDeletionWorkers() {
+      MessagesDeleter messagesDeleter = mock(MessagesDeleter.class);
+      var batcher = new MessageDeletionBatcher(
+          "queue", messagesDeleter, 30,
+          propertiesOf(10, 5, 4));
+
+      List<Message> messages = IntStream.rangeClosed(1, 20)
+          .mapToObj(i -> message(String.valueOf(i)))
+          .toList();
+      messages.forEach(batcher::enqueueDeletion);
+
+      try {
+        await().atMost(Duration.ofSeconds(3))
+            .untilAsserted(() -> verify(messagesDeleter, times(2)).delete(anyList()));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Message>> batchCaptor = ArgumentCaptor.forClass(List.class);
+        verify(messagesDeleter, times(2)).delete(batchCaptor.capture());
+
+        assertThat(batchCaptor.getAllValues())
+            .as("competing deletion workers must not fragment batches below the configured max size")
+            .allSatisfy(batch -> assertThat(batch).hasSize(10));
+      } finally {
+        batcher.shutdownNow();
+      }
+    }
+  }
+
+  @Nested
   class Shutdown {
 
     @Test
     void isShutdownReflectsTheExecutorState() {
       var batcher = new MessageDeletionBatcher(
           "queue", mock(MessagesDeleter.class), 10,
-          propertiesOf(10, 30));
+          propertiesOf(10, 30, 1));
 
       assertThat(batcher.isShutdown()).isFalse();
       batcher.shutdown();
@@ -155,7 +222,7 @@ class MessageDeletionBatcherTest {
       MessagesDeleter messagesDeleter = mock(MessagesDeleter.class);
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
-          propertiesOf(10, 30));
+          propertiesOf(10, 30, 1));
 
       Message message = message("1");
       batcher.enqueueDeletion(message);
@@ -171,7 +238,7 @@ class MessageDeletionBatcherTest {
       MessagesDeleter messagesDeleter = mock(MessagesDeleter.class);
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
-          propertiesOf(10, 30));
+          propertiesOf(10, 30, 1));
 
       batcher.shutdownNow();
 

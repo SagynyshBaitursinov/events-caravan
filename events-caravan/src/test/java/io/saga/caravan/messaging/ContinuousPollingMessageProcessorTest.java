@@ -41,6 +41,7 @@ class ContinuousPollingMessageProcessorTest {
             MessageBatchDeletionProperties.builder()
                 .maxDeleteBatchSize(1)
                 .deletionPeriodSeconds(1)
+                .deletionParallelism(2)
                 .build())
         .build();
   }
@@ -201,10 +202,10 @@ class ContinuousPollingMessageProcessorTest {
 
     @Test
     void throwsWhenStartingAfterStopWasRequestedButNotYetAwaited() {
-      CountDownLatch releasePoller = new CountDownLatch(1);
+      CountDownLatch pollThreadBlocker = new CountDownLatch(1);
       MessagesPoller messagesPoller = mock(MessagesPoller.class);
       when(messagesPoller.poll(any())).thenAnswer(_ -> {
-        releasePoller.await();
+        pollThreadBlocker.await();
         return List.of();
       });
 
@@ -219,6 +220,8 @@ class ContinuousPollingMessageProcessorTest {
       assertThatThrownBy(processor::startContinuousPolling)
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("stop was requested but not awaited");
+
+      pollThreadBlocker.countDown();
     }
   }
 }

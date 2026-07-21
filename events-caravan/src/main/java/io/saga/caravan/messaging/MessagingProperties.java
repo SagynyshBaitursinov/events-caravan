@@ -16,8 +16,8 @@ public record MessagingProperties(int concurrency,
   public MessagingProperties {
     requireNonNull(messageBatchDeletionProperties, "messageBatchDeletionProperties must not be null");
 
-    if (concurrency <= 0) {
-      throw new IllegalArgumentException("concurrency must be greater than 0");
+    if (concurrency < 1) {
+      throw new IllegalArgumentException("concurrency must be greater or equal to 1");
     }
 
     if (maxPollSize < 1) {
@@ -40,8 +40,8 @@ public record MessagingProperties(int concurrency,
       throw new IllegalArgumentException("minPollSize cannot be greater than concurrency");
     }
 
-    if (pollWaitSeconds <= 0) {
-      throw new IllegalArgumentException("pollWaitSeconds must be greater than 0");
+    if (pollWaitSeconds < 1) {
+      throw new IllegalArgumentException("pollWaitSeconds must be greater or equal to 1");
     }
 
     if (gracefulShutdownSeconds < 0) {

@@ -11,7 +11,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -22,6 +23,8 @@ class MessageDeletionBatcher {
   private final MessagesDeleter messagesDeleter;
   private final BlockingQueue<Message> pendingDeletions;
   private final MessageBatchDeletionProperties messageBatchDeletionProperties;
+  private final Semaphore inParallelDeletions;
+  private final ExecutorService pollingExecutorService;
   private final ExecutorService deletionExecutorService;
 
   private volatile boolean shutdownRequested;
@@ -34,13 +37,21 @@ class MessageDeletionBatcher {
     this.messagesDeleter = messagesDeleter;
     this.pendingDeletions = new LinkedBlockingQueue<>(queueCapacity);
     this.messageBatchDeletionProperties = messageBatchDeletionProperties;
+    this.inParallelDeletions = new Semaphore(messageBatchDeletionProperties.deletionParallelism());
     this.deletionExecutorService = createNewDeletionExecutorService();
-    this.deletionExecutorService.execute(this::deleteContinuously);
+    this.pollingExecutorService = createNewPollingExecutorService();
+
+    this.pollingExecutorService.execute(this::pollContinuously);
   }
 
   private ExecutorService createNewDeletionExecutorService() {
+    return Executors.newThreadPerTaskExecutor(
+        Thread.ofVirtual().name("del-exec-" + queueName + "-", 0).factory());
+  }
+
+  private ExecutorService createNewPollingExecutorService() {
     return Executors.newSingleThreadExecutor(
-        Thread.ofVirtual().name("del-" + queueName + "-").factory());
+        Thread.ofVirtual().name("del-poll-" + queueName).factory());
   }
 
   void enqueueDeletion(Message message) {
@@ -51,12 +62,38 @@ class MessageDeletionBatcher {
     }
   }
 
-  private void deleteContinuously() {
+  private void pollContinuously() {
     while ((!shutdownRequested || !pendingDeletions.isEmpty()) && !Thread.currentThread().isInterrupted()) {
       List<Message> batch = awaitNextBatch();
       if (!batch.isEmpty()) {
-        attemptBatchDeletion(batch);
+        submitBatchForDeletion(batch);
       }
+    }
+    deletionExecutorService.shutdown();
+  }
+
+  private void submitBatchForDeletion(List<Message> batch) {
+    try {
+      inParallelDeletions.acquire();
+    } catch (InterruptedException exception) {
+      Thread.currentThread().interrupt();
+      return;
+    }
+
+    try {
+      deletionExecutorService.execute(() -> {
+        try {
+          messagesDeleter.delete(batch);
+        } catch (Exception exception) {
+          log.warn(
+              "Exception happened when deleting batch of {} messages from queueName={}",
+              batch.size(), queueName, exception);
+        } finally {
+          inParallelDeletions.release();
+        }
+      });
+    } catch (RejectedExecutionException exception) {
+      inParallelDeletions.release();
     }
   }
 
@@ -87,31 +124,31 @@ class MessageDeletionBatcher {
         : pendingDeletions.poll(waitDuration.toMillis(), MILLISECONDS);
   }
 
-  private void attemptBatchDeletion(List<Message> batch) {
-    try {
-      messagesDeleter.delete(batch);
-    } catch (Exception exception) {
-      log.warn(
-          "Exception happened when deleting batch of {} messages from queueName={}",
-          batch.size(), queueName, exception);
-    }
-  }
-
   boolean isShutdown() {
-    return deletionExecutorService.isShutdown();
+    return pollingExecutorService.isShutdown();
   }
 
   void shutdown() {
     shutdownRequested = true;
-    deletionExecutorService.shutdown();
+    pollingExecutorService.shutdown();
   }
 
   void shutdownNow() {
     shutdownRequested = true;
+    pollingExecutorService.shutdownNow();
     deletionExecutorService.shutdownNow();
   }
 
   boolean awaitTermination(Duration timeout) throws InterruptedException {
-    return deletionExecutorService.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    Instant deadline = Instant.now().plus(timeout);
+    boolean pollingTerminated = pollingExecutorService.awaitTermination(
+        remainingMillis(deadline), MILLISECONDS);
+    boolean deletionTerminated = deletionExecutorService.awaitTermination(
+        remainingMillis(deadline), MILLISECONDS);
+    return pollingTerminated && deletionTerminated;
+  }
+
+  private static long remainingMillis(Instant deadline) {
+    return Math.max(0, Duration.between(Instant.now(), deadline).toMillis());
   }
 }
