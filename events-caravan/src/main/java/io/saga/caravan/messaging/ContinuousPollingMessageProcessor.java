@@ -21,7 +21,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 @Slf4j
 public class ContinuousPollingMessageProcessor {
 
-  private static final int SECONDS_TO_WAIT_BEFORE_CAPACITY_GETS_AVAILABLE = 1;
+  private static final int SECONDS_TO_WAIT_BEFORE_THROUGHPUT_GETS_AVAILABLE = 1;
   private static final int SECONDS_TO_SLEEP_AFTER_FAILURE = 5;
 
   private final MessagingProperties messagingProperties;
@@ -31,7 +31,7 @@ public class ContinuousPollingMessageProcessor {
   private final MessageConsumer messageConsumer;
   private final MessagesDeleter messagesDeleter;
 
-  private final Semaphore freeProcessingCapacity;
+  private final ProcessingThroughputController throughputController;
   private final int maxPollersCount;
 
   private volatile PollingExecutor pollingExecutor;
@@ -54,12 +54,20 @@ public class ContinuousPollingMessageProcessor {
     this.messageConsumer = requireNonNull(messageConsumer);
     this.messagesDeleter = requireNonNull(messagesDeleter);
 
-    this.freeProcessingCapacity = new Semaphore(messagingProperties.concurrency());
+    this.throughputController = createThroughputController(messagingProperties);
     this.maxPollersCount = messagingProperties.maxPollersCount();
 
     this.pollingExecutor = createNewPollingExecutor();
     this.messageProcessingExecutorService = createMessageProcessingExecutorService();
     this.messageDeletionBatcher = createNewMessageDeletionBatcher();
+  }
+
+  private ProcessingThroughputController createThroughputController(MessagingProperties messagingProperties) {
+    return new ProcessingThroughputController(
+        new Semaphore(messagingProperties.concurrency()),
+        messagingProperties.minPollSize(),
+        messagingProperties.maxPollSize(),
+        Duration.ofSeconds(SECONDS_TO_WAIT_BEFORE_THROUGHPUT_GETS_AVAILABLE));
   }
 
   private PollingExecutor createNewPollingExecutor() {
@@ -127,27 +135,27 @@ public class ContinuousPollingMessageProcessor {
   private void pollUntilStopped(PollingExecutor pollingExecutor,
                                 boolean isPrimaryPoller) {
     while (shouldKeepPolling && !Thread.currentThread().isInterrupted()) {
-      var acquiredPermits = acquirePermitsForPolling();
-      if (acquiredPermits == 0) {
+      var acquireThroughput = throughputController.acquireThroughput();
+      if (acquireThroughput == 0) {
         continue;
       }
 
       if (!shouldKeepPolling) {
-        freeProcessingCapacity.release(acquiredPermits);
+        throughputController.release(acquireThroughput);
         return;
       }
 
-      Collection<Message> polledMessages = attemptMessagePolling(acquiredPermits);
+      Collection<Message> polledMessages = attemptMessagePolling(acquireThroughput);
 
-      if (polledMessages.size() == acquiredPermits) {
+      if (polledMessages.size() == acquireThroughput) {
         spawnExtraPoller(pollingExecutor);
       } else if (!isPrimaryPoller && polledMessages.isEmpty()) {
-        freeProcessingCapacity.release(acquiredPermits);
+        throughputController.release(acquireThroughput);
         return;
       }
 
-      if (polledMessages.size() < acquiredPermits) {
-        freeProcessingCapacity.release(acquiredPermits - polledMessages.size());
+      if (polledMessages.size() < acquireThroughput) {
+        throughputController.release(acquireThroughput - polledMessages.size());
       }
 
       polledMessages.forEach(this::process);
@@ -178,47 +186,13 @@ public class ContinuousPollingMessageProcessor {
     }
   }
 
-  private int acquirePermitsForPolling() {
-    int permitsTargetToAcquire = Math.min(
-        freeProcessingCapacity.availablePermits(),
-        messagingProperties.maxPollSize());
-
-    if (canAcquirePermitsImmediately(permitsTargetToAcquire)) {
-      return permitsTargetToAcquire;
-    } else {
-      try {
-        boolean isMinimumPollSizeAcquired = waitForPermitsAvailable(messagingProperties.minPollSize());
-        if (isMinimumPollSizeAcquired) {
-          return messagingProperties.minPollSize();
-        } else {
-          return 0;
-        }
-      } catch (InterruptedException interruptedException) {
-        Thread.currentThread().interrupt();
-        return 0;
-      }
-    }
-  }
-
-  private boolean waitForPermitsAvailable(int permits) throws InterruptedException {
-    return freeProcessingCapacity.tryAcquire(
-        permits,
-        SECONDS_TO_WAIT_BEFORE_CAPACITY_GETS_AVAILABLE,
-        SECONDS);
-  }
-
-  private boolean canAcquirePermitsImmediately(int permitsTargetToAcquire) {
-    return permitsTargetToAcquire >= messagingProperties.minPollSize()
-        && freeProcessingCapacity.tryAcquire(permitsTargetToAcquire);
-  }
-
   private void process(Message message) {
     try {
       messageProcessingExecutorService.execute(
           () -> consumeAndDeleteMessage(message));
     } catch (RejectedExecutionException exception) {
       log.warn("Message got rejected from processing with id={}", message.id(), exception);
-      freeProcessingCapacity.release();
+      throughputController.release(1);
     }
   }
 
@@ -239,7 +213,7 @@ public class ContinuousPollingMessageProcessor {
           "Exception happened when processing message with id={} from queueName={}",
           message.id(), queueName, exception);
     } finally {
-      freeProcessingCapacity.release();
+      throughputController.release(1);
     }
   }
 
