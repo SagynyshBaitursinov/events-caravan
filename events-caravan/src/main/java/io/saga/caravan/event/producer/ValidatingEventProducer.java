@@ -4,7 +4,7 @@ import io.saga.caravan.event.Event;
 import io.saga.caravan.event.EventType;
 import lombok.RequiredArgsConstructor;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 @RequiredArgsConstructor
@@ -20,7 +20,7 @@ public class ValidatingEventProducer implements EventProducer {
   }
 
   @Override
-  public void produce(Collection<Event<?>> events) {
+  public void produce(List<Event<?>> events) {
     events.forEach(this::validate);
     delegate.produce(events);
   }

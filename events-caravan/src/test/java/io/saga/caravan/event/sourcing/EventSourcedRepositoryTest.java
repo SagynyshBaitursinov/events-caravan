@@ -79,14 +79,19 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   }
 
   @Test
-  void cannotSaveMoreThanOneEventAtOnce() {
-    Calculator entity = new Calculator(UUID.randomUUID().toString());
+  void canSaveMoreThanOneEventAtOnce() {
+    String entityId = UUID.randomUUID().toString();
+    Calculator entity = new Calculator(entityId);
     entity.addNumber(1L);
-    entity.subtractNumber(1L);
+    entity.subtractNumber(2L);
+    entity.addNumber(5L);
 
-    assertThatThrownBy(() -> repository.save(entity))
-        .isExactlyInstanceOf(EventSourcedRepositoryException.class)
-        .hasCauseExactlyInstanceOf(EventProductionException.class);
+    assertThatNoException().isThrownBy(() -> repository.save(entity));
+
+    assertThat(repository.findBy(entityId))
+        .hasValueSatisfying(loadedEntity ->
+            assertThat(loadedEntity.getCurrentNumber())
+                .isEqualTo(4L));
   }
 
   @Test
@@ -173,6 +178,63 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
     assertThatThrownBy(() -> repository.save(entityReferenceTwo))
         .isExactlyInstanceOf(EventSourcedRepositoryException.class)
         .hasCauseExactlyInstanceOf(DuplicateEventProductionException.class);
+  }
+
+  @Test
+  void shouldNotPermitDuplicateEventWithinTransaction() {
+    String sameId = UUID.randomUUID().toString();
+
+    Calculator entity = new Calculator(sameId);
+    entity.addNumber(10L);
+    repository.save(entity);
+
+    Calculator entityReferenceOne = repository.findBy(sameId).orElseThrow();
+    Calculator entityReferenceTwo = repository.findBy(sameId).orElseThrow();
+
+    entityReferenceOne.subtractNumber(1L);
+    entityReferenceOne.subtractNumber(2L);
+    repository.save(entityReferenceOne);
+
+    entityReferenceTwo.subtractNumber(5L);
+    entityReferenceTwo.subtractNumber(6L);
+    assertThatThrownBy(() -> repository.save(entityReferenceTwo))
+        .isExactlyInstanceOf(EventSourcedRepositoryException.class)
+        .hasCauseExactlyInstanceOf(DuplicateEventProductionException.class);
+
+    assertThat(repository.findBy(sameId))
+        .hasValueSatisfying(loadedEntity ->
+            assertThat(loadedEntity.getCurrentNumber())
+                .isEqualTo(7L));
+  }
+
+  @Test
+  void canSaveMoreUpTo100EventsAtOnce() {
+    String entityId = UUID.randomUUID().toString();
+    Calculator entity = new Calculator(entityId);
+    for (int i = 0; i < 100; i++) {
+      entity.addNumber(1L);
+    }
+
+    assertThatNoException().isThrownBy(() -> repository.save(entity));
+
+    assertThat(repository.findBy(entityId))
+        .hasValueSatisfying(loadedEntity ->
+            assertThat(loadedEntity.getCurrentNumber()).isEqualTo(100L));
+  }
+
+  @Test
+  void cannotSaveMoreThan100EventsAtOnce() {
+    String entityId = UUID.randomUUID().toString();
+    Calculator entity = new Calculator(entityId);
+    for (int i = 0; i < 101; i++) {
+      entity.addNumber(1L);
+    }
+
+    assertThatThrownBy(() -> repository.save(entity))
+        .isExactlyInstanceOf(EventSourcedRepositoryException.class)
+        .hasCauseExactlyInstanceOf(EventProductionException.class);
+
+    assertThat(repository.findBy(entityId)).isEmpty();
   }
 
   @Test

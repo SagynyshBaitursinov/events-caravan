@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -35,7 +34,7 @@ class ValidatingEventProducerTest {
     }
 
     @Override
-    public void produce(Collection<Event<?>> events) {
+    public void produce(List<Event<?>> events) {
       producedEvents.addAll(events);
     }
   }

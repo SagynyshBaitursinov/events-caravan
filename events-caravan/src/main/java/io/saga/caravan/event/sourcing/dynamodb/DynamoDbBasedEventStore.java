@@ -16,14 +16,22 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.CancellationReason;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
+import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 
 import java.time.ZonedDateTime;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -36,6 +44,14 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
   private static final String EVENT_NAME_KEY = "eventName";
   private static final String TIMESTAMP_KEY = "timestamp";
   private static final String PAYLOAD_KEY = "payload";
+  private static final String NOT_YET_EXISTS_CONDITION_EXPRESSION =
+      "attribute_not_exists(#pk) AND attribute_not_exists(#sk)";
+  private static final Map<String, String> NOT_YET_EXISTS_EXPRESSION_ATTRIBUTE_NAMES =
+      Map.of(
+          "#pk", ENTITY_REFERENCE_KEY,
+          "#sk", SEQUENCE_NUMBER_KEY);
+  private static final String CONDITIONAL_CHECK_FAILED_CODE = "ConditionalCheckFailed";
+  private static final int MAX_TRANSACTION_WRITE_ITEMS = 100;
 
   private final DynamoDbClient dynamoDbClient;
   private final String eventsTableName;
@@ -62,33 +78,97 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
           PutItemRequest.builder()
               .tableName(eventsTableName)
               .item(mapEventToAttributes(event))
-              .conditionExpression(
-                  "attribute_not_exists(#pk) AND attribute_not_exists(#sk)")
-              .expressionAttributeNames(
-                  Map.of(
-                      "#pk", ENTITY_REFERENCE_KEY,
-                      "#sk", SEQUENCE_NUMBER_KEY))
+              .conditionExpression(NOT_YET_EXISTS_CONDITION_EXPRESSION)
+              .expressionAttributeNames(NOT_YET_EXISTS_EXPRESSION_ATTRIBUTE_NAMES)
               .build());
     } catch (ConditionalCheckFailedException exception) {
-      throw new DuplicateEventProductionException(
-          "Event on %s with sequenceNumber=%s already exists"
-              .formatted(
-                  event.entityReference(),
-                  event.sequenceNumber()));
+      throw duplicateEventProductionException(event);
     }
   }
 
   @Override
-  public void produce(Collection<Event<?>> events) {
+  public void produce(List<Event<?>> events) {
     if (events.isEmpty()) {
       return;
     }
 
-    if (events.size() > 1) {
-      throw new EventProductionException("Cannot produce more than one event at once");
+    if (events.size() == 1) {
+      produce(events.getFirst());
+      return;
     }
 
-    produce(events.iterator().next());
+    if (events.size() > MAX_TRANSACTION_WRITE_ITEMS) {
+      throw new EventProductionException(
+          "Cannot produce %d events at once: DynamoDB transactions allow at most %d items"
+              .formatted(events.size(), MAX_TRANSACTION_WRITE_ITEMS));
+    }
+
+    try {
+      dynamoDbClient.transactWriteItems(
+          TransactWriteItemsRequest.builder()
+              .transactItems(
+                  events.stream()
+                      .map(this::toTransactWriteItem)
+                      .toList())
+              .build());
+    } catch (TransactionCanceledException exception) {
+      throw eventProductionException(events, exception);
+    } catch (DynamoDbException exception) {
+      throw new EventProductionException(
+          "Failed to produce %d events in a transaction: %s"
+              .formatted(events.size(), exception.getMessage()));
+    }
+  }
+
+  private TransactWriteItem toTransactWriteItem(Event<?> event) {
+    return TransactWriteItem.builder()
+        .put(
+            Put.builder()
+                .tableName(eventsTableName)
+                .item(mapEventToAttributes(event))
+                .conditionExpression(NOT_YET_EXISTS_CONDITION_EXPRESSION)
+                .expressionAttributeNames(NOT_YET_EXISTS_EXPRESSION_ATTRIBUTE_NAMES)
+                .build())
+        .build();
+  }
+
+  private EventProductionException eventProductionException(List<Event<?>> events,
+                                                            TransactionCanceledException exception) {
+    var duplicateEvents = duplicateEvents(events, exception.cancellationReasons());
+    if (duplicateEvents.size() == 1) {
+      return duplicateEventProductionException(duplicateEvents.getFirst());
+    }
+    if (!duplicateEvents.isEmpty()) {
+      return new DuplicateEventProductionException(
+          "Events already exist: %s".formatted(
+              duplicateEvents.stream()
+                  .map(this::eventReferenceDescription)
+                  .collect(Collectors.joining(", "))));
+    }
+    return new EventProductionException(
+        "Failed to produce %d events in a transaction: %s"
+            .formatted(events.size(), exception.getMessage()));
+  }
+
+  private List<Event<?>> duplicateEvents(List<Event<?>> events,
+                                         List<CancellationReason> cancellationReasons) {
+    var duplicateEvents = new ArrayList<Event<?>>();
+    for (int i = 0; i < cancellationReasons.size(); i++) {
+      if (CONDITIONAL_CHECK_FAILED_CODE.equals(cancellationReasons.get(i).code())) {
+        duplicateEvents.add(events.get(i));
+      }
+    }
+    return duplicateEvents;
+  }
+
+  private DuplicateEventProductionException duplicateEventProductionException(Event<?> event) {
+    return new DuplicateEventProductionException(
+        "Event on %s already exists"
+            .formatted(eventReferenceDescription(event)));
+  }
+
+  private String eventReferenceDescription(Event<?> event) {
+    return "%s with sequenceNumber=%s".formatted(event.entityReference(), event.sequenceNumber());
   }
 
   private Map<String, AttributeValue> mapEventToAttributes(Event<?> event) {

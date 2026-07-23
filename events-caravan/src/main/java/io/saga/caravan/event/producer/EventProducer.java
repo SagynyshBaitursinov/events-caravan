@@ -2,11 +2,11 @@ package io.saga.caravan.event.producer;
 
 import io.saga.caravan.event.Event;
 
-import java.util.Collection;
+import java.util.List;
 
 public interface EventProducer {
 
   void produce(Event<?> event);
 
-  void produce(Collection<Event<?>> events);
+  void produce(List<Event<?>> events);
 }
