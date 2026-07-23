@@ -7,33 +7,55 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Spliterator;
 import java.util.function.Consumer;
+import java.util.function.LongFunction;
 
+/**
+ * Walks a single entity's events across its sharded partitions in ascending sequence-number
+ * order. Events for an entity are spread across partition keys suffixed by
+ * {@code sequenceNumber/partitionShardSize}, so once a shard's own DynamoDB pagination is
+ * exhausted, the highest sequence number observed in that shard is compared against the shard's
+ * upper bound: an exact match means the shard was filled to capacity and a subsequent shard may
+ * exist, anything less means this is the entity's current tip.
+ */
 public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
 
   private final DynamoDbClient dynamoDbClient;
-  private final QueryRequest firstPageRequest;
-  private final QueryRequest.Builder nextPageBuilder;
+  private final long partitionShardSize;
+  private final String sequenceNumberAttributeName;
+  private final LongFunction<QueryRequest.Builder> shardQueryBuilderFactory;
   private final EventMapper eventMapper;
 
+  private long currentShardIndex;
   @Nullable
-  private Iterator<Map<String, AttributeValue>> currentPageIterator;
+  private final Map<String, AttributeValue> firstShardExclusiveStartKey;
+  @Nullable
+  private Map<String, AttributeValue> withinShardLastEvaluatedKey;
+  private long lastSequenceNumberSeenInShard = -1;
 
-  @Nullable
-  private Map<String, AttributeValue> lastEvaluatedKey;
+  private Iterator<Map<String, AttributeValue>> currentPageIterator = Collections.emptyIterator();
 
   private boolean initialized = false;
+  private boolean finished = false;
 
   public DynamoDbEventsSpliterator(DynamoDbClient dynamoDbClient,
-                                   QueryRequest.Builder baseQueryBuilder,
+                                   long partitionShardSize,
+                                   String sequenceNumberAttributeName,
+                                   long firstShardIndex,
+                                   @Nullable Map<String, AttributeValue> firstShardExclusiveStartKey,
+                                   LongFunction<QueryRequest.Builder> shardQueryBuilderFactory,
                                    EventMapper eventMapper) {
     this.dynamoDbClient = dynamoDbClient;
-    this.firstPageRequest = baseQueryBuilder.build();
-    this.nextPageBuilder = baseQueryBuilder;
+    this.partitionShardSize = partitionShardSize;
+    this.sequenceNumberAttributeName = sequenceNumberAttributeName;
+    this.currentShardIndex = firstShardIndex;
+    this.firstShardExclusiveStartKey = firstShardExclusiveStartKey;
+    this.shardQueryBuilderFactory = shardQueryBuilderFactory;
     this.eventMapper = eventMapper;
   }
 
@@ -41,12 +63,8 @@ public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
   public boolean tryAdvance(Consumer<? super Event<?>> action) {
     ensureInitialized();
 
-    if (currentPageIterator == null) {
-      throw new IllegalStateException("Current page iterator has not been initialized");
-    }
-
     while (!currentPageIterator.hasNext()) {
-      if (lastEvaluatedKey == null) {
+      if (finished) {
         return false;
       }
       fetchNextPage();
@@ -81,17 +99,51 @@ public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
   }
 
   private void fetchNextPage() {
-    QueryRequest request = lastEvaluatedKey == null
-        ? firstPageRequest
-        : nextPageBuilder.exclusiveStartKey(lastEvaluatedKey).build();
+    QueryRequest request = nextRequest();
+    if (request == null) {
+      finished = true;
+      currentPageIterator = Collections.emptyIterator();
+      return;
+    }
 
     QueryResponse response = dynamoDbClient.query(request);
 
     List<Map<String, AttributeValue>> items = response.items();
     currentPageIterator = items.iterator();
+    if (!items.isEmpty()) {
+      lastSequenceNumberSeenInShard =
+          Long.parseLong(items.getLast().get(sequenceNumberAttributeName).n());
+    }
 
-    lastEvaluatedKey = response.hasLastEvaluatedKey()
+    withinShardLastEvaluatedKey = response.hasLastEvaluatedKey()
         ? response.lastEvaluatedKey()
         : null;
+  }
+
+  @Nullable
+  private QueryRequest nextRequest() {
+    if (!initialized) {
+      return shardQueryBuilderFactory.apply(currentShardIndex)
+          .exclusiveStartKey(firstShardExclusiveStartKey)
+          .build();
+    }
+
+    if (withinShardLastEvaluatedKey != null) {
+      return shardQueryBuilderFactory.apply(currentShardIndex)
+          .exclusiveStartKey(withinShardLastEvaluatedKey)
+          .build();
+    }
+
+    if (lastSequenceNumberSeenInShard != shardUpperBound(currentShardIndex)) {
+      return null;
+    }
+
+    currentShardIndex++;
+    lastSequenceNumberSeenInShard = -1;
+    return shardQueryBuilderFactory.apply(currentShardIndex).build();
+  }
+
+  private long shardUpperBound(long shardIndex) {
+    return (shardIndex + 1) * partitionShardSize;
   }
 }

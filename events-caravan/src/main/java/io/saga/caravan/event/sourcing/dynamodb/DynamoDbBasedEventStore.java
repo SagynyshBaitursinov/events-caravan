@@ -39,34 +39,40 @@ import java.util.stream.StreamSupport;
 @Component
 public class DynamoDbBasedEventStore implements EventStore, EventProducer {
 
-  private static final String ENTITY_REFERENCE_KEY = "entityReference";
-  private static final String SEQUENCE_NUMBER_KEY = "sequenceNumber";
+  private static final String PK = "entityReference";
+  private static final String SK = "sequenceNumber";
   private static final String EVENT_NAME_KEY = "eventName";
   private static final String TIMESTAMP_KEY = "timestamp";
   private static final String PAYLOAD_KEY = "payload";
   private static final String NOT_YET_EXISTS_CONDITION_EXPRESSION =
       "attribute_not_exists(#pk) AND attribute_not_exists(#sk)";
   private static final Map<String, String> NOT_YET_EXISTS_EXPRESSION_ATTRIBUTE_NAMES =
-      Map.of(
-          "#pk", ENTITY_REFERENCE_KEY,
-          "#sk", SEQUENCE_NUMBER_KEY);
+      Map.of("#pk", PK, "#sk", SK);
   private static final String CONDITIONAL_CHECK_FAILED_CODE = "ConditionalCheckFailed";
   private static final int MAX_TRANSACTION_WRITE_ITEMS = 100;
 
   private final DynamoDbClient dynamoDbClient;
   private final String eventsTableName;
   private final Integer maxPageSize;
+  private final long partitionShardSize;
   private final EventPayloadSerializer eventPayloadSerializer;
   private final EventPayloadDeserializer eventPayloadDeserializer;
 
   public DynamoDbBasedEventStore(DynamoDbClient dynamoDbClient,
                                  @Value("${caravan.event.store.dynamo-db.table-name}") String eventsTableName,
                                  @Value("${caravan.event.store.dynamo-db.query-max-page-size:#{null}}") Integer maxPageSize,
+                                 @Value("${caravan.event.store.dynamo-db.partition-shard-size:10000}") long partitionShardSize,
                                  EventPayloadSerializer eventPayloadSerializer,
                                  EventPayloadDeserializer eventPayloadDeserializer) {
     this.dynamoDbClient = dynamoDbClient;
     this.eventsTableName = eventsTableName;
     this.maxPageSize = maxPageSize;
+    if (partitionShardSize <= 0) {
+      throw new IllegalArgumentException(
+          "caravan.event.store.dynamo-db.partition-shard-size must be positive, got %d"
+              .formatted(partitionShardSize));
+    }
+    this.partitionShardSize = partitionShardSize;
     this.eventPayloadSerializer = eventPayloadSerializer;
     this.eventPayloadDeserializer = eventPayloadDeserializer;
   }
@@ -174,11 +180,13 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
   private Map<String, AttributeValue> mapEventToAttributes(Event<?> event) {
     var attributes = new HashMap<String, AttributeValue>();
     attributes.put(
-        ENTITY_REFERENCE_KEY,
+        PK,
         AttributeValue.fromS(
-            toEventReferenceStringValue(event.entityReference())));
+            toShardedEntityReferenceValue(
+                event.entityReference(),
+                shardIndexForSequenceNumber(event.sequenceNumber()))));
     attributes.put(
-        SEQUENCE_NUMBER_KEY,
+        SK,
         AttributeValue.fromN(
             String.valueOf(event.sequenceNumber())));
     attributes.put(
@@ -200,49 +208,77 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     return entityReference.entityName() + "#" + entityReference.entityId();
   }
 
+  /**
+   * Sequence numbers are gapless and start at 1 (enforced by EventSourcedEntity and the
+   * all-or-nothing writes below), so every shard except an entity's current tip ends up holding
+   * exactly {@code partitionShardSize} events. That lets reads detect a shard boundary purely
+   * from the highest sequence number observed, without a separate counter item.
+   */
+  private long shardIndexForSequenceNumber(long sequenceNumber) {
+    return (sequenceNumber - 1) / partitionShardSize;
+  }
+
+  private String toShardedEntityReferenceValue(EntityReference entityReference, long shardIndex) {
+    return toEventReferenceStringValue(entityReference) + "#" + shardIndex;
+  }
+
   @Override
   public Stream<Event<?>> getEventsOfEntity(EntityReference entityReference,
                                             long fromSequenceNumberExclusive) {
+    if (fromSequenceNumberExclusive < 0) {
+      throw new IllegalArgumentException(
+          "fromSequenceNumberExclusive must not be negative (sequence numbers start at 1; "
+              + "0 means from the beginning), got %d".formatted(fromSequenceNumberExclusive));
+    }
     return StreamSupport.stream(
         createSpliterator(entityReference, fromSequenceNumberExclusive), false);
   }
 
   private DynamoDbEventsSpliterator createSpliterator(EntityReference entityReference,
                                                       long fromSequenceNumberExclusive) {
+    long firstShardIndex = shardIndexForSequenceNumber(fromSequenceNumberExclusive + 1);
+    boolean resumesExactlyAtShardBoundary = fromSequenceNumberExclusive % partitionShardSize == 0;
+
+    Map<String, AttributeValue> firstShardExclusiveStartKey = resumesExactlyAtShardBoundary
+        ? null
+        : Map.of(
+        PK,
+        AttributeValue.fromS(
+            toShardedEntityReferenceValue(entityReference, firstShardIndex)),
+        SK,
+        AttributeValue.fromN(
+            String.valueOf(fromSequenceNumberExclusive)));
+
     return new DynamoDbEventsSpliterator(
         dynamoDbClient,
-        queryBuilder(entityReference, fromSequenceNumberExclusive),
+        partitionShardSize,
+        SK,
+        firstShardIndex,
+        firstShardExclusiveStartKey,
+        shardIndex -> shardQueryBuilder(entityReference, shardIndex),
         attributes ->
             this.mapAttributesToEvent(entityReference, attributes));
   }
 
-  private QueryRequest.Builder queryBuilder(EntityReference entityReference,
-                                            long fromSequenceNumberExclusive) {
+  private QueryRequest.Builder shardQueryBuilder(EntityReference entityReference,
+                                                 long shardIndex) {
     return QueryRequest.builder()
         .tableName(eventsTableName)
         .scanIndexForward(true)
         .keyConditionExpression("#pk = :pkVal")
         .expressionAttributeNames(
-            Map.of("#pk", ENTITY_REFERENCE_KEY))
+            Map.of("#pk", PK))
         .expressionAttributeValues(
             Map.of(
                 ":pkVal",
                 AttributeValue.fromS(
-                    toEventReferenceStringValue(entityReference))))
-        .exclusiveStartKey(
-            Map.of(
-                ENTITY_REFERENCE_KEY,
-                AttributeValue.fromS(
-                    toEventReferenceStringValue(entityReference)),
-                SEQUENCE_NUMBER_KEY,
-                AttributeValue.fromN(
-                    String.valueOf(fromSequenceNumberExclusive))))
+                    toShardedEntityReferenceValue(entityReference, shardIndex))))
         .limit(maxPageSize);
   }
 
   private Event<?> mapAttributesToEvent(EntityReference entityReference,
                                         Map<String, AttributeValue> attributeValues) {
-    long sequenceNumber = Long.parseLong(attributeValues.get(SEQUENCE_NUMBER_KEY).n());
+    long sequenceNumber = Long.parseLong(attributeValues.get(SK).n());
     String eventName = attributeValues.get(EVENT_NAME_KEY).s();
     return Event.builder()
         .entityReference(entityReference)
