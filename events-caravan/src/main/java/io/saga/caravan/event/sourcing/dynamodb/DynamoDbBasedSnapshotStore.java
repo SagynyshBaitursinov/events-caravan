@@ -16,6 +16,8 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.saga.caravan.event.sourcing.dynamodb.EntityReferenceKeyUtils.toKeyValue;
+
 @Component
 public class DynamoDbBasedSnapshotStore implements SnapshotStore {
 
@@ -43,7 +45,7 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
   @Override
   public void save(EntitySnapshot<?> snapshot) {
     Map<String, AttributeValue> item = Map.of(
-        ENTITY_REFERENCE_KEY, AttributeValue.fromS(toEventReferenceStringValue(snapshot.entityReference())),
+        ENTITY_REFERENCE_KEY, AttributeValue.fromS(toKeyValue(snapshot.entityReference())),
         VERSION_KEY, AttributeValue.fromN(String.valueOf(snapshot.version())),
         PAYLOAD_KEY, AttributeValue.fromS(snapshotSerializer.serializePayload(snapshot)));
 
@@ -60,7 +62,7 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
     GetItemResponse response = dynamoDbClient.getItem(
         GetItemRequest.builder()
             .tableName(snapshotsTableName)
-            .key(Map.of(ENTITY_REFERENCE_KEY, AttributeValue.fromS(toEventReferenceStringValue(entityReference))))
+            .key(Map.of(ENTITY_REFERENCE_KEY, AttributeValue.fromS(toKeyValue(entityReference))))
             .build());
 
     if (!response.hasItem() || response.item().isEmpty()) {
@@ -79,9 +81,5 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
             .version(version)
             .payload(payload)
             .build());
-  }
-
-  private String toEventReferenceStringValue(EntityReference entityReference) {
-    return entityReference.entityName() + "#" + entityReference.entityId();
   }
 }

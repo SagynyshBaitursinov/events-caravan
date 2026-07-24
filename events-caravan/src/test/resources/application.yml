@@ -1,5 +1,5 @@
 app:
-  name: event-sourced-ai-memory
+  name: test-app
 
 spring:
   application:

@@ -1,63 +1,88 @@
 import {PublishCommand, SNSClient} from '@aws-sdk/client-sns';
 import {unmarshall} from '@aws-sdk/util-dynamodb';
 
-const {AWS_ACCOUNT_ID, AWS_REGION, AWS_ENDPOINT} = process.env;
+const {APP_NAME, AWS_ENDPOINT} = process.env;
 
-const snsClient = new SNSClient({
-    region: AWS_REGION,
-    endpoint: AWS_ENDPOINT
-});
-
-function deriveTopicName(entityReference) {
-    const entityName = entityReference.split('#')[0];
-    return `${entityName}`;
+if (!APP_NAME) {
+    throw new Error('APP_NAME environment variable is required to derive topic names');
 }
 
-function deriveTopicArn(topicName) {
-    return `arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:${topicName}`;
+const snsClient = new SNSClient({endpoint: AWS_ENDPOINT});
+
+function deriveTopicArnPrefix(invokedFunctionArn) {
+    const [, partition, , region, accountId] = invokedFunctionArn.split(':');
+    return `arn:${partition}:sns:${region}:${accountId}:${APP_NAME}_`;
 }
 
-function constructMessageBody(unmarshalledImage) {
-    const entityReferenceSplit = unmarshalledImage.entityReference.split('#');
+function deriveEntityReference(shardedEntityReference) {
+    const parts = shardedEntityReference.split('#');
+
+    if (parts.length < 3) {
+        throw new Error(`Malformed entityReference: '${shardedEntityReference}'`);
+    }
+
     return {
-        entityReference: {
-            entityName: entityReferenceSplit[0],
-            entityId: entityReferenceSplit[1]
-        },
-        sequenceNumber: unmarshalledImage.sequenceNumber,
-        eventName: unmarshalledImage.eventName,
-        timestamp: unmarshalledImage.timestamp,
-        payload: JSON.parse(unmarshalledImage.payload)
+        entityName: parts[0],
+        entityId: parts.slice(1, -1).join('#')
     };
 }
 
-async function processRecord(record) {
+function constructMessage(unmarshalledImage, entityReference) {
+    const envelope = JSON.stringify({
+        entityReference,
+        sequenceNumber: unmarshalledImage.sequenceNumber,
+        eventName: unmarshalledImage.eventName,
+        timestamp: unmarshalledImage.timestamp
+    });
+
+    return `${envelope.slice(0, -1)},"payload":${unmarshalledImage.payload}}`;
+}
+
+function constructMessageAttributes(unmarshalledImage, entityReference) {
+    return {
+        entityName: {
+            DataType: 'String',
+            StringValue: entityReference.entityName
+        },
+        eventName: {
+            DataType: 'String',
+            StringValue: unmarshalledImage.eventName
+        }
+    };
+}
+
+async function processRecord(record, topicArnPrefix) {
     if (record.eventName !== 'INSERT') return;
 
     const newImage = record.dynamodb?.NewImage;
     if (!newImage) return;
 
     const unmarshalledImage = unmarshall(newImage);
-    const {entityReference} = unmarshalledImage;
+    const entityReference = deriveEntityReference(unmarshalledImage.entityReference);
 
-    if (!entityReference) {
-        throw new Error('Missing entityReference');
-    }
-
-    const topicName = deriveTopicName(entityReference);
-    const topicArn = deriveTopicArn(topicName);
-    const messageBody = constructMessageBody(unmarshalledImage);
-
-    const command = new PublishCommand({
-        TopicArn: topicArn,
-        Message: JSON.stringify(messageBody)
-    });
-
-    await snsClient.send(command);
+    await snsClient.send(
+        new PublishCommand({
+            TopicArn: topicArnPrefix + entityReference.entityName,
+            Message: constructMessage(unmarshalledImage, entityReference),
+            MessageAttributes: constructMessageAttributes(unmarshalledImage, entityReference)
+        }));
 }
 
-export const handler = async (event) => {
-    const promises = event.Records.map(record => processRecord(record));
+export const handler = async (event, context) => {
+    const topicArnPrefix = deriveTopicArnPrefix(context.invokedFunctionArn);
 
-    await Promise.all(promises);
+    for (const record of event.Records) {
+        try {
+            await processRecord(record, topicArnPrefix);
+        } catch (error) {
+            console.error(
+                'Failed to publish stream record %s, retrying from it',
+                record.dynamodb.SequenceNumber,
+                error);
+
+            return {batchItemFailures: [{itemIdentifier: record.dynamodb.SequenceNumber}]};
+        }
+    }
+
+    return {batchItemFailures: []};
 };

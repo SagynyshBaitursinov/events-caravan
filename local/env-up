@@ -6,21 +6,24 @@ AWS_ENDPOINT="http://localhost:4566"
 AWS_ACCOUNT_ID="000000000000"
 AWS_REGION="us-east-1"
 
-APP_NAME="event-sourced-ai-memory"
+APP_NAME="test-app"
 EVENTS_TABLE_NAME="${APP_NAME}_events"
 SNAPSHOTS_TABLE_NAME="${APP_NAME}_snapshots"
-EVENTS_PUBLISHER_LAMBDA_NAME="${APP_NAME}_events"
+EVENTS_PUBLISHER_LAMBDA_NAME="${APP_NAME}_events-publisher"
 
 TOPIC_NAMES=(
-  "test-entity"
-  "calculator"
-  "snapshotting-calculator"
+  "${APP_NAME}_test-entity"
+  "${APP_NAME}_calculator"
+  "${APP_NAME}_snapshotting-calculator"
 )
 
 INCOMING_QUEUE_NAMES=(
   "${APP_NAME}_test-entity"
   "${APP_NAME}_calculator"
 )
+
+DEAD_LETTER_QUEUE_SUFFIX="_dlq"
+MAX_RECEIVE_COUNT=3
 
 source ./events-publisher-lambda/zip
 
@@ -50,29 +53,65 @@ create_sns_topics() {
   done
 }
 
+create_queue_if_absent() {
+  local queue_name="$1"
+
+  if aws sqs get-queue-url \
+    --queue-name "$queue_name" \
+    --endpoint-url "$AWS_ENDPOINT" \
+    --region "$AWS_REGION" \
+    > /dev/null 2>&1; then
+    echo "  ℹ Queue already exists: $queue_name"
+  else
+    aws sqs create-queue \
+      --queue-name "$queue_name" \
+      --endpoint-url "$AWS_ENDPOINT" \
+      --region "$AWS_REGION" \
+      > /dev/null
+    echo "  ✓ Created queue: $queue_name"
+  fi
+}
+
+set_redrive_policy() {
+  local queue_name="$1"
+  local dead_letter_queue_name="$2"
+
+  local queue_url
+  queue_url=$(aws sqs get-queue-url \
+    --queue-name "$queue_name" \
+    --endpoint-url "$AWS_ENDPOINT" \
+    --region "$AWS_REGION" \
+    --query 'QueueUrl' \
+    --output text)
+
+  local dead_letter_queue_arn="arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:${dead_letter_queue_name}"
+
+  local attributes
+  attributes=$(printf \
+    '{"RedrivePolicy":"{\\"deadLetterTargetArn\\":\\"%s\\",\\"maxReceiveCount\\":\\"%s\\"}"}' \
+    "$dead_letter_queue_arn" "$MAX_RECEIVE_COUNT")
+
+  aws sqs set-queue-attributes \
+    --queue-url "$queue_url" \
+    --attributes "$attributes" \
+    --endpoint-url "$AWS_ENDPOINT" \
+    --region "$AWS_REGION"
+
+  echo "  ✓ Redriving to $dead_letter_queue_name after $MAX_RECEIVE_COUNT deliveries: $queue_name"
+}
+
 create_incoming_sqs_queues_and_subscriptions() {
   echo "Creating incoming SQS queues and SNS subscriptions..."
   for incoming_queue_name in "${INCOMING_QUEUE_NAMES[@]}"; do
-    local incoming_topic_name="${incoming_queue_name#"${APP_NAME}_"}"
+    local incoming_topic_name="$incoming_queue_name"
+    local dead_letter_queue_name="${incoming_queue_name}${DEAD_LETTER_QUEUE_SUFFIX}"
 
     local topic_arn="arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT_ID}:${incoming_topic_name}"
     local queue_arn="arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:${incoming_queue_name}"
 
-    # Create queue if it doesn't exist
-    if aws sqs get-queue-url \
-      --queue-name "$incoming_queue_name" \
-      --endpoint-url "$AWS_ENDPOINT" \
-      --region "$AWS_REGION" \
-      > /dev/null 2>&1; then
-      echo "  ℹ Queue already exists: $incoming_queue_name"
-    else
-      aws sqs create-queue \
-        --queue-name "$incoming_queue_name" \
-        --endpoint-url "$AWS_ENDPOINT" \
-        --region "$AWS_REGION" \
-        > /dev/null
-      echo "  ✓ Created queue: $incoming_queue_name"
-    fi
+    create_queue_if_absent "$dead_letter_queue_name"
+    create_queue_if_absent "$incoming_queue_name"
+    set_redrive_policy "$incoming_queue_name" "$dead_letter_queue_name"
 
     # Subscribe queue to topic with raw message delivery
     if aws sns list-subscriptions-by-topic \
