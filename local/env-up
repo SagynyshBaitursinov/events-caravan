@@ -216,7 +216,7 @@ create_events_publisher_lambda() {
       "APP_NAME": "'"$APP_NAME"'",
       "AWS_ACCOUNT_ID": "'"$AWS_ACCOUNT_ID"'",
       "AWS_REGION": "'"$AWS_REGION"'",
-      "AWS_ENDPOINT": "http://floci:4566"
+      "AWS_ENDPOINT_OVERRIDE": "http://floci:4566"
     }
   }'
 

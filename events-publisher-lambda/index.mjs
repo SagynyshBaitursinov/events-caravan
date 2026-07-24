@@ -1,6 +1,6 @@
 import {PublishBatchCommand, SNSClient} from '@aws-sdk/client-sns';
 
-const {APP_NAME, AWS_ENDPOINT} = process.env;
+const {APP_NAME, AWS_ENDPOINT_OVERRIDE} = process.env;
 
 if (!APP_NAME) {
     throw new Error('APP_NAME environment variable is required to derive topic names');
@@ -10,7 +10,7 @@ const MAX_ENTRIES_PER_BATCH = 10;
 const MAX_BYTES_PER_BATCH = 262144;
 
 const snsClient = new SNSClient({
-    endpoint: AWS_ENDPOINT,
+    ...(AWS_ENDPOINT_OVERRIDE && {endpoint: AWS_ENDPOINT_OVERRIDE}),
     requestHandler: {
         connectionTimeout: 1000,
         requestTimeout: 3000
@@ -86,15 +86,11 @@ function prepareEntry(record) {
         topicArn: topicArnPrefix + entityReference.entityName,
         message,
         messageAttributes,
-        byteSize: measureByteSize(message, messageAttributes)
+        byteSize: measureByteSize(message, messageAttributes),
+        published: false
     };
 }
 
-/**
- * Entries are prepared up front so that consecutive records of the same entity can be published
- * in one call. A record that cannot be prepared stops the preparation instead of failing the whole
- * batch: everything before it still gets published, and the stream is rewound to it afterwards.
- */
 function prepareEntries(records) {
     const entries = [];
 
@@ -117,14 +113,45 @@ function prepareEntries(records) {
     return {entries, unpreparedSequenceNumber: null};
 }
 
-async function publishBatch(batch) {
+/**
+ * All entries of one topic go into as few batches as possible, regardless of how the records were
+ * interleaved in the stream, since neither a standard topic nor a standard queue preserves order
+ * anyway. A batch holds at most 10 entries, and SNS counts its payload limit per request rather
+ * than per message, so entries are also cut off at 256 KB in total.
+ */
+function groupIntoBatches(entries) {
+    const batchesByTopic = new Map();
+
+    for (const entry of entries) {
+        const batches = batchesByTopic.get(entry.topicArn) ?? [];
+        const openBatch = batches[batches.length - 1];
+
+        const fitsIntoOpenBatch = openBatch
+            && openBatch.entries.length < MAX_ENTRIES_PER_BATCH
+            && openBatch.byteSize + entry.byteSize <= MAX_BYTES_PER_BATCH;
+
+        if (fitsIntoOpenBatch) {
+            openBatch.entries.push(entry);
+            openBatch.byteSize += entry.byteSize;
+        } else {
+            batches.push({entries: [entry], byteSize: entry.byteSize});
+        }
+
+        batchesByTopic.set(entry.topicArn, batches);
+    }
+
+    return [...batchesByTopic.values()].flat();
+}
+
+async function publishBatch(entries) {
+    const topicArn = entries[0].topicArn;
     let response;
 
     try {
         response = await snsClient.send(
             new PublishBatchCommand({
-                TopicArn: batch[0].topicArn,
-                PublishBatchRequestEntries: batch.map((entry, index) => ({
+                TopicArn: topicArn,
+                PublishBatchRequestEntries: entries.map((entry, index) => ({
                     Id: String(index),
                     Message: entry.message,
                     MessageAttributes: entry.messageAttributes
@@ -132,60 +159,44 @@ async function publishBatch(batch) {
             }));
     } catch (error) {
         console.error(
-            'Failed to publish %d stream records to %s, retrying from record %s',
-            batch.length,
-            batch[0].topicArn,
-            batch[0].streamSequenceNumber,
+            'Failed to publish %d stream records to %s',
+            entries.length,
+            topicArn,
             error);
 
-        return batch[0].streamSequenceNumber;
+        return false;
+    }
+
+    for (const successful of response.Successful ?? []) {
+        entries[Number(successful.Id)].published = true;
     }
 
     const failures = response.Failed ?? [];
-    if (failures.length === 0) return null;
-
-    const firstFailure = failures.reduce(
-        (earliest, failure) => Number(failure.Id) < Number(earliest.Id) ? failure : earliest);
+    if (failures.length === 0) return true;
 
     console.error(
-        'Failed to publish %d of %d stream records to %s, retrying from record %s (%s: %s)',
+        'Failed to publish %d of %d stream records to %s (%s: %s)',
         failures.length,
-        batch.length,
-        batch[0].topicArn,
-        batch[Number(firstFailure.Id)].streamSequenceNumber,
-        firstFailure.Code,
-        firstFailure.Message);
+        entries.length,
+        topicArn,
+        failures[0].Code,
+        failures[0].Message);
 
-    return batch[Number(firstFailure.Id)].streamSequenceNumber;
+    return false;
 }
 
 /**
- * A batch is flushed once it is full, once it would exceed the payload limit, or once the next
- * entry belongs to another topic. Grouping only consecutive entries keeps the records of one
- * entity in stream order within their topic.
+ * Publishing stops at the first batch that did not fully succeed, and the stream is rewound to the
+ * earliest record that was not published. Batches no longer follow stream order, so the record that
+ * failed is not necessarily the earliest one left unpublished: entries of another topic may sit
+ * before it and not have been attempted at all.
  */
 async function publishEntries(entries) {
-    let batch = [];
-    let batchByteSize = 0;
-
-    for (const entry of entries) {
-        const isBatchFull = batch.length === MAX_ENTRIES_PER_BATCH;
-        const exceedsPayloadLimit = batchByteSize + entry.byteSize > MAX_BYTES_PER_BATCH;
-        const belongsToAnotherTopic = batch.length > 0 && batch[0].topicArn !== entry.topicArn;
-
-        if (batch.length > 0 && (isBatchFull || exceedsPayloadLimit || belongsToAnotherTopic)) {
-            const failedSequenceNumber = await publishBatch(batch);
-            if (failedSequenceNumber) return failedSequenceNumber;
-
-            batch = [];
-            batchByteSize = 0;
-        }
-
-        batch.push(entry);
-        batchByteSize += entry.byteSize;
+    for (const batch of groupIntoBatches(entries)) {
+        if (!await publishBatch(batch.entries)) break;
     }
 
-    return batch.length > 0 ? publishBatch(batch) : null;
+    return entries.find(entry => !entry.published)?.streamSequenceNumber ?? null;
 }
 
 export const handler = async (event, context) => {
@@ -195,7 +206,9 @@ export const handler = async (event, context) => {
 
     const failedSequenceNumber = await publishEntries(entries) ?? unpreparedSequenceNumber;
 
-    return failedSequenceNumber
-        ? {batchItemFailures: [{itemIdentifier: failedSequenceNumber}]}
-        : {batchItemFailures: []};
+    if (!failedSequenceNumber) return {batchItemFailures: []};
+
+    console.error('Retrying from stream record %s', failedSequenceNumber);
+
+    return {batchItemFailures: [{itemIdentifier: failedSequenceNumber}]};
 };
