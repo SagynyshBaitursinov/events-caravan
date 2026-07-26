@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -170,6 +171,47 @@ class DynamoDbBasedEventStoreTest {
   }
 
   @Test
+  void producingEventOnAWholeSecondStillWritesThreeFractionalDigits() {
+    when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
+
+    eventStore.produce(event(1, ZonedDateTime.parse("2026-01-01T00:00:00Z")));
+
+    ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
+    verify(dynamoDbClient).putItem(captor.capture());
+
+    assertThat(captor.getValue().item().get("timestamp").s()).isEqualTo("2026-01-01T00:00:00.000Z");
+  }
+
+  @Test
+  void producingEventOutsideUtcWritesTheSameInstantAsUtc() {
+    when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
+
+    eventStore.produce(event(1, ZonedDateTime.parse("2026-01-01T03:00:00.5+03:00")));
+
+    ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
+    verify(dynamoDbClient).putItem(captor.capture());
+
+    assertThat(captor.getValue().item().get("timestamp").s()).isEqualTo("2026-01-01T00:00:00.500Z");
+  }
+
+  @Test
+  void storedTimestampsOfTheSameSecondCompareLexicographicallyInInstantOrder() {
+    when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
+
+    eventStore.produce(event(1, ZonedDateTime.parse("2026-01-01T00:00:00Z")));
+    eventStore.produce(event(2, ZonedDateTime.parse("2026-01-01T00:00:00.123Z")));
+
+    ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
+    verify(dynamoDbClient, times(2)).putItem(captor.capture());
+
+    List<String> storedTimestamps = captor.getAllValues().stream()
+        .map(put -> put.item().get("timestamp").s())
+        .toList();
+
+    assertThat(storedTimestamps).isSorted();
+  }
+
+  @Test
   void producingDuplicateSingleEventThrowsDuplicateEventProductionException() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
     when(dynamoDbClient.putItem(any(PutItemRequest.class)))
@@ -295,11 +337,15 @@ class DynamoDbBasedEventStoreTest {
   }
 
   private static Event<?> event(long sequenceNumber) {
+    return event(sequenceNumber, ZonedDateTime.now());
+  }
+
+  private static Event<?> event(long sequenceNumber, ZonedDateTime timestamp) {
     return Event.builder()
         .entityReference(ENTITY_REFERENCE)
         .eventName("Incremented")
         .sequenceNumber(sequenceNumber)
-        .timestamp(ZonedDateTime.now())
+        .timestamp(timestamp)
         .payload(new Object())
         .build();
   }

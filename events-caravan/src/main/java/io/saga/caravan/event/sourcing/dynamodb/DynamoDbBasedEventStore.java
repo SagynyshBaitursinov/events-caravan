@@ -27,6 +27,8 @@ import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,6 +54,9 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
       Map.of("#pk", PK, "#sk", SK);
   private static final String CONDITIONAL_CHECK_FAILED_CODE = "ConditionalCheckFailed";
   private static final int MAX_TRANSACTION_WRITE_ITEMS = 100;
+
+  private static final DateTimeFormatter TIMESTAMP_FORMATTER =
+      new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
 
   private final DynamoDbClient dynamoDbClient;
   private final String eventsTableName;
@@ -198,7 +203,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     attributes.put(
         TIMESTAMP_KEY,
         AttributeValue.fromS(
-            event.timestamp().toString()));
+            TIMESTAMP_FORMATTER.format(event.timestamp())));
     attributes.put(
         PAYLOAD_KEY,
         AttributeValue.fromS(
@@ -238,7 +243,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
         : Map.of(
         PK,
         AttributeValue.fromS(
-            toShardedKeyValue(entityReference,firstShardIndex)),
+            toShardedKeyValue(entityReference, firstShardIndex)),
         SK,
         AttributeValue.fromN(
             String.valueOf(fromSequenceNumberExclusive)));
@@ -266,7 +271,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
             Map.of(
                 ":pkVal",
                 AttributeValue.fromS(
-                    toShardedKeyValue(entityReference,shardIndex))))
+                    toShardedKeyValue(entityReference, shardIndex))))
         .limit(maxPageSize);
   }
 

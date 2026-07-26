@@ -214,9 +214,7 @@ create_events_publisher_lambda() {
   local local_lambda_env_vars='{
     "Variables": {
       "APP_NAME": "'"$APP_NAME"'",
-      "AWS_ACCOUNT_ID": "'"$AWS_ACCOUNT_ID"'",
-      "AWS_REGION": "'"$AWS_REGION"'",
-      "AWS_ENDPOINT": "http://floci:4566"
+      "AWS_ENDPOINT_URL": "http://floci:4566"
     }
   }'
 
@@ -236,12 +234,12 @@ create_events_publisher_lambda() {
 
     aws lambda update-function-configuration \
       --function-name "$EVENTS_PUBLISHER_LAMBDA_NAME" \
-      --runtime nodejs20.x \
+      --runtime nodejs24.x \
       --role "$lambda_role" \
       --handler index.handler \
       --environment "$local_lambda_env_vars" \
       --timeout 10 \
-      --memory-size 128 \
+      --memory-size 512 \
       --endpoint-url "$AWS_ENDPOINT" \
       --region "$AWS_REGION" \
       > /dev/null
@@ -250,12 +248,12 @@ create_events_publisher_lambda() {
   else
     aws lambda create-function \
       --function-name "$EVENTS_PUBLISHER_LAMBDA_NAME" \
-      --runtime nodejs20.x \
+      --runtime nodejs24.x \
       --role "$lambda_role" \
       --handler index.handler \
       --environment "$local_lambda_env_vars" \
       --timeout 10 \
-      --memory-size 128 \
+      --memory-size 512 \
       --endpoint-url "$AWS_ENDPOINT" \
       --region "$AWS_REGION" \
       --zip-file "fileb://$lambda_zip" \
@@ -289,13 +287,22 @@ subscribe_events_publisher_lambda_to_dynamodb() {
     --output text)
 
   if [ -n "$existing_mapping" ]; then
-    echo "  ℹ Event source mapping already exists: $existing_mapping"
+    aws lambda update-event-source-mapping \
+      --uuid "$existing_mapping" \
+      --batch-size 50 \
+      --function-response-types ReportBatchItemFailures \
+      --filter-criteria '{"Filters": [{"Pattern": "{\"eventName\": [\"INSERT\"]}"}]}' \
+      --endpoint-url "$AWS_ENDPOINT" \
+      --region "$AWS_REGION" \
+      > /dev/null
+    echo "  ✓ Updated event source mapping: $existing_mapping"
   else
     aws lambda create-event-source-mapping \
       --function-name "$EVENTS_PUBLISHER_LAMBDA_NAME" \
       --event-source-arn "$stream_arn" \
       --starting-position LATEST \
-      --batch-size 10 \
+      --batch-size 50 \
+      --function-response-types ReportBatchItemFailures \
       --filter-criteria '{"Filters": [{"Pattern": "{\"eventName\": [\"INSERT\"]}"}]}' \
       --endpoint-url "$AWS_ENDPOINT" \
       --region "$AWS_REGION" \
