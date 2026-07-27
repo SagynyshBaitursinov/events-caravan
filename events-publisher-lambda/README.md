@@ -194,5 +194,7 @@ with `AWS_ENDPOINT_URL` pointing at the simulator.
 - **No ordering or (only) one time delivery guarantees** — consumers own responsibility to be idempotent and manage ordering, with
   unique and gapless `entityReference` + `sequenceNumber` available, if they need it.
 - **No JSON parsing of payloads** — the stored payload string is passed through verbatim.
+- **No logging library** — `console` plus the runtime's structured logging already produce JSON logs
+  with levels, so a dependency would only add cold start time.
 - **No infrastructure management** — topics, queues, mappings and policies are provisioned outside
   this module.

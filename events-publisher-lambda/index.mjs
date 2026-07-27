@@ -107,15 +107,16 @@ function prepareEntries(records) {
 
     for (const record of records) {
         if (record.eventName !== 'INSERT') continue;
-        if (!record.dynamodb?.NewImage) continue;
+        if (!record.dynamodb?.NewImage) return {entries, earliestUnpreparedSequenceNumber: record.dynamodb?.SequenceNumber};
 
         try {
             entries.push(prepareEntry(record));
         } catch (error) {
-            console.error(
-                'Failed to prepare stream record %s, retrying from it',
-                record.dynamodb.SequenceNumber,
-                error);
+            console.error({
+                message: 'Failed to prepare stream record, retrying from it',
+                streamSequenceNumber: record.dynamodb.SequenceNumber,
+                error
+            });
 
             return {entries, earliestUnpreparedSequenceNumber: record.dynamodb.SequenceNumber};
         }
@@ -154,11 +155,12 @@ async function publishEntry(entry) {
 
         entry.published = true;
     } catch (error) {
-        console.error(
-            'Failed to publish stream record %s to %s',
-            entry.streamSequenceNumber,
-            entry.topicArn,
-            error);
+        console.error({
+            message: 'Failed to publish stream record',
+            streamSequenceNumber: entry.streamSequenceNumber,
+            topicArn: entry.topicArn,
+            error
+        });
     }
 }
 
@@ -178,15 +180,23 @@ async function publishBatch(entries) {
             })));
     } catch (error) {
         if (error instanceof BatchRequestTooLongException) {
+            console.warn({
+                message: 'Batch rejected as too long, republishing its stream records one by one',
+                topicArn,
+                recordCount: entries.length
+            });
+
             await Promise.all(entries.map(publishEntry));
             return;
         }
 
-        console.error(
-            'Failed to publish %d stream records to %s',
-            entries.length,
+        console.error({
+            message: 'Failed to publish batch of stream records',
             topicArn,
-            error);
+            recordCount: entries.length,
+            streamSequenceNumbers: entries.map(entry => entry.streamSequenceNumber),
+            error
+        });
 
         return;
     }
@@ -198,13 +208,18 @@ async function publishBatch(entries) {
     const failures = response.Failed ?? [];
 
     if (failures.length > 0) {
-        console.error(
-            'Failed to publish %d of %d stream records to %s (%s: %s)',
-            failures.length,
-            entries.length,
+        console.error({
+            message: 'Failed to publish some stream records of a batch',
             topicArn,
-            failures[0].Code,
-            failures[0].Message);
+            recordCount: entries.length,
+            failureCount: failures.length,
+            failures: failures.map(failure => ({
+                streamSequenceNumber: entries[Number(failure.Id)].streamSequenceNumber,
+                errorCode: failure.Code,
+                errorMessage: failure.Message,
+                senderFault: failure.SenderFault
+            }))
+        });
     }
 }
 
@@ -212,8 +227,11 @@ async function publishEntriesAndReturnEarliestFailedSequenceNumber(entries) {
     await Promise.all(
         groupIntoBatches(entries)
             .map(batch => publishBatch(batch)
-                .catch(error =>
-                    console.error('Unexpected error publishing batch for %s', batch[0]?.topicArn, error))));
+                .catch(error => console.error({
+                    message: 'Unexpected error publishing batch of stream records',
+                    topicArn: batch[0]?.topicArn,
+                    error
+                }))));
 
     return entries.find(entry => !entry.published)?.streamSequenceNumber ?? null;
 }
@@ -225,9 +243,19 @@ export const handler = async (event, context) => {
 
     const earliestFailedSequenceNumber = await publishEntriesAndReturnEarliestFailedSequenceNumber(entries) ?? earliestUnpreparedSequenceNumber;
 
-    if (!earliestFailedSequenceNumber) return {batchItemFailures: []};
+    if (!earliestFailedSequenceNumber) {
+        console.debug({
+            message: 'Published all stream records of the invocation',
+            recordCount: entries.length
+        });
 
-    console.error('Earliest failed record sequence number: %s', earliestFailedSequenceNumber);
+        return {batchItemFailures: []};
+    }
+
+    console.error({
+        message: 'Reporting earliest unpublished stream record as a batch item failure',
+        streamSequenceNumber: earliestFailedSequenceNumber
+    });
 
     return {batchItemFailures: [{itemIdentifier: earliestFailedSequenceNumber}]};
 };
