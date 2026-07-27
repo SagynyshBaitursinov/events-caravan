@@ -25,6 +25,9 @@ INCOMING_QUEUE_NAMES=(
 DEAD_LETTER_QUEUE_SUFFIX="_dlq"
 MAX_RECEIVE_COUNT=3
 
+EVENTS_PUBLISHER_FAILURE_QUEUE_NAME="${EVENTS_PUBLISHER_LAMBDA_NAME}${DEAD_LETTER_QUEUE_SUFFIX}"
+EVENTS_PUBLISHER_MAXIMUM_RETRY_ATTEMPTS=3
+
 source ./events-publisher-lambda/zip
 
 start_floci() {
@@ -297,6 +300,11 @@ subscribe_events_publisher_lambda_to_dynamodb() {
     return 1
   fi
 
+  create_queue_if_absent "$EVENTS_PUBLISHER_FAILURE_QUEUE_NAME"
+
+  local failure_queue_arn="arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:${EVENTS_PUBLISHER_FAILURE_QUEUE_NAME}"
+  local destination_config="{\"OnFailure\":{\"Destination\":\"${failure_queue_arn}\"}}"
+
   local existing_mapping
   existing_mapping=$(aws lambda list-event-source-mappings \
     --function-name "$EVENTS_PUBLISHER_LAMBDA_NAME" \
@@ -311,6 +319,8 @@ subscribe_events_publisher_lambda_to_dynamodb() {
       --batch-size 20 \
       --function-response-types ReportBatchItemFailures \
       --filter-criteria '{"Filters": [{"Pattern": "{\"eventName\": [\"INSERT\"]}"}]}' \
+      --maximum-retry-attempts "$EVENTS_PUBLISHER_MAXIMUM_RETRY_ATTEMPTS" \
+      --destination-config "$destination_config" \
       --endpoint-url "$AWS_ENDPOINT" \
       --region "$AWS_REGION" \
       > /dev/null
@@ -323,6 +333,8 @@ subscribe_events_publisher_lambda_to_dynamodb() {
       --batch-size 20 \
       --function-response-types ReportBatchItemFailures \
       --filter-criteria '{"Filters": [{"Pattern": "{\"eventName\": [\"INSERT\"]}"}]}' \
+      --maximum-retry-attempts "$EVENTS_PUBLISHER_MAXIMUM_RETRY_ATTEMPTS" \
+      --destination-config "$destination_config" \
       --endpoint-url "$AWS_ENDPOINT" \
       --region "$AWS_REGION" \
       > /dev/null

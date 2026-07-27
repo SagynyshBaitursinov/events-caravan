@@ -139,7 +139,9 @@ This module ships no infrastructure code. Whoever deploys the lambda provides:
    first event of that entity type is produced. Publishing to a missing topic fails and, after the
    retries run out, lands in the failure destination.
 3. **The lambda** on the `nodejs24.x` runtime, handler `index.handler`, with the `APP_NAME`
-   environment variable.
+   environment variable. Its `--timeout` must cover publishing a whole invocation taking into account 
+   --batch-size, MAX_CONCURRENT_PUBLISHES, AWS SDK timeouts and internal retries.
+   A lambda timeout hit mid-invocation fails the whole batch and has it redelivered, so keep it generous;
 4. **The event source mapping** from the table's stream to the lambda:
    - `--function-response-types ReportBatchItemFailures` — **required**.
    - `--filter-criteria '{"Filters": [{"Pattern": "{\"eventName\": [\"INSERT\"]}"}]}'` —
