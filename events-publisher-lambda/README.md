@@ -19,16 +19,17 @@ For each invocation the lambda does the following:
 2. Derives topicName based on APP_NAME and entityName.
 3. Build the SNS message body and its message attributes.
 4. Group the messages by target topic into `PublishBatch` requests of up to 10 entries.
-5. Publish all batches in parallel.
+5. Publish the batches, at most `MAX_CONCURRENT_PUBLISHES` in flight at a time.
 6. Report the earliest stream record that was not published back as `ReportBatchItemFailures`; it
    rewinds the stream iterator to that record and re-invokes the lambda from there.
 
 ## Environment variables
 
-| Name               | Required | Purpose                                                                                                               |
-|--------------------|----------|-----------------------------------------------------------------------------------------------------------------------|
-| `APP_NAME`         | yes      | Prefix of every topic name (`${APP_NAME}_${entityName}`). A missing value fails at cold start rather than per record. |
-| `AWS_ENDPOINT_URL` | no       | Overrides the AWS endpoint, for local simulators. Read natively by the AWS SDK — the lambda contains no code for it.  |
+| Name                       | Required | Purpose                                                                                                                          |
+|----------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------|
+| `APP_NAME`                 | yes      | Prefix of every topic name (`${APP_NAME}_${entityName}`). A missing value fails at cold start rather than per record.            |
+| `MAX_CONCURRENT_PUBLISHES` | no       | Caps how many `PublishBatch`/`Publish` calls are in flight at once per invocation. Defaults to `10`. Must be a positive integer. |
+| `AWS_ENDPOINT_URL`         | no       | Overrides the AWS endpoint, for local simulators. Read natively by the AWS SDK — the lambda contains no code for it.             |
 
 Nothing else is configured. Partition, region and account id come from
 `context.invokedFunctionArn`, and the entity name comes from the record itself, so no topic ARN,
@@ -83,15 +84,20 @@ narrow their subscriptions with SNS filter policies instead of discarding messag
 
 ## Batching and parallelism
 
-Messages are grouped by topic into `PublishBatch` requests of up to 10 entries (the SNS maximum),
-and all batches are sent in parallel. Order between batches is deliberately not preserved — a
+Messages are grouped by target topic into `PublishBatch` requests of up to 10 entries (the SNS maximum).
+Batches are sent in parallel — but every actual SNS call passes through a concurrency limiter first, so at most
+`MAX_CONCURRENT_PUBLISHES` calls are ever in flight.
+A large invocation (e.g. a big `--batch-size`) therefore cannot fan out into multitude of
+simultaneous SNS calls to hit AWS throttling. Order between batches is deliberately not preserved — a
 standard SNS topic would not preserve it anyway, so serializing the requests would cost latency and
 buy nothing applications could rely on.
 
 The lambda does no byte counting. SNS enforces its size limit itself, and the lambda
 reacts to its errors instead of predicting them: when a batch is rejected as too large
 (`BatchRequestTooLongException`), its entries are republished 1 by 1 with plain `Publish`
-calls, in parallel. An entry that still fails then is reported as failed.
+calls, in parallel. These fallback calls share the same limiter as `PublishBatch`, so they cannot
+push total in-flight SNS calls past `MAX_CONCURRENT_PUBLISHES` either. An individual entry that still fails
+then is reported as failed.
 
 ## Delivery semantics
 
@@ -116,8 +122,9 @@ source only honors the lowest reported identifier anyway — and the retry mecha
   in the invocation is reported as unpublished.
 - **Any publish failure** — throttling, 5xx, missing topic, message too large: the earliest stream
   sequence number that has failed is reported as unpublished.
-- **Misconfiguration** (missing `APP_NAME`): the only thing that throws, at cold start. That is a
-  deployment bug, and crashing the invocation is the correct signal.
+- **Misconfiguration** (missing `APP_NAME`, or an invalid `MAX_CONCURRENT_PUBLISHES`): the only
+  things that throw, at cold start. That is a deployment bug, and crashing the invocation is the
+  correct signal.
 
 A record that can never be published — a message over the SNS size limit, a topic that does not exist — is redelivered until the
 mapping's `MaximumRetryAttempts` is exhausted, then handed to the `OnFailure` destination. Until
@@ -146,7 +153,8 @@ This module ships no infrastructure code. Whoever deploys the lambda provides:
    - Optional tuning: a larger `--batch-size` amortizes invocations and lets batching by topic pay
      off, though may amplify the number of duplicate deliveries in case of failures; a positive `MaximumBatchingWindowInSeconds` 
      trades latency for fewer invocations at low traffic (leave it at 0 when latency matters — under load the stream hands over accumulated
-     records in bulk regardless); `ParallelizationFactor` adds concurrency per shard.
+     records in bulk regardless); `ParallelizationFactor` adds concurrency per shard, which
+     multiplied by `MAX_CONCURRENT_PUBLISHES` makes the max number of simultaneous SNS calls in a stream shard.
 5. **IAM** for the lambda role: `sns:Publish` on `${APP_NAME}_*` topics; `dynamodb:GetRecords`,
    `dynamodb:GetShardIterator`, `dynamodb:DescribeStream`, `dynamodb:ListStreams` on the stream;
    `sqs:SendMessage` on the failure queue; CloudWatch Logs; `kms:Decrypt` and `kms:GenerateDataKey*`,

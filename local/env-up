@@ -30,6 +30,24 @@ source ./events-publisher-lambda/zip
 start_floci() {
   echo "Starting floci..."
   docker compose --file ./local/docker-compose-environment.yaml up --detach
+
+  wait_for_floci
+}
+
+wait_for_floci() {
+  echo "Waiting for floci to be ready..."
+  local max_attempts=30 attempt=0
+
+  until aws sns list-topics --endpoint-url "$AWS_ENDPOINT" --region "$AWS_REGION" > /dev/null 2>&1; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      echo "  ✗ Error: floci did not become ready after ${max_attempts}s"
+      exit 1
+    fi
+    sleep 1
+  done
+
+  echo "  ✓ floci is ready"
 }
 
 create_sns_topics() {
@@ -214,6 +232,7 @@ create_events_publisher_lambda() {
   local local_lambda_env_vars='{
     "Variables": {
       "APP_NAME": "'"$APP_NAME"'",
+      "MAX_CONCURRENT_PUBLISHES": "10",
       "AWS_ENDPOINT_URL": "http://floci:4566"
     }
   }'
@@ -238,7 +257,7 @@ create_events_publisher_lambda() {
       --role "$lambda_role" \
       --handler index.handler \
       --environment "$local_lambda_env_vars" \
-      --timeout 10 \
+      --timeout 60 \
       --memory-size 512 \
       --endpoint-url "$AWS_ENDPOINT" \
       --region "$AWS_REGION" \
@@ -252,7 +271,7 @@ create_events_publisher_lambda() {
       --role "$lambda_role" \
       --handler index.handler \
       --environment "$local_lambda_env_vars" \
-      --timeout 10 \
+      --timeout 60 \
       --memory-size 512 \
       --endpoint-url "$AWS_ENDPOINT" \
       --region "$AWS_REGION" \
@@ -289,7 +308,7 @@ subscribe_events_publisher_lambda_to_dynamodb() {
   if [ -n "$existing_mapping" ]; then
     aws lambda update-event-source-mapping \
       --uuid "$existing_mapping" \
-      --batch-size 50 \
+      --batch-size 20 \
       --function-response-types ReportBatchItemFailures \
       --filter-criteria '{"Filters": [{"Pattern": "{\"eventName\": [\"INSERT\"]}"}]}' \
       --endpoint-url "$AWS_ENDPOINT" \
@@ -301,7 +320,7 @@ subscribe_events_publisher_lambda_to_dynamodb() {
       --function-name "$EVENTS_PUBLISHER_LAMBDA_NAME" \
       --event-source-arn "$stream_arn" \
       --starting-position LATEST \
-      --batch-size 50 \
+      --batch-size 20 \
       --function-response-types ReportBatchItemFailures \
       --filter-criteria '{"Filters": [{"Pattern": "{\"eventName\": [\"INSERT\"]}"}]}' \
       --endpoint-url "$AWS_ENDPOINT" \

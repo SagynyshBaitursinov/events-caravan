@@ -1,19 +1,48 @@
+import {Agent as HttpsAgent} from 'node:https';
 import {BatchRequestTooLongException, PublishBatchCommand, PublishCommand, SNSClient} from '@aws-sdk/client-sns';
 
-const {APP_NAME} = process.env;
+const {APP_NAME, MAX_CONCURRENT_PUBLISHES = '10'} = process.env;
 
 if (!APP_NAME) {
     throw new Error('APP_NAME environment variable is required to derive topic names');
 }
 
 const MAX_ENTRIES_PER_BATCH = 10;
+const maxConcurrentPublishes = Number(MAX_CONCURRENT_PUBLISHES);
+
+if (!Number.isInteger(maxConcurrentPublishes) || maxConcurrentPublishes < 1) {
+    throw new Error(`MAX_CONCURRENT_PUBLISHES must be a positive integer, got '${MAX_CONCURRENT_PUBLISHES}'`);
+}
 
 const snsClient = new SNSClient({
     requestHandler: {
         connectionTimeout: 1000,
-        requestTimeout: 3000
+        requestTimeout: 3000,
+        httpsAgent: new HttpsAgent({keepAlive: true, maxSockets: maxConcurrentPublishes})
     }
 });
+
+function createLimiter(limit) {
+    let active = 0;
+    const waiters = [];
+
+    return async function withLimit(task) {
+        if (active >= limit) {
+            await new Promise(resolve => waiters.push(resolve));
+        }
+
+        active++;
+
+        try {
+            return await task();
+        } finally {
+            active--;
+            waiters.shift()?.();
+        }
+    };
+}
+
+const limitPublish = createLimiter(maxConcurrentPublishes);
 
 let topicArnPrefix;
 
@@ -116,12 +145,12 @@ function groupIntoBatches(entries) {
 
 async function publishEntry(entry) {
     try {
-        await snsClient.send(
+        await limitPublish(() => snsClient.send(
             new PublishCommand({
                 TopicArn: entry.topicArn,
                 Message: entry.message,
                 MessageAttributes: entry.messageAttributes
-            }));
+            })));
 
         entry.published = true;
     } catch (error) {
@@ -138,7 +167,7 @@ async function publishBatch(entries) {
     let response;
 
     try {
-        response = await snsClient.send(
+        response = await limitPublish(() => snsClient.send(
             new PublishBatchCommand({
                 TopicArn: topicArn,
                 PublishBatchRequestEntries: entries.map((entry, index) => ({
@@ -146,7 +175,7 @@ async function publishBatch(entries) {
                     Message: entry.message,
                     MessageAttributes: entry.messageAttributes
                 }))
-            }));
+            })));
     } catch (error) {
         if (error instanceof BatchRequestTooLongException) {
             await Promise.all(entries.map(publishEntry));
@@ -180,7 +209,11 @@ async function publishBatch(entries) {
 }
 
 async function publishEntriesAndReturnEarliestFailedSequenceNumber(entries) {
-    await Promise.all(groupIntoBatches(entries).map(publishBatch));
+    await Promise.all(
+        groupIntoBatches(entries)
+            .map(batch => publishBatch(batch)
+                .catch(error =>
+                    console.error('Unexpected error publishing batch for %s', batch[0]?.topicArn, error))));
 
     return entries.find(entry => !entry.published)?.streamSequenceNumber ?? null;
 }
