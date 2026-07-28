@@ -11,6 +11,7 @@ import io.saga.caravan.event.serialization.EventPayloadDeserializer;
 import io.saga.caravan.event.serialization.EventPayloadSerializer;
 import io.saga.caravan.event.sourcing.EventStore;
 import io.saga.caravan.event.sourcing.EventStoreException;
+import io.saga.caravan.event.sourcing.dynamodb.DynamoDbEventsSpliterator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;

@@ -3,11 +3,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>events-caravan</artifactId>
-    <name>events-caravan</name>
-    <description>Lightweight Event-sourcing designed for unlimited horizontal scalability,
-        performance, guaranteed eventual consistency and comfortable development
-    </description>
+    <artifactId>events-caravan-dynamodb</artifactId>
+    <name>events-caravan-dynamodb</name>
+    <description>Horizontal scalability provided by AWS DynamoDB</description>
 
     <parent>
         <groupId>io.saga</groupId>
@@ -24,14 +22,16 @@
         </dependency>
 
         <dependency>
-            <groupId>tools.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
+            <groupId>io.saga</groupId>
+            <artifactId>events-caravan</artifactId>
+            <version>${revision}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>dynamodb</artifactId>
+            <version>${aws.sdk.version}</version>
         </dependency>
     </dependencies>
 </project>

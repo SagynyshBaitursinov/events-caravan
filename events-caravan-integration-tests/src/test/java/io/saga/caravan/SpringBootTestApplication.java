@@ -1,4 +1,4 @@
-package io.saga.caravan.config;
+package io.saga.caravan;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>events-caravan-integration-tests</artifactId>
+    <name>events-caravan-integration-tests</name>
+    <description>End-to-end tests exercising the full event-sourcing stack against local AWS.</description>
+
+    <parent>
+        <groupId>io.saga</groupId>
+        <artifactId>events-caravan-parent</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <properties>
+        <maven.install.skip>true</maven.install.skip>
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.saga</groupId>
+            <artifactId>events-caravan</artifactId>
+            <version>${revision}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.saga</groupId>
+            <artifactId>events-caravan-dynamodb</artifactId>
+            <version>${revision}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.saga</groupId>
+            <artifactId>events-caravan-sqs</artifactId>
+            <version>${revision}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

@@ -18,3 +18,13 @@ caravan:
     message:
       queue:
         name-prefix: ${app.name}
+  messaging:
+    concurrency: 20
+    max-poll-size: 10
+    min-poll-size: 3
+    poll-wait-seconds: 5
+    graceful-shutdown-seconds: 0
+    deletion:
+      max-batch-size: 10
+      period-seconds: 1
+      parallelism: 2
