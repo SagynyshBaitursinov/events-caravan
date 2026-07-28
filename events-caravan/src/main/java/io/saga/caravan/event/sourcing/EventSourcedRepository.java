@@ -24,10 +24,9 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
   @Nullable
   private final SnapshotTaker<T, ?> snapshotTaker;
 
-  protected EventSourcedRepository(String entityName,
-                                   Class<T> entityClass,
+  protected EventSourcedRepository(Class<T> entityClass,
                                    EventSourcingRepositoryContext context) {
-    this.entityName = entityName;
+    this.entityName = EventSourcedEntity.entityNameOf(entityClass);
     this.entityClass = entityClass;
 
     this.eventStore = context.eventStore();
@@ -40,6 +39,8 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
 
   @Override
   public final void save(T entity) {
+    validateEntityClass(entity);
+
     if (entity.hasBlankState()) {
       throw new EventSourcedRepositoryException(
           "Cannot save a blank %s with no events recorded"
@@ -83,8 +84,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
   }
 
   private boolean shouldTakeSnapshot(T entity) {
-    if (snapshotTaker() == null
-        || snapshotTaker().entityClass() != entity.getClass()) {
+    if (snapshotTaker() == null) {
       return false;
     }
 
@@ -110,6 +110,8 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
     T entity = getSnapshotState(entityReference)
         .orElseGet(() -> createWithBlankState(entityReference.entityId()));
 
+    validateEntity(entity, entityReference);
+
     eventStore.getEventsOfEntity(entityReference, entity.version())
         .forEach(event -> EntityEventApplier.apply(entity, event));
 
@@ -127,6 +129,31 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
     }
 
     return recreateFromSnapshot(snapshotStore, snapshotTaker, entityReference);
+  }
+
+  private void validateEntity(T entity,
+                              EntityReference entityReference) {
+    validateEntityClass(entity);
+
+    if (!entity.entityReference().equals(entityReference)) {
+      throw new EventSourcedRepositoryException(
+          "%s asked for %s but got %s"
+              .formatted(
+                  this.getClass().getName(),
+                  entityReference,
+                  entity.entityReference()));
+    }
+  }
+
+  private void validateEntityClass(T entity) {
+    if (entity.getClass() != entityClass) {
+      throw new EventSourcedRepositoryException(
+          "%s handles entityClass=%s, but got an instance of %s; an event sourced entity must be of exactly the class its repository declares"
+              .formatted(
+                  this.getClass().getName(),
+                  entityClass.getName(),
+                  entity.getClass().getName()));
+    }
   }
 
   private <E extends EventSourcedEntity, S> Optional<E> recreateFromSnapshot(

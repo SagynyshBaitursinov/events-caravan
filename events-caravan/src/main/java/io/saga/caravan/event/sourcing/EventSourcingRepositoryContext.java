@@ -34,6 +34,11 @@ public class EventSourcingRepositoryContext {
 
     this.snapshotTakerMap = new HashMap<>(snapshotTakers.size());
     snapshotTakers.forEach(snapshotTaker -> {
+      if (snapshotTaker.frequencyOfSnapshots() <= 0) {
+        throw new EventSourcedEntitySetupException(
+            "frequencyOfSnapshots is not positive in %s"
+                .formatted(snapshotTaker.entityClass()));
+      }
       if (snapshotTakerMap.containsKey(snapshotTaker.entityClass())) {
         throw new EventSourcedEntitySetupException(
             "Duplicate snapshot taker found for class %s"

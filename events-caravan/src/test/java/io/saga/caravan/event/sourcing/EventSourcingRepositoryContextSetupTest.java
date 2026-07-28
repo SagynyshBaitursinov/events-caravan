@@ -37,6 +37,7 @@ class EventSourcingRepositoryContextSetupTest {
   }
 
   @SuppressWarnings("SameParameterValue")
+  @EntityName(CAR)
   static class Car extends EventSourcedEntity {
 
     final String id;
@@ -61,14 +62,10 @@ class EventSourcingRepositoryContextSetupTest {
     public String entityId() {
       return id;
     }
-
-    @Override
-    public String entityName() {
-      return CAR;
-    }
   }
 
   @SuppressWarnings("SameParameterValue")
+  @EntityName(TRUCK)
   static class Truck extends EventSourcedEntity {
 
     final String id;
@@ -93,14 +90,30 @@ class EventSourcingRepositoryContextSetupTest {
     public String entityId() {
       return id;
     }
+  }
+
+  @SuppressWarnings("EmptyMethod")
+  @EntityName(CAR)
+  static class Van extends EventSourcedEntity {
+
+    final String id;
+
+    Van(String id) {
+      this.id = id;
+    }
+
+    @ApplyEvent(TURNED_ON)
+    void applyTurnedOn(Event<TurnedOnPayload> event) {
+    }
 
     @Override
-    public String entityName() {
-      return TRUCK;
+    public String entityId() {
+      return id;
     }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName(TRUCK)
   static class WrongPayloadClassTruck extends EventSourcedEntity {
 
     final String id;
@@ -117,17 +130,12 @@ class EventSourcingRepositoryContextSetupTest {
     public String entityId() {
       return id;
     }
-
-    @Override
-    public String entityName() {
-      return TRUCK;
-    }
   }
 
   static class CarRepository extends EventSourcedRepository<Car> {
 
     CarRepository(EventSourcingRepositoryContext context) {
-      super(CAR, Car.class, context);
+      super(Car.class, context);
     }
 
     @Override
@@ -139,7 +147,7 @@ class EventSourcingRepositoryContextSetupTest {
   static class TruckRepository extends EventSourcedRepository<Truck> {
 
     TruckRepository(EventSourcingRepositoryContext context) {
-      super(TRUCK, Truck.class, context);
+      super(Truck.class, context);
     }
 
     @Override
@@ -148,22 +156,22 @@ class EventSourcingRepositoryContextSetupTest {
     }
   }
 
-  static class TruckRepositoryWithCarEntityName extends EventSourcedRepository<Truck> {
+  static class VanRepository extends EventSourcedRepository<Van> {
 
-    TruckRepositoryWithCarEntityName(EventSourcingRepositoryContext context) {
-      super(CAR, Truck.class, context);
+    VanRepository(EventSourcingRepositoryContext context) {
+      super(Van.class, context);
     }
 
     @Override
-    protected Truck createWithBlankState(String entityId) {
-      return new Truck(entityId);
+    protected Van createWithBlankState(String entityId) {
+      return new Van(entityId);
     }
   }
 
-  static class CarRepositoryWithTruckEntityName extends EventSourcedRepository<Car> {
+  static class SecondCarRepository extends EventSourcedRepository<Car> {
 
-    CarRepositoryWithTruckEntityName(EventSourcingRepositoryContext context) {
-      super(TRUCK, Car.class, context);
+    SecondCarRepository(EventSourcingRepositoryContext context) {
+      super(Car.class, context);
     }
 
     @Override
@@ -175,7 +183,7 @@ class EventSourcingRepositoryContextSetupTest {
   static class WrongPayloadClassTruckRepository extends EventSourcedRepository<WrongPayloadClassTruck> {
 
     WrongPayloadClassTruckRepository(EventSourcingRepositoryContext context) {
-      super(TRUCK, WrongPayloadClassTruck.class, context);
+      super(WrongPayloadClassTruck.class, context);
     }
 
     @Override
@@ -276,20 +284,20 @@ class EventSourcingRepositoryContextSetupTest {
   void shouldPreventRegisteringEntityWithSameNameTwice() {
     new CarRepository(context);
 
-    assertThatThrownBy(() -> new TruckRepositoryWithCarEntityName(context))
+    assertThatThrownBy(() -> new VanRepository(context))
         .isInstanceOf(EventSourcedEntitySetupException.class)
         .hasMessage("entityName=%s or entityClass=%s are duplicated"
-            .formatted(CAR, Truck.class));
+            .formatted(CAR, Van.class));
   }
 
   @Test
   void shouldPreventRegisteringEntityWithSameClass() {
     new CarRepository(context);
 
-    assertThatThrownBy(() -> new CarRepositoryWithTruckEntityName(context))
+    assertThatThrownBy(() -> new SecondCarRepository(context))
         .isInstanceOf(EventSourcedEntitySetupException.class)
         .hasMessage("entityName=%s or entityClass=%s are duplicated"
-            .formatted(TRUCK, Car.class));
+            .formatted(CAR, Car.class));
   }
 
   @Test

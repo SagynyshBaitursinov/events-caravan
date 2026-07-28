@@ -12,9 +12,33 @@ import java.util.List;
 @Slf4j
 public abstract class EventSourcedEntity extends Entity {
 
+  private static final ClassValue<String> ENTITY_NAMES = new ClassValue<>() {
+    @Override
+    protected String computeValue(Class<?> entityClass) {
+      var eventName = entityClass.getDeclaredAnnotation(EntityName.class);
+
+      if (eventName == null) {
+        throw new EventSourcedEntitySetupException(
+            "%s must declare its entityName with @EntityName"
+                .formatted(entityClass.getName()));
+      }
+
+      return eventName.value();
+    }
+  };
+
   private final List<Event<?>> notProducedEvents = new ArrayList<>();
 
   private long version = 0L;
+
+  static String entityNameOf(Class<? extends EventSourcedEntity> entityClass) {
+    return ENTITY_NAMES.get(entityClass);
+  }
+
+  @Override
+  public final String entityName() {
+    return entityNameOf(this.getClass());
+  }
 
   public final long version() {
     return version;

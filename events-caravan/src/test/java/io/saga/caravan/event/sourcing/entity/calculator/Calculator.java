@@ -1,6 +1,7 @@
 package io.saga.caravan.event.sourcing.entity.calculator;
 
 import io.saga.caravan.event.Event;
+import io.saga.caravan.event.sourcing.EntityName;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.applying.ApplyEvent;
 import lombok.Getter;
@@ -11,6 +12,7 @@ import static io.saga.caravan.event.sourcing.entity.calculator.CalculatorEventsC
 import static io.saga.caravan.event.sourcing.entity.calculator.CalculatorEventsConfiguration.NUMBER_ADDED;
 import static io.saga.caravan.event.sourcing.entity.calculator.CalculatorEventsConfiguration.NUMBER_SUBTRACTED;
 
+@EntityName(CALCULATOR)
 @RequiredArgsConstructor
 public class Calculator extends EventSourcedEntity {
 
@@ -45,10 +47,5 @@ public class Calculator extends EventSourcedEntity {
   @Override
   public String entityId() {
     return id;
-  }
-
-  @Override
-  public String entityName() {
-    return CALCULATOR;
   }
 }

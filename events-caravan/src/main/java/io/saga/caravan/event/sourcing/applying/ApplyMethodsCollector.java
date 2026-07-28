@@ -76,7 +76,7 @@ public final class ApplyMethodsCollector {
       Map<String, Method> methodsInClassHierarchy = new HashMap<>();
 
       for (Method method : classInHierarchy.getDeclaredMethods()) {
-        var applyEventAnnotation = method.getAnnotation(ApplyEvent.class);
+        var applyEventAnnotation = method.getDeclaredAnnotation(ApplyEvent.class);
 
         if (applyEventAnnotation == null) {
           continue;
@@ -119,7 +119,7 @@ public final class ApplyMethodsCollector {
     Map<String, Method> result = new HashMap<>();
 
     for (Method method : eventApplierClass.getDeclaredMethods()) {
-      var applyEventAnnotation = method.getAnnotation(ApplyEvent.class);
+      var applyEventAnnotation = method.getDeclaredAnnotation(ApplyEvent.class);
 
       if (applyEventAnnotation == null) {
         continue;

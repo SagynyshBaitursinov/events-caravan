@@ -2,6 +2,7 @@ package io.saga.caravan.event.sourcing.applying;
 
 
 import io.saga.caravan.event.Event;
+import io.saga.caravan.event.sourcing.EntityName;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
 import org.jspecify.annotations.NullMarked;
@@ -24,6 +25,7 @@ class ApplyMethodsCollectorTest {
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("simple-entity")
   static class SimpleEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -34,14 +36,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "simple-entity";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("multi-event-entity")
   static class MultiEventEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -56,14 +54,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "multi-event-entity";
-    }
   }
 
   @SuppressWarnings({"unused", "EmptyMethod"})
+  @EntityName("mixed-methods-entity")
   static class MixedMethodsEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -80,14 +74,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "mixed-methods-entity";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("duplicate-event-entity")
   static class DuplicateEventEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -102,11 +92,6 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "duplicate-event-entity";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
@@ -117,6 +102,7 @@ class ApplyMethodsCollectorTest {
     }
   }
 
+  @EntityName("child-with-duplicate-event")
   static class ChildWithOverriddenMethod extends ParentClass {
 
     @SuppressWarnings("RedundantMethodOverride")
@@ -129,14 +115,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "child-with-duplicate-event";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("child-with-extra-event-entity")
   static class ChildWithExtraEventEntity extends ParentClass {
 
     @ApplyEvent("turned-off")
@@ -147,14 +129,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "child-with-extra-event-entity";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("no-param-entity")
   static class NoParamEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -165,14 +143,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "no-param-entity";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("two-param-entity")
   static class TwoParamEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -183,14 +157,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "two-param-entity";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("wrong-param-type-entity")
   static class WrongParamTypeEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -201,14 +171,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "wrong-param-type-entity";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("raw-event-entity")
   static class RawEventEntity extends EventSourcedEntity {
 
     @SuppressWarnings("rawtypes")
@@ -220,14 +186,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "raw-event-entity";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("not-concrete-event-entity")
   static class NotConcreteEventEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -238,14 +200,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "not-concrete-event-entity";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("generic-event-entity")
   static class GenericEventEntity<T> extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -256,14 +214,10 @@ class ApplyMethodsCollectorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "generic-event-entity";
-    }
   }
 
   @SuppressWarnings("SameParameterValue")
+  @EntityName("robot")
   static class Robot extends EventSourcedEntity {
 
     static final String CHARGED = "charged";
@@ -292,11 +246,6 @@ class ApplyMethodsCollectorTest {
     @Override
     public String entityId() {
       return "1";
-    }
-
-    @Override
-    public String entityName() {
-      return "robot";
     }
   }
 

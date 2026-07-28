@@ -1,6 +1,7 @@
 package io.saga.caravan.event.sourcing.applying;
 
 import io.saga.caravan.event.Event;
+import io.saga.caravan.event.sourcing.EntityName;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
 import org.jspecify.annotations.NullMarked;
@@ -17,7 +18,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ExternalApplyEventMethodsTest {
 
   @SuppressWarnings("SameParameterValue")
-  @EventApplier(RobotEventAppliers.class)
+  @EventApplier(RobotEventApplier.class)
+  @EntityName("robot")
   static class Robot extends EventSourcedEntity {
 
     static final String CHARGED = "charged";
@@ -42,14 +44,9 @@ class ExternalApplyEventMethodsTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "robot";
-    }
   }
 
-  static final class RobotEventAppliers {
+  static final class RobotEventApplier {
 
     @ApplyEvent(Robot.DISCHARGED)
     private static void applyDischarged(Robot robot,
@@ -58,7 +55,8 @@ class ExternalApplyEventMethodsTest {
     }
   }
 
-  @EventApplier(LampEventAppliers.class)
+  @EventApplier(LampEventApplier.class)
+  @EntityName("lamp")
   static class Lamp extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -69,14 +67,9 @@ class ExternalApplyEventMethodsTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "lamp";
-    }
   }
 
-  static final class LampEventAppliers {
+  static final class LampEventApplier {
 
     @ApplyEvent("turned-on")
     private static void applyTurnedOn(Lamp lamp,
@@ -84,21 +77,17 @@ class ExternalApplyEventMethodsTest {
     }
   }
 
-  @EventApplier({FirstFanEventAppliers.class, SecondFanEventAppliers.class})
+  @EventApplier({FirstFanEventApplier.class, SecondFanEventApplier.class})
+  @EntityName("fan")
   static class Fan extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "fan";
-    }
   }
 
-  static final class FirstFanEventAppliers {
+  static final class FirstFanEventApplier {
 
     @ApplyEvent("turned-on")
     private static void applyTurnedOn(Fan fan,
@@ -106,7 +95,7 @@ class ExternalApplyEventMethodsTest {
     }
   }
 
-  static final class SecondFanEventAppliers {
+  static final class SecondFanEventApplier {
 
     @ApplyEvent("turned-on")
     private static void applyTurnedOn(Fan fan,
@@ -114,21 +103,17 @@ class ExternalApplyEventMethodsTest {
     }
   }
 
-  @EventApplier(DoorEventAppliers.class)
+  @EventApplier(DoorEventApplier.class)
+  @EntityName("door")
   static class Door extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "door";
-    }
   }
 
-  static final class DoorEventAppliers {
+  static final class DoorEventApplier {
 
     @ApplyEvent("opened")
     private void applyOpened(Door door,
@@ -136,80 +121,64 @@ class ExternalApplyEventMethodsTest {
     }
   }
 
-  @EventApplier(WindowEventAppliers.class)
+  @EventApplier(WindowEventApplier.class)
+  @EntityName("window")
   static class Window extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "window";
-    }
   }
 
-  static final class WindowEventAppliers {
+  static final class WindowEventApplier {
 
     @ApplyEvent("opened")
     private static void applyOpened(Event<NumberCarryingPayload> opened) {
     }
   }
 
-  @EventApplier(GateEventAppliers.class)
+  @EventApplier(GateEventApplier.class)
+  @EntityName("gate")
   static class Gate extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "gate";
-    }
   }
 
-  static final class PortalEventAppliers {
+  static final class PortalEventApplier {
 
     @ApplyEvent("opened")
     private static void applyOpened(Event<NumberCarryingPayload> opened, Portal portal) {
     }
   }
 
-  @EventApplier(PortalEventAppliers.class)
+  @EventApplier(PortalEventApplier.class)
+  @EntityName("portal")
   static class Portal extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "portal";
-    }
   }
 
-  static final class GateEventAppliers {
+  static final class GateEventApplier {
 
     @ApplyEvent("opened")
     private static void applyOpened(Gate opened) {
     }
   }
 
-  @EventApplier(RobotEventAppliers.class)
+  @EventApplier(RobotEventApplier.class)
+  @EntityName("entity-with-foreign-sources")
   static class EntityWithForeignSources extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
-    }
-
-    @Override
-    public String entityName() {
-      return "entity-with-foreign-sources";
     }
   }
 
@@ -231,7 +200,7 @@ class ExternalApplyEventMethodsTest {
       Map<String, Method> result =
           ApplyMethodsCollector.applyEventMethodsOf(Robot.class);
 
-      Method expected = RobotEventAppliers.class.getDeclaredMethod(
+      Method expected = RobotEventApplier.class.getDeclaredMethod(
           "applyDischarged", Robot.class, Event.class);
       assertThat(result.get(Robot.DISCHARGED))
           .isEqualTo(expected);
@@ -273,7 +242,7 @@ class ExternalApplyEventMethodsTest {
       assertThatThrownBy(() ->
           ApplyMethodsCollector.applyEventMethodsOf(Door.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
-          .hasMessage("@ApplyEvent method declared in  @EventApplier must be static, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$DoorEventAppliers.applyOpened");
+          .hasMessage("@ApplyEvent method declared in  @EventApplier must be static, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$DoorEventApplier.applyOpened");
     }
 
     @Test
@@ -281,7 +250,7 @@ class ExternalApplyEventMethodsTest {
       assertThatThrownBy(() ->
           ApplyMethodsCollector.applyEventMethodsOf(Window.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
-          .hasMessage("@ApplyEvent method declared in @EventApplier must have (Window, Event<PayloadClass>) parameters, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$WindowEventAppliers.applyOpened");
+          .hasMessage("@ApplyEvent method declared in @EventApplier must have (Window, Event<PayloadClass>) parameters, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$WindowEventApplier.applyOpened");
     }
 
     @Test
@@ -289,7 +258,7 @@ class ExternalApplyEventMethodsTest {
       assertThatThrownBy(() ->
           ApplyMethodsCollector.applyEventMethodsOf(Gate.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
-          .hasMessage("@ApplyEvent method declared in @EventApplier must have (Gate, Event<PayloadClass>) parameters, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$GateEventAppliers.applyOpened");
+          .hasMessage("@ApplyEvent method declared in @EventApplier must have (Gate, Event<PayloadClass>) parameters, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$GateEventApplier.applyOpened");
     }
 
     @Test
@@ -297,7 +266,7 @@ class ExternalApplyEventMethodsTest {
       assertThatThrownBy(() ->
           ApplyMethodsCollector.applyEventMethodsOf(Portal.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
-          .hasMessage("@ApplyEvent method declared in @EventApplier must have (Portal, Event<PayloadClass>) parameters, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$PortalEventAppliers.applyOpened");
+          .hasMessage("@ApplyEvent method declared in @EventApplier must have (Portal, Event<PayloadClass>) parameters, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$PortalEventApplier.applyOpened");
     }
 
     @Test
@@ -305,7 +274,7 @@ class ExternalApplyEventMethodsTest {
       assertThatThrownBy(() ->
           ApplyMethodsCollector.applyEventMethodsOf(EntityWithForeignSources.class))
           .isInstanceOf(EventSourcedEntitySetupException.class)
-          .hasMessage("@ApplyEvent method declared in @EventApplier must have (EntityWithForeignSources, Event<PayloadClass>) parameters, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$RobotEventAppliers.applyDischarged");
+          .hasMessage("@ApplyEvent method declared in @EventApplier must have (EntityWithForeignSources, Event<PayloadClass>) parameters, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodsTest$RobotEventApplier.applyDischarged");
     }
   }
 }

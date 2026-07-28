@@ -2,6 +2,7 @@ package io.saga.caravan.event.sourcing.applying;
 
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.EventType;
+import io.saga.caravan.event.sourcing.EntityName;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
 import org.jspecify.annotations.NullMarked;
@@ -26,6 +27,7 @@ class ApplyEventMethodPayloadsValidatorTest {
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("car")
   static class ValidEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -40,14 +42,10 @@ class ApplyEventMethodPayloadsValidatorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "car";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("car")
   static class WrongPayloadClassEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -62,14 +60,10 @@ class ApplyEventMethodPayloadsValidatorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "car";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("car")
   static class UnregisteredEventEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -88,14 +82,10 @@ class ApplyEventMethodPayloadsValidatorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "car";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("car")
   static class MissingApplyMethodEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -106,14 +96,10 @@ class ApplyEventMethodPayloadsValidatorTest {
     public String entityId() {
       return "1";
     }
-
-    @Override
-    public String entityName() {
-      return "car";
-    }
   }
 
   @SuppressWarnings("EmptyMethod")
+  @EntityName("car")
   static class StructurallyBrokenEntity extends EventSourcedEntity {
 
     @ApplyEvent("turned-on")
@@ -131,11 +117,6 @@ class ApplyEventMethodPayloadsValidatorTest {
     @Override
     public String entityId() {
       return "1";
-    }
-
-    @Override
-    public String entityName() {
-      return "car";
     }
   }
 

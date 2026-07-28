@@ -2,6 +2,7 @@ package io.saga.caravan.event.sourcing.applying;
 
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.EventType;
+import io.saga.caravan.event.sourcing.EntityName;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
 import org.jspecify.annotations.NullMarked;
@@ -37,16 +38,12 @@ class ExternalApplyEventMethodPayloadsValidatorTest {
 
   @EventApplier(ValidEntityEventApplier.class)
   @SuppressWarnings("EmptyMethod")
+  @EntityName("car")
   static class ValidEntity extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
-    }
-
-    @Override
-    public String entityName() {
-      return "car";
     }
   }
 
@@ -63,16 +60,12 @@ class ExternalApplyEventMethodPayloadsValidatorTest {
 
   @EventApplier(WrongPayloadClassEntityEventApplier.class)
   @SuppressWarnings("EmptyMethod")
+  @EntityName("car")
   static class WrongPayloadClassEntity extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
-    }
-
-    @Override
-    public String entityName() {
-      return "car";
     }
   }
 
@@ -93,16 +86,12 @@ class ExternalApplyEventMethodPayloadsValidatorTest {
 
   @EventApplier(UnregisteredEventEntityEventApplier.class)
   @SuppressWarnings("EmptyMethod")
+  @EntityName("car")
   static class UnregisteredEventEntity extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
-    }
-
-    @Override
-    public String entityName() {
-      return "car";
     }
   }
 
@@ -116,16 +105,12 @@ class ExternalApplyEventMethodPayloadsValidatorTest {
 
   @SuppressWarnings("EmptyMethod")
   @EventApplier(MissingApplyMethodEntityEventApplier.class)
+  @EntityName("car")
   static class MissingApplyMethodEntity extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
-    }
-
-    @Override
-    public String entityName() {
-      return "car";
     }
   }
 
@@ -146,16 +131,12 @@ class ExternalApplyEventMethodPayloadsValidatorTest {
 
   @EventApplier(StructurallyBrokenEntityEventApplier.class)
   @SuppressWarnings("EmptyMethod")
+  @EntityName("car")
   static class StructurallyBrokenEntity extends EventSourcedEntity {
 
     @Override
     public String entityId() {
       return "1";
-    }
-
-    @Override
-    public String entityName() {
-      return "car";
     }
   }
 
