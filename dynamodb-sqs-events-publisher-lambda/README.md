@@ -1,6 +1,6 @@
-# events-publisher-lambda
+# dynamodb-sqs-events-publisher-lambda
 
-Lambda forwards events from the event store DynamoDB's Stream to SNS.
+Lambda publishes events from the event-store DynamoDB Stream into SNS.
 This is a module of the library, which can be replaced by another solution, if it does not fit the infrastructure.
 The module holds the lambda code only (`index.mjs`). The infrastructure it runs is not provisioned here, 
 but [Infrastructure expectations](#infrastructure-expectations) below describe what the code assumes to be in place.
@@ -183,7 +183,7 @@ corresponding events references should be saved within 24h, before stream entrie
 ## Local development
 
 `local/env-up` provisions the whole pipeline against a local AWS simulator: tables, topics, queues,
-the lambda (zipped from `index.mjs` by `events-publisher-lambda/zip`) and the event source mapping,
+the lambda (zipped from `index.mjs` by `/zip`) and the event source mapping,
 with `AWS_ENDPOINT_URL` pointing at the simulator.
 
 ## What the lambda deliberately does not do

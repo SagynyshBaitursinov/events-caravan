@@ -3,13 +3,13 @@
 set -e -o pipefail
 
 zip_events_publisher_lambda() {
-  if [ -f ./events-publisher-lambda/lambda.zip ]; then
+  if [ -f ./dynamodb-sqs-events-publisher-lambda/lambda.zip ]; then
     echo "Deleting existing lambda.zip..."
-    rm ./events-publisher-lambda/lambda.zip
+    rm ./dynamodb-sqs-events-publisher-lambda/lambda.zip
   fi
 
   echo "Creating lambda.zip from index.mjs..."
-  zip -j ./events-publisher-lambda/lambda.zip ./events-publisher-lambda/index.mjs
+  zip -j ./dynamodb-sqs-events-publisher-lambda/lambda.zip ./dynamodb-sqs-events-publisher-lambda/index.mjs
 
   echo "  ✓ lambda.zip created successfully."
 }

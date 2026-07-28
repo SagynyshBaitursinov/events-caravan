@@ -34,4 +34,4 @@ build/
 ### VS Code ###
 .vscode/
 
-/events-publisher-lambda/lambda.zip
+/dynamodb-sqs-events-publisher-lambda/lambda.zip

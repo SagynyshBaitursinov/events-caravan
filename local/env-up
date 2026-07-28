@@ -28,7 +28,7 @@ MAX_RECEIVE_COUNT=3
 EVENTS_PUBLISHER_FAILURE_QUEUE_NAME="${EVENTS_PUBLISHER_LAMBDA_NAME}${DEAD_LETTER_QUEUE_SUFFIX}"
 EVENTS_PUBLISHER_MAXIMUM_RETRY_ATTEMPTS=3
 
-source ./events-publisher-lambda/zip
+source ./dynamodb-sqs-events-publisher-lambda/zip
 
 start_floci() {
   echo "Starting floci..."
@@ -222,7 +222,7 @@ create_snapshots_dynamodb_table() {
 
 create_events_publisher_lambda() {
   local lambda_role="arn:aws:iam::000000000000:role/${EVENTS_PUBLISHER_LAMBDA_NAME}-role"
-  local lambda_zip="./events-publisher-lambda/lambda.zip"
+  local lambda_zip="./dynamodb-sqs-events-publisher-lambda/lambda.zip"
 
   echo "Creating Events publisher lambda: $EVENTS_PUBLISHER_LAMBDA_NAME..."
 
