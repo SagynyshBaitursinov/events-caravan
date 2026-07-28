@@ -263,6 +263,43 @@ class ApplyMethodsCollectorTest {
     }
   }
 
+  @SuppressWarnings("SameParameterValue")
+  static class Robot extends EventSourcedEntity {
+
+    static final String CHARGED = "charged";
+    static final String DISCHARGED = "discharged";
+
+    long currentCharge = 0;
+
+    void charge(long amount) {
+      recordEvent(CHARGED, new NumberCarryingPayload(amount));
+    }
+
+    void discharge(long amount) {
+      recordEvent(DISCHARGED, new NumberCarryingPayload(amount));
+    }
+
+    @ApplyEvent(CHARGED)
+    private void applyCharged(Event<NumberCarryingPayload> charged) {
+      this.currentCharge += charged.payload().amount();
+    }
+
+    @ApplyEvent(ExternalApplyEventMethodsTest.Robot.DISCHARGED)
+    private void applyDischarged(Event<NumberCarryingPayload> discharged) {
+      this.currentCharge -= discharged.payload().amount();
+    }
+
+    @Override
+    public String entityId() {
+      return "1";
+    }
+
+    @Override
+    public String entityName() {
+      return "robot";
+    }
+  }
+
   @Nested
   class HappyPath {
 
@@ -341,6 +378,17 @@ class ApplyMethodsCollectorTest {
       Method expected = ChildWithOverriddenMethod.class.getDeclaredMethod("apply", Event.class);
       assertThat(result.get("turned-on"))
           .isEqualTo(expected);
+    }
+
+    @Test
+    void appliesEventsThroughExternalMethod() {
+      var robot = new Robot();
+
+      robot.charge(10);
+      robot.discharge(4);
+
+      assertThat(robot.currentCharge).isEqualTo(6);
+      assertThat(robot.version()).isEqualTo(2);
     }
   }
 

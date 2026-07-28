@@ -16,12 +16,12 @@ import java.util.function.Consumer;
 import java.util.function.LongFunction;
 
 /**
- * Walks a single entity's events across its sharded partitions in ascending sequence-number
+ * Iterates over single entity's events across its sharded partitions in ascending sequence-number
  * order. Events for an entity are spread across partition keys suffixed by
  * {@code sequenceNumber/partitionShardSize}, so once a shard's own DynamoDB pagination is
  * exhausted, the highest sequence number observed in that shard is compared against the shard's
  * upper bound: an exact match means the shard was filled to capacity and a subsequent shard may
- * exist, anything less means this is the entity's current tip.
+ * exist, anything less means this is the entity's last patition.
  */
 public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
 

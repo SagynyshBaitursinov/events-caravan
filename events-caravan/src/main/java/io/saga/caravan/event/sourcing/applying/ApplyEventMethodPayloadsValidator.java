@@ -2,11 +2,8 @@ package io.saga.caravan.event.sourcing.applying;
 
 import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
-import io.saga.caravan.event.sourcing.EventSourcedEntityNamesKeeper;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -15,22 +12,15 @@ import java.util.Set;
 
 import static java.util.stream.Collectors.toSet;
 
-@Component
 @RequiredArgsConstructor
-public class ApplyEventMethodsValidator implements SmartInitializingSingleton {
+public class ApplyEventMethodPayloadsValidator {
 
   private final Map<EventType, Class<?>> eventPayloadClassMap;
-  private final EventSourcedEntityNamesKeeper eventSourcedEntityNamesKeeper;
 
-  @Override
-  public void afterSingletonsInstantiated() {
-    eventSourcedEntityNamesKeeper.getEntityClassToEntityNameMap()
-        .forEach(this::validateEntity);
-  }
-
-  private void validateEntity(Class<? extends EventSourcedEntity> entityClass,
-                              String entityName) {
-    Map<String, Method> applyEventMethods = ApplyMethodsCollector.applyEventMethodsOf(entityClass);
+  public void validate(String entityName,
+                       Class<? extends EventSourcedEntity> entityClass) {
+    Map<String, Method> applyEventMethods
+        = ApplyMethodsCollector.applyEventMethodsOf(entityClass);
 
     applyEventMethods.forEach((eventName, method) ->
         validatePayloadClass(entityName, eventName, method));
@@ -41,12 +31,17 @@ public class ApplyEventMethodsValidator implements SmartInitializingSingleton {
   private void validatePayloadClass(String entityName,
                                     String eventName,
                                     Method applyEventMethod) {
-    var registeredPayloadClass
-        = eventPayloadClassMap.get(new EventType(entityName, eventName));
+    var eventType = new EventType(entityName, eventName);
+    var registeredEventPayloadClass = eventPayloadClassMap.get(eventType);
+
+    if (registeredEventPayloadClass == null) {
+      throw new EventSourcedEntitySetupException(
+          "There's no registered event payload class for %s".formatted(eventType));
+    }
 
     var parameterTypes = applyEventMethod.getGenericParameterTypes();
     var parametrizedType = (ParameterizedType) parameterTypes[parameterTypes.length - 1];
-    if (!parametrizedType.getActualTypeArguments()[0].equals(registeredPayloadClass)) {
+    if (!parametrizedType.getActualTypeArguments()[0].equals(registeredEventPayloadClass)) {
       throw new EventSourcedEntitySetupException(
           "@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for %s.%s"
               .formatted(

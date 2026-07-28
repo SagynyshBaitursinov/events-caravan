@@ -3,7 +3,6 @@ package io.saga.caravan.event.sourcing.applying;
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
-import io.saga.caravan.event.sourcing.EventSourcedEntityNamesKeeper;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @NullMarked
-class ApplyEventMethodsValidatorTest {
+class ApplyEventMethodPayloadsValidatorTest {
 
   static class CarTurnedOnPayload {
   }
@@ -140,8 +139,8 @@ class ApplyEventMethodsValidatorTest {
     }
   }
 
+  ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator;
   Map<EventType, Class<?>> payloadClassMap;
-  EventSourcedEntityNamesKeeper namesKeeper;
 
   @BeforeEach
   void setUp() {
@@ -149,47 +148,47 @@ class ApplyEventMethodsValidatorTest {
         new EventType("car", "turned-on"), CarTurnedOnPayload.class,
         new EventType("car", "turned-off"), CarTurnedOffPayload.class);
 
-    namesKeeper = new EventSourcedEntityNamesKeeper();
-  }
-
-  private void validate(Class<? extends EventSourcedEntity> entityClass) {
-    namesKeeper.register("car", entityClass);
-
-    new ApplyEventMethodsValidator(payloadClassMap, namesKeeper)
-        .afterSingletonsInstantiated();
+    applyEventMethodPayloadsValidator = new ApplyEventMethodPayloadsValidator(payloadClassMap);
   }
 
   @Test
   void passesWhenApplyMethodsMatchRegisteredEvents() {
-    assertThatCode(() -> validate(ValidEntity.class))
+    assertThatCode(() -> applyEventMethodPayloadsValidator.validate("car", ValidEntity.class))
         .doesNotThrowAnyException();
   }
 
   @Test
   void throwsWhenPayloadClassDiffersFromRegistration() {
-    assertThatThrownBy(() -> validate(WrongPayloadClassEntity.class))
+    assertThatThrownBy(() -> applyEventMethodPayloadsValidator.validate("car", WrongPayloadClassEntity.class))
         .isInstanceOf(EventSourcedEntitySetupException.class)
-        .hasMessage("@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyEventMethodsValidatorTest$WrongPayloadClassEntity.applyTurnedOn");
+        .hasMessage("@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyEventMethodPayloadsValidatorTest$WrongPayloadClassEntity.applyTurnedOn");
   }
 
   @Test
   void throwsWhenEventTypeIsNotInPayloadMap() {
-    assertThatThrownBy(() -> validate(UnregisteredEventEntity.class))
+    assertThatThrownBy(() -> applyEventMethodPayloadsValidator.validate("car", UnregisteredEventEntity.class))
         .isInstanceOf(EventSourcedEntitySetupException.class)
-        .hasMessage("@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for io.saga.caravan.event.sourcing.applying.ApplyEventMethodsValidatorTest$UnregisteredEventEntity.applyBroke");
+        .hasMessage("There's no registered event payload class for EventType[entityName=car, eventName=broke]");
+  }
+
+  @Test
+  void throwsWhenEntityNameIsWrong() {
+    assertThatThrownBy(() -> applyEventMethodPayloadsValidator.validate("auto", ValidEntity.class))
+        .isInstanceOf(EventSourcedEntitySetupException.class)
+        .hasMessage("There's no registered event payload class for EventType[entityName=auto, eventName=turned-on]");
   }
 
   @Test
   void throwsWhenRegisteredEventHasNoApplyMethod() {
-    assertThatThrownBy(() -> validate(MissingApplyMethodEntity.class))
+    assertThatThrownBy(() -> applyEventMethodPayloadsValidator.validate("car", MissingApplyMethodEntity.class))
         .isInstanceOf(EventSourcedEntitySetupException.class)
         .hasMessage("Events with no @ApplyEvent method: [EventType[entityName=car, eventName=turned-off]]");
   }
 
   @Test
   void failsFastOnStructurallyBrokenEntities() {
-    assertThatThrownBy(() -> validate(StructurallyBrokenEntity.class))
+    assertThatThrownBy(() -> applyEventMethodPayloadsValidator.validate("car", StructurallyBrokenEntity.class))
         .isInstanceOf(EventSourcedEntitySetupException.class)
-        .hasMessage("@ApplyEvent method for eventName=turned-on is duplicated in entity class io.saga.caravan.event.sourcing.applying.ApplyEventMethodsValidatorTest$StructurallyBrokenEntity");
+        .hasMessage("@ApplyEvent method for eventName=turned-on is duplicated in entity class io.saga.caravan.event.sourcing.applying.ApplyEventMethodPayloadsValidatorTest$StructurallyBrokenEntity");
   }
 }

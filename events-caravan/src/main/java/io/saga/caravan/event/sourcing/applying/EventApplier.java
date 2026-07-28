@@ -7,7 +7,10 @@ import java.lang.annotation.Target;
 
 /**
  * Declares classes outside the entity class that hold {@link ApplyEvent} methods
- * for this entity, so apply logic can live outside the entity class.
+ * for this entity, so apply logic can live outside the entity class, and entity class stays slimmer.
+ * It's recommended to place EventAppliers in same package as EventSourcedEntity,
+ * and make entity's fields or methods to mutate its state package private.
+ * That way EventSourcedEntity's package will preserve encapsulation.
  *
  * <p>Each declared class may hold static methods with
  * {@code (EntityClass entity, Event<PayloadClass> event)} parameters, annotated with

@@ -8,26 +8,35 @@ import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.sourcing.snapshot.EntitySnapshot;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotStore;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotTaker;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 
-@RequiredArgsConstructor
-@Setter(AccessLevel.PACKAGE)
-public abstract class EventSourcedEntityRepository<T extends EventSourcedEntity> implements Repository<T> {
+public abstract class EventSourcedRepository<T extends EventSourcedEntity> implements Repository<T> {
 
   private final String entityName;
   private final Class<T> entityClass;
 
-  private EventStore eventStore;
-  private EventProducer eventProducer;
-  private SnapshotStore snapshotStore;
+  private final EventStore eventStore;
+  private final EventProducer eventProducer;
+  private final SnapshotStore snapshotStore;
 
   @Nullable
-  private SnapshotTaker<T, ?> snapshotTaker;
+  private final SnapshotTaker<T, ?> snapshotTaker;
+
+  protected EventSourcedRepository(String entityName,
+                                   Class<T> entityClass,
+                                   EventSourcingRepositoryContext context) {
+    this.entityName = entityName;
+    this.entityClass = entityClass;
+
+    this.eventStore = context.eventStore();
+    this.eventProducer = context.eventProducer();
+    this.snapshotStore = context.snapshotStore();
+    this.snapshotTaker = context.snapshotTakerFor(entityClass);
+
+    context.register(this);
+  }
 
   @Override
   public final void save(T entity) {
@@ -137,27 +146,12 @@ public abstract class EventSourcedEntityRepository<T extends EventSourcedEntity>
   }
 
   private EntityReference createEntityReference(String entityId) {
-    return new EntityReference(entityName, entityId);
+    return new EntityReference(entityName(), entityId);
   }
 
   @Nullable
   private SnapshotTaker<T, ?> snapshotTaker() {
     return snapshotTaker;
-  }
-
-  @SuppressWarnings("unchecked")
-  public void setSnapshotTaker(@Nullable SnapshotTaker<? extends EventSourcedEntity, ?> snapshotTaker) {
-    if (snapshotTaker == null) {
-      return;
-    }
-
-    if (this.entityClass != snapshotTaker.entityClass()) {
-      throw new EventSourcedRepositoryException(
-          "Cannot set snapshotTaker for entityClass=%s to repository of entityClass=%s"
-              .formatted(snapshotTaker.entityClass(), this.entityClass));
-    }
-
-    this.snapshotTaker = (SnapshotTaker<T, ?>) snapshotTaker;
   }
 
   protected abstract T createWithBlankState(String entityId);

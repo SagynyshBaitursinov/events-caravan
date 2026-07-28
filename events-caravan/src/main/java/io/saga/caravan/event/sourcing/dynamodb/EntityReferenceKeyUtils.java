@@ -9,14 +9,14 @@ final class EntityReferenceKeyUtils {
 
   private static final String SEPARATOR = "#";
 
-  static String toKeyValue(EntityReference entityReference) {
+  static String toPartitionKeyValue(EntityReference entityReference) {
     requireFreeOfSeparator(entityReference);
 
     return entityReference.entityName() + SEPARATOR + entityReference.entityId();
   }
 
-  static String toShardedKeyValue(EntityReference entityReference, long shardIndex) {
-    return toKeyValue(entityReference) + SEPARATOR + shardIndex;
+  static String toShardedPartitionKeyValue(EntityReference entityReference, long shardIndex) {
+    return toPartitionKeyValue(entityReference) + SEPARATOR + shardIndex;
   }
 
   private static void requireFreeOfSeparator(EntityReference entityReference) {

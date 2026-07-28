@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static io.saga.caravan.event.sourcing.dynamodb.EntityReferenceKeyUtils.toShardedKeyValue;
+import static io.saga.caravan.event.sourcing.dynamodb.EntityReferenceKeyUtils.toShardedPartitionKeyValue;
 
 @Slf4j
 @Component
@@ -189,7 +189,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     attributes.put(
         PK,
         AttributeValue.fromS(
-            toShardedKeyValue(
+            toShardedPartitionKeyValue(
                 event.entityReference(),
                 shardIndexForSequenceNumber(event.sequenceNumber()))));
     attributes.put(
@@ -211,12 +211,6 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     return attributes;
   }
 
-  /**
-   * Sequence numbers are gapless and start at 1 (enforced by EventSourcedEntity and the
-   * all-or-nothing writes below), so every shard except an entity's current tip ends up holding
-   * exactly {@code partitionShardSize} events. That lets reads detect a shard boundary purely
-   * from the highest sequence number observed, without a separate counter item.
-   */
   private long shardIndexForSequenceNumber(long sequenceNumber) {
     return (sequenceNumber - 1) / partitionShardSize;
   }
@@ -241,12 +235,8 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     Map<String, AttributeValue> firstShardExclusiveStartKey = resumesExactlyAtShardBoundary
         ? null
         : Map.of(
-        PK,
-        AttributeValue.fromS(
-            toShardedKeyValue(entityReference, firstShardIndex)),
-        SK,
-        AttributeValue.fromN(
-            String.valueOf(fromSequenceNumberExclusive)));
+        PK, AttributeValue.fromS(toShardedPartitionKeyValue(entityReference, firstShardIndex)),
+        SK, AttributeValue.fromN(String.valueOf(fromSequenceNumberExclusive)));
 
     return new DynamoDbEventsSpliterator(
         dynamoDbClient,
@@ -271,7 +261,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
             Map.of(
                 ":pkVal",
                 AttributeValue.fromS(
-                    toShardedKeyValue(entityReference, shardIndex))))
+                    toShardedPartitionKeyValue(entityReference, shardIndex))))
         .limit(maxPageSize);
   }
 
