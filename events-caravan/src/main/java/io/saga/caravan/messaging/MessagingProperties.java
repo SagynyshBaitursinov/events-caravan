@@ -10,7 +10,6 @@ public record MessagingProperties(int concurrency,
                                   int minPollSize,
                                   int pollersCountCap,
                                   int pollWaitSeconds,
-                                  int gracefulShutdownSeconds,
                                   MessageBatchDeletionProperties messageBatchDeletionProperties) {
 
   public MessagingProperties {
@@ -42,10 +41,6 @@ public record MessagingProperties(int concurrency,
 
     if (pollWaitSeconds < 1) {
       throw new IllegalArgumentException("pollWaitSeconds must be greater or equal to 1");
-    }
-
-    if (gracefulShutdownSeconds < 0) {
-      throw new IllegalArgumentException("gracefulShutdownSeconds must be greater or equal to 0");
     }
   }
 

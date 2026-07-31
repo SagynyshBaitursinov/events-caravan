@@ -1,6 +1,6 @@
 package io.saga.caravan.event;
 
-import static org.springframework.util.StringUtils.hasText;
+import static io.saga.caravan.utils.TextUtils.hasText;
 
 public record EventType(String entityName,
                         String eventName) {

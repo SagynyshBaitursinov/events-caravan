@@ -2,6 +2,7 @@ package io.saga.caravan.event.sourcing;
 
 import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.Event;
+import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.sourcing.applying.ApplyEvent;
@@ -14,7 +15,6 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -251,15 +251,16 @@ class EventSourcingRepositoryContextSetupTest {
     }
   }
 
-  private final Map<EventType, Class<?>> eventPayloadClassMap = Map.of(
-      new EventType(CAR, TURNED_ON), TurnedOnPayload.class,
-      new EventType(TRUCK, TURNED_ON), TurnedOnPayload.class);
+  EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper =
+      new EventPayloadClassMappingKeeper()
+          .register(new EventType(CAR, TURNED_ON), TurnedOnPayload.class)
+          .register(new EventType(TRUCK, TURNED_ON), TurnedOnPayload.class);
 
-  private final EventStore eventStore = mock(EventStore.class);
-  private final EventProducer eventProducer = mock(EventProducer.class);
-  private final SnapshotStore snapshotStore = mock(SnapshotStore.class);
+  EventStore eventStore = mock(EventStore.class);
+  EventProducer eventProducer = mock(EventProducer.class);
+  SnapshotStore snapshotStore = mock(SnapshotStore.class);
 
-  private final EventSourcingRepositoryContext context = contextWith(List.of());
+  EventSourcingRepositoryContext context = contextWith(List.of());
 
   private EventSourcingRepositoryContext contextWith(
       List<SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakers) {
@@ -268,7 +269,7 @@ class EventSourcingRepositoryContextSetupTest {
         eventStore,
         eventProducer,
         snapshotStore,
-        new ApplyEventMethodPayloadsValidator(eventPayloadClassMap),
+        new ApplyEventMethodPayloadsValidator(eventPayloadClassMappingKeeper),
         snapshotTakers);
   }
 
@@ -317,7 +318,7 @@ class EventSourcingRepositoryContextSetupTest {
 
     assertThatThrownBy(() -> contextWith(duplicatedSnapshotTakers))
         .isInstanceOf(EventSourcedEntitySetupException.class)
-        .hasMessage("Duplicate snapshot taker found for class %s".formatted(Car.class));
+        .hasMessage("Duplicate snapshot taker found for entity %s".formatted(Car.class));
   }
 
   @Test

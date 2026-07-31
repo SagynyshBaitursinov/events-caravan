@@ -22,27 +22,15 @@
     <dependencies>
         <dependency>
             <groupId>io.saga</groupId>
-            <artifactId>events-caravan</artifactId>
+            <artifactId>events-caravan-dynamodb-spring-boot-starter</artifactId>
             <version>${revision}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>io.saga</groupId>
-            <artifactId>events-caravan-dynamodb</artifactId>
+            <artifactId>events-caravan-sqs-spring-boot-starter</artifactId>
             <version>${revision}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.saga</groupId>
-            <artifactId>events-caravan-sqs</artifactId>
-            <version>${revision}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>tools.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
             <scope>test</scope>
         </dependency>
 

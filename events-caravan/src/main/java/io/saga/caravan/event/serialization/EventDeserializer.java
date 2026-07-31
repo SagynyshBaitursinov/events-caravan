@@ -4,5 +4,5 @@ import io.saga.caravan.event.Event;
 
 public interface EventDeserializer {
 
-  Event<?> deserialize(String eventAsJson) throws EventDeserializationException;
+  Event<?> deserialize(String eventMessage) throws EventDeserializationException;
 }

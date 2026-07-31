@@ -5,8 +5,6 @@ import io.saga.caravan.event.sourcing.snapshot.EntitySnapshot;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotStore;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
@@ -16,25 +14,32 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.saga.caravan.event.sourcing.dynamodb.EntityReferenceKeyUtils.toPartitionKeyValue;
+import static io.saga.caravan.event.sourcing.dynamodb.PrimaryKeyUtils.toPartitionKeyValue;
+import static io.saga.caravan.utils.TextUtils.hasText;
+import static java.util.Objects.requireNonNull;
 
-@Component
 public class DynamoDbBasedSnapshotStore implements SnapshotStore {
 
   private static final String ENTITY_REFERENCE_KEY = "entityReference";
   private static final String VERSION_KEY = "version";
   private static final String PAYLOAD_KEY = "payload";
 
+  private final DynamoDbClient dynamoDbClient;
   private final SnapshotSerializer snapshotSerializer;
   private final SnapshotDeserializer snapshotDeserializer;
-  private final DynamoDbClient dynamoDbClient;
   private final String snapshotsTableName;
 
-  public DynamoDbBasedSnapshotStore(
-      SnapshotSerializer snapshotSerializer,
-      SnapshotDeserializer snapshotDeserializer,
-      DynamoDbClient dynamoDbClient,
-      @Value("${caravan.event.sourcing.snapshot-store.dynamo-db.table-name}") String snapshotsTableName) {
+  public DynamoDbBasedSnapshotStore(DynamoDbClient dynamoDbClient,
+                                    SnapshotSerializer snapshotSerializer,
+                                    SnapshotDeserializer snapshotDeserializer,
+                                    String snapshotsTableName) {
+    requireNonNull(dynamoDbClient);
+    requireNonNull(snapshotSerializer);
+    requireNonNull(snapshotDeserializer);
+
+    if (!hasText(snapshotsTableName)) {
+      throw new IllegalArgumentException("snapshotsTableName must be set");
+    }
 
     this.snapshotSerializer = snapshotSerializer;
     this.snapshotDeserializer = snapshotDeserializer;

@@ -2,6 +2,7 @@ package io.saga.caravan.event.producer;
 
 import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.Event;
+import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import io.saga.caravan.event.EventType;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
@@ -9,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -39,13 +39,12 @@ class ValidatingEventProducerTest {
     }
   }
 
-  private final RecordingEventProducer delegate = new RecordingEventProducer();
+  RecordingEventProducer delegate = new RecordingEventProducer();
 
-  private final ValidatingEventProducer validatingEventProducer
-      = new ValidatingEventProducer(
+  ValidatingEventProducer validatingEventProducer = new ValidatingEventProducer(
       delegate,
-      Map.of(
-          new EventType("car", "turned-on"), CarTurnedOnPayload.class));
+      new EventPayloadClassMappingKeeper()
+          .register(new EventType("car", "turned-on"), CarTurnedOnPayload.class));
 
   @Test
   void shouldProduceEventWithRegisteredPayloadClass() {

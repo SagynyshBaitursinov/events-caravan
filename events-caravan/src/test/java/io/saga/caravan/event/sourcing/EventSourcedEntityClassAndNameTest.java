@@ -2,6 +2,7 @@ package io.saga.caravan.event.sourcing;
 
 import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.Event;
+import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.sourcing.applying.ApplyEvent;
@@ -15,7 +16,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -139,7 +139,7 @@ class EventSourcedEntityClassAndNameTest {
 
   static class MisbehavingCarSnapshotTaker extends SnapshotTaker<Car, CarSnapshot> {
 
-    private final Function<EntityReference, Car> recreation;
+    Function<EntityReference, Car> recreation;
 
     MisbehavingCarSnapshotTaker(Function<EntityReference, Car> recreation) {
       super(Car.class, CarSnapshot.class);
@@ -163,12 +163,12 @@ class EventSourcedEntityClassAndNameTest {
     }
   }
 
-  private final Map<EventType, Class<?>> eventPayloadClassMap = Map.of(
-      new EventType(CAR, TURNED_ON), TurnedOnPayload.class);
+  EventPayloadClassMappingKeeper eventPayloadClassMap = new EventPayloadClassMappingKeeper()
+      .register(new EventType(CAR, TURNED_ON), TurnedOnPayload.class);
 
-  private final EventStore eventStore = mock(EventStore.class);
-  private final EventProducer eventProducer = mock(EventProducer.class);
-  private final SnapshotStore snapshotStore = mock(SnapshotStore.class);
+  EventStore eventStore = mock(EventStore.class);
+  EventProducer eventProducer = mock(EventProducer.class);
+  SnapshotStore snapshotStore = mock(SnapshotStore.class);
 
   private EventSourcingRepositoryContext contextWith(
       List<SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakers) {

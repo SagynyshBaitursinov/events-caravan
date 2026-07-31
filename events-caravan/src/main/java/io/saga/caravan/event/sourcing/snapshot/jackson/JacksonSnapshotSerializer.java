@@ -4,11 +4,9 @@ import io.saga.caravan.event.sourcing.snapshot.EntitySnapshot;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotException;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
-@Component
 @RequiredArgsConstructor
 public class JacksonSnapshotSerializer implements SnapshotSerializer {
 

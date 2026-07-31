@@ -2,8 +2,8 @@ package io.saga.caravan.event;
 
 import io.saga.caravan.entity.EntityReference;
 
+import static io.saga.caravan.utils.TextUtils.hasText;
 import static java.util.Objects.requireNonNull;
-import static org.springframework.util.StringUtils.hasText;
 
 public record EventReference(EntityReference entityReference,
                              long sequenceNumber,

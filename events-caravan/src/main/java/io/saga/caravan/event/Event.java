@@ -8,9 +8,9 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 
+import static io.saga.caravan.utils.TextUtils.hasText;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Objects.requireNonNull;
-import static org.springframework.util.StringUtils.hasText;
 
 @Builder
 public record Event<T>(EntityReference entityReference,

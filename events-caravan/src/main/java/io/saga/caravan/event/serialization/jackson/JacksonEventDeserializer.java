@@ -8,7 +8,6 @@ import io.saga.caravan.event.serialization.EventDeserializer;
 import io.saga.caravan.event.serialization.EventPayloadDeserializationException;
 import io.saga.caravan.event.serialization.EventPayloadDeserializer;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import tools.jackson.core.JsonGenerator;
 import tools.jackson.core.JsonParser;
 import tools.jackson.databind.json.JsonMapper;
@@ -19,7 +18,6 @@ import java.time.ZonedDateTime;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static tools.jackson.core.JsonToken.PROPERTY_NAME;
 
-@Component
 @RequiredArgsConstructor
 public class JacksonEventDeserializer implements EventDeserializer {
 
@@ -33,9 +31,9 @@ public class JacksonEventDeserializer implements EventDeserializer {
   private final EventPayloadDeserializer eventPayloadDeserializer;
 
   @Override
-  public Event<?> deserialize(String eventAsJson) throws EventDeserializationException {
+  public Event<?> deserialize(String eventMessage) throws EventDeserializationException {
     try {
-      return deserializeUsingParser(eventAsJson);
+      return deserializeUsingParser(eventMessage);
     } catch (EventDeserializationException exception) {
       throw exception;
     } catch (Exception exception) {
@@ -45,8 +43,8 @@ public class JacksonEventDeserializer implements EventDeserializer {
     }
   }
 
-  private Event<Object> deserializeUsingParser(String eventAsJson) throws EventDeserializationException, EventPayloadDeserializationException {
-    try (var jsonParser = jsonMapper.createParser(eventAsJson)) {
+  private Event<Object> deserializeUsingParser(String eventMessage) throws EventDeserializationException, EventPayloadDeserializationException {
+    try (var jsonParser = jsonMapper.createParser(eventMessage)) {
       EntityReference entityReference = null;
       String eventName = null;
       long sequenceNumber = 0;

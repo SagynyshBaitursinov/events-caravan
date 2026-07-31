@@ -29,11 +29,11 @@ class MessageDeletionBatcherTest {
 
   private static MessageBatchDeletionProperties propertiesOf(int maxDeleteBatchSize,
                                                              int deletionPeriodSeconds,
-                                                             int deletionParallelism) {
+                                                             int concurrency) {
     return MessageBatchDeletionProperties.builder()
         .maxDeleteBatchSize(maxDeleteBatchSize)
-        .deletionPeriodSeconds(deletionPeriodSeconds)
-        .deletionParallelism(deletionParallelism)
+        .periodSeconds(deletionPeriodSeconds)
+        .concurrency(concurrency)
         .build();
   }
 
@@ -142,10 +142,10 @@ class MessageDeletionBatcherTest {
   }
 
   @Nested
-  class Parallelism {
+  class Concurrency {
 
     @Test
-    void deletesMultipleBatchesConcurrentlyWhenParallelismIsGreaterThanOne() throws InterruptedException {
+    void deletesMultipleBatchesConcurrentlyWhenConcurrencyIsGreaterThanOne() throws InterruptedException {
       CountDownLatch bothBatchesStarted = new CountDownLatch(2);
       CountDownLatch deleteThreadBlocker = new CountDownLatch(1);
       MessagesDeleter messagesDeleter = (_) -> {

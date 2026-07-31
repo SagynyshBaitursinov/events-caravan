@@ -33,15 +33,20 @@ public class EventSourcingRepositoryContext {
     this.applyEventMethodPayloadsValidator = applyEventMethodPayloadsValidator;
 
     this.snapshotTakerMap = new HashMap<>(snapshotTakers.size());
+    populateSnapshotTakerMap(snapshotTakers);
+  }
+
+  private void populateSnapshotTakerMap(List<SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakers) {
     snapshotTakers.forEach(snapshotTaker -> {
       if (snapshotTaker.frequencyOfSnapshots() <= 0) {
         throw new EventSourcedEntitySetupException(
-            "frequencyOfSnapshots is not positive in %s"
-                .formatted(snapshotTaker.entityClass()));
+            "frequencyOfSnapshots is not positive in snapshotTaker %s"
+                .formatted(snapshotTaker.getClass()));
       }
+
       if (snapshotTakerMap.containsKey(snapshotTaker.entityClass())) {
         throw new EventSourcedEntitySetupException(
-            "Duplicate snapshot taker found for class %s"
+            "Duplicate snapshot taker found for entity %s"
                 .formatted(snapshotTaker.entityClass()));
       }
       snapshotTakerMap.put(snapshotTaker.entityClass(), snapshotTaker);

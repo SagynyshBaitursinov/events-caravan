@@ -16,12 +16,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
             <groupId>io.saga</groupId>
             <artifactId>events-caravan</artifactId>
             <version>${revision}</version>

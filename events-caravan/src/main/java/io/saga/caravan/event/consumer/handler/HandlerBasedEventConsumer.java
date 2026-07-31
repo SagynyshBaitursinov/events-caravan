@@ -4,7 +4,6 @@ import io.saga.caravan.event.Event;
 import io.saga.caravan.event.consumer.EventConsumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -13,7 +12,6 @@ import java.util.Collection;
 import java.util.Optional;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class HandlerBasedEventConsumer implements EventConsumer {
 

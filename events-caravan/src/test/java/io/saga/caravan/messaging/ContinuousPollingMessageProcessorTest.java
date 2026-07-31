@@ -36,12 +36,11 @@ class ContinuousPollingMessageProcessorTest {
         .minPollSize(1)
         .pollersCountCap(0)
         .pollWaitSeconds(1)
-        .gracefulShutdownSeconds(5)
         .messageBatchDeletionProperties(
             MessageBatchDeletionProperties.builder()
                 .maxDeleteBatchSize(1)
-                .deletionPeriodSeconds(1)
-                .deletionParallelism(2)
+                .periodSeconds(1)
+                .concurrency(2)
                 .build())
         .build();
   }

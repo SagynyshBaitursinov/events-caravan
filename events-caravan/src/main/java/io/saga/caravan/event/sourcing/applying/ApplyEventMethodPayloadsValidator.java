@@ -1,5 +1,6 @@
 package io.saga.caravan.event.sourcing.applying;
 
+import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
@@ -15,7 +16,7 @@ import static java.util.stream.Collectors.toSet;
 @RequiredArgsConstructor
 public class ApplyEventMethodPayloadsValidator {
 
-  private final Map<EventType, Class<?>> eventPayloadClassMap;
+  private final EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper;
 
   public void validate(String entityName,
                        Class<? extends EventSourcedEntity> entityClass) {
@@ -32,12 +33,9 @@ public class ApplyEventMethodPayloadsValidator {
                                     String eventName,
                                     Method applyEventMethod) {
     var eventType = new EventType(entityName, eventName);
-    var registeredEventPayloadClass = eventPayloadClassMap.get(eventType);
-
-    if (registeredEventPayloadClass == null) {
-      throw new EventSourcedEntitySetupException(
-          "There's no registered event payload class for %s".formatted(eventType));
-    }
+    var registeredEventPayloadClass = eventPayloadClassMappingKeeper.payloadClassFor(eventType)
+        .orElseThrow(() -> new EventSourcedEntitySetupException(
+            "There's no registered event payload class for %s".formatted(eventType)));
 
     var parameterTypes = applyEventMethod.getGenericParameterTypes();
     var parametrizedType = (ParameterizedType) parameterTypes[parameterTypes.length - 1];
@@ -52,7 +50,7 @@ public class ApplyEventMethodPayloadsValidator {
 
   private void validateEventApplierCoverage(String entityName,
                                             Set<String> coveredEventNames) {
-    Set<EventType> missingApplyEventMethod = eventPayloadClassMap.keySet().stream()
+    Set<EventType> missingApplyEventMethod = eventPayloadClassMappingKeeper.registeredEventTypes().stream()
         .filter(eventType -> eventType.entityName().equals(entityName))
         .filter(eventType -> !coveredEventNames.contains(eventType.eventName()))
         .collect(toSet());

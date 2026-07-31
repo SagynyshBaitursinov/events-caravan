@@ -37,7 +37,7 @@ class MessageDeletionBatcher {
     this.messagesDeleter = messagesDeleter;
     this.pendingDeletions = new LinkedBlockingQueue<>(queueCapacity);
     this.messageBatchDeletionProperties = messageBatchDeletionProperties;
-    this.inParallelDeletions = new Semaphore(messageBatchDeletionProperties.deletionParallelism());
+    this.inParallelDeletions = new Semaphore(messageBatchDeletionProperties.concurrency());
     this.deletionExecutorService = createNewDeletionExecutorService();
     this.pollingExecutorService = createNewPollingExecutorService();
 
@@ -102,7 +102,7 @@ class MessageDeletionBatcher {
     List<Message> batch = new ArrayList<>(maxDeleteBatchSize);
     try {
       Instant deadline = Instant.now().plusSeconds(
-          messageBatchDeletionProperties.deletionPeriodSeconds());
+          messageBatchDeletionProperties.periodSeconds());
       do {
         Instant now = Instant.now();
         Message nextMessage = pollPendingDeletion(

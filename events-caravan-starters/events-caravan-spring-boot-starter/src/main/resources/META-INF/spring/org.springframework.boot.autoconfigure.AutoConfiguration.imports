@@ -1,0 +1,5 @@
+io.saga.caravan.autoconfigure.CaravanEventDrivenComponentsAutoConfiguration
+io.saga.caravan.autoconfigure.CaravanEventMessagingAutoConfiguration
+io.saga.caravan.autoconfigure.CaravanEventRegistryAutoConfiguration
+io.saga.caravan.autoconfigure.CaravanEventSourcingAutoConfiguration
+io.saga.caravan.autoconfigure.CaravanJacksonSerializationAutoConfiguration

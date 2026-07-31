@@ -3,11 +3,9 @@ package io.saga.caravan.event.sourcing.snapshot.jackson;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
-@Component
 @RequiredArgsConstructor
 public class JacksonSnapshotDeserializer implements SnapshotDeserializer {
 

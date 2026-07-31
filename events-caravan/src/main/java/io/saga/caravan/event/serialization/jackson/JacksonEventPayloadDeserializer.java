@@ -1,21 +1,18 @@
 package io.saga.caravan.event.serialization.jackson;
 
+import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.serialization.EventPayloadDeserializationException;
 import io.saga.caravan.event.serialization.EventPayloadDeserializer;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.util.Map;
-
-@Component
 @RequiredArgsConstructor
 public class JacksonEventPayloadDeserializer implements EventPayloadDeserializer {
 
   private final JsonMapper jsonMapper;
-  private final Map<EventType, Class<?>> eventPayloadClassMap;
+  private final EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper;
 
   @Override
   public Object deserializePayload(String payload,
@@ -31,11 +28,8 @@ public class JacksonEventPayloadDeserializer implements EventPayloadDeserializer
   }
 
   private Class<?> payloadClassForEventType(EventType eventType) throws EventPayloadDeserializationException {
-    if (eventPayloadClassMap.containsKey(eventType)) {
-      return eventPayloadClassMap.get(eventType);
-    } else {
-      throw new EventPayloadDeserializationException(
-          "Could not find class for payload with %s".formatted(eventType));
-    }
+    return eventPayloadClassMappingKeeper.payloadClassFor(eventType)
+        .orElseThrow(() -> new EventPayloadDeserializationException(
+            "Could not find class for payload with %s".formatted(eventType)));
   }
 }

@@ -1,6 +1,6 @@
 package io.saga.caravan.entity;
 
-import static org.springframework.util.StringUtils.hasText;
+import static io.saga.caravan.utils.TextUtils.hasText;
 
 public record EntityReference(String entityName,
                               String entityId) {

@@ -11,10 +11,8 @@ import io.saga.caravan.event.serialization.EventPayloadDeserializer;
 import io.saga.caravan.event.serialization.EventPayloadSerializer;
 import io.saga.caravan.event.sourcing.EventStore;
 import io.saga.caravan.event.sourcing.EventStoreException;
-import io.saga.caravan.event.sourcing.dynamodb.DynamoDbEventsSpliterator;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.jspecify.annotations.Nullable;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.CancellationReason;
@@ -38,10 +36,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static io.saga.caravan.event.sourcing.dynamodb.EntityReferenceKeyUtils.toShardedPartitionKeyValue;
+import static io.saga.caravan.event.sourcing.dynamodb.PrimaryKeyUtils.toShardedPartitionKeyValue;
+import static io.saga.caravan.utils.TextUtils.hasText;
+import static java.util.Objects.requireNonNull;
 
 @Slf4j
-@Component
 public class DynamoDbBasedEventStore implements EventStore, EventProducer {
 
   private static final String PK = "entityReference";
@@ -60,26 +59,39 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
       new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
 
   private final DynamoDbClient dynamoDbClient;
-  private final String eventsTableName;
-  private final Integer maxPageSize;
-  private final long partitionShardSize;
   private final EventPayloadSerializer eventPayloadSerializer;
   private final EventPayloadDeserializer eventPayloadDeserializer;
+  private final String eventsTableName;
+  private final int maxPageSize;
+  private final long partitionShardSize;
 
   public DynamoDbBasedEventStore(DynamoDbClient dynamoDbClient,
-                                 @Value("${caravan.event.store.dynamo-db.table-name}") String eventsTableName,
-                                 @Value("${caravan.event.store.dynamo-db.query-max-page-size:#{null}}") Integer maxPageSize,
-                                 @Value("${caravan.event.store.dynamo-db.partition-shard-size:10000}") long partitionShardSize,
                                  EventPayloadSerializer eventPayloadSerializer,
-                                 EventPayloadDeserializer eventPayloadDeserializer) {
+                                 EventPayloadDeserializer eventPayloadDeserializer,
+                                 String eventsTableName,
+                                 int maxPageSize,
+                                 long partitionShardSize) {
+    requireNonNull(dynamoDbClient);
+    requireNonNull(eventPayloadSerializer);
+    requireNonNull(eventPayloadDeserializer);
+
+    if (!hasText(eventsTableName)) {
+      throw new IllegalArgumentException("eventsTableName must be set");
+    }
+
+    if (partitionShardSize <= 0) {
+      throw new IllegalArgumentException(
+          "partitionShardSize must be positive, got %d".formatted(partitionShardSize));
+    }
+
+    if (maxPageSize <= 0) {
+      throw new IllegalArgumentException(
+          "maxPageSize must be positive, got %d".formatted(maxPageSize));
+    }
+
     this.dynamoDbClient = dynamoDbClient;
     this.eventsTableName = eventsTableName;
     this.maxPageSize = maxPageSize;
-    if (partitionShardSize <= 0) {
-      throw new IllegalArgumentException(
-          "caravan.event.store.dynamo-db.partition-shard-size must be positive, got %d"
-              .formatted(partitionShardSize));
-    }
     this.partitionShardSize = partitionShardSize;
     this.eventPayloadSerializer = eventPayloadSerializer;
     this.eventPayloadDeserializer = eventPayloadDeserializer;
@@ -231,13 +243,9 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
   private DynamoDbEventsSpliterator createSpliterator(EntityReference entityReference,
                                                       long fromSequenceNumberExclusive) {
     long firstShardIndex = shardIndexForSequenceNumber(fromSequenceNumberExclusive + 1);
-    boolean resumesExactlyAtShardBoundary = fromSequenceNumberExclusive % partitionShardSize == 0;
 
-    Map<String, AttributeValue> firstShardExclusiveStartKey = resumesExactlyAtShardBoundary
-        ? null
-        : Map.of(
-        PK, AttributeValue.fromS(toShardedPartitionKeyValue(entityReference, firstShardIndex)),
-        SK, AttributeValue.fromN(String.valueOf(fromSequenceNumberExclusive)));
+    Map<String, AttributeValue> firstShardExclusiveStartKey
+        = getFirstShardExclusiveStartKey(entityReference, fromSequenceNumberExclusive, firstShardIndex);
 
     return new DynamoDbEventsSpliterator(
         dynamoDbClient,
@@ -248,6 +256,16 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
         shardIndex -> shardQueryBuilder(entityReference, shardIndex),
         attributes ->
             this.mapAttributesToEvent(entityReference, attributes));
+  }
+
+  private @Nullable Map<String, AttributeValue> getFirstShardExclusiveStartKey(EntityReference entityReference, long fromSequenceNumberExclusive, long firstShardIndex) {
+    boolean resumesExactlyAtShardBoundary = fromSequenceNumberExclusive % partitionShardSize == 0;
+    if (resumesExactlyAtShardBoundary) {
+      return null;
+    } else {
+      return Map.of(PK, AttributeValue.fromS(toShardedPartitionKeyValue(entityReference, firstShardIndex)),
+          SK, AttributeValue.fromN(String.valueOf(fromSequenceNumberExclusive)));
+    }
   }
 
   private QueryRequest.Builder shardQueryBuilder(EntityReference entityReference,

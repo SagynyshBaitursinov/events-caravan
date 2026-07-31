@@ -1,17 +1,16 @@
 package io.saga.caravan.event.producer;
 
 import io.saga.caravan.event.Event;
-import io.saga.caravan.event.EventType;
+import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
-import java.util.Map;
 
 @RequiredArgsConstructor
 public class ValidatingEventProducer implements EventProducer {
 
   private final EventProducer delegate;
-  private final Map<EventType, Class<?>> eventPayloadClassMap;
+  private final EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper;
 
   @Override
   public void produce(Event<?> event) {
@@ -26,13 +25,10 @@ public class ValidatingEventProducer implements EventProducer {
   }
 
   private void validate(Event<?> event) {
-    var registeredPayloadClass = eventPayloadClassMap.get(event.eventType());
-
-    if (registeredPayloadClass == null) {
-      throw new EventProductionException(
-          "Cannot produce %s, because its %s has no registered payload class"
-              .formatted(event.eventReference(), event.eventType()));
-    }
+    var registeredPayloadClass = eventPayloadClassMappingKeeper.payloadClassFor(event.eventType())
+        .orElseThrow(() -> new EventProductionException(
+            "Cannot produce %s, because its %s has no registered payload class"
+                .formatted(event.eventReference(), event.eventType())));
 
     if (!registeredPayloadClass.equals(event.payload().getClass())) {
       throw new EventProductionException(
