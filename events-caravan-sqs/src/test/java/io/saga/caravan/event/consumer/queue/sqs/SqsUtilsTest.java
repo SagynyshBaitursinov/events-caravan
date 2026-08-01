@@ -278,13 +278,13 @@ class SqsUtilsTest {
 
     @SuppressWarnings("resource")
     @Test
-    void wrapsQueueDoesNotExistExceptionInAnIllegalStateException() {
+    void wrapsQueueDoesNotExistExceptionInAnSqsException() {
       SqsClient sqsClient = mock(SqsClient.class);
       QueueDoesNotExistException original = QueueDoesNotExistException.builder().message("no such queue").build();
       when(sqsClient.getQueueUrl(any(GetQueueUrlRequest.class))).thenThrow(original);
 
       assertThatThrownBy(() -> getQueueUrl(sqsClient, "missing-queue"))
-          .isInstanceOf(IllegalStateException.class)
+          .isInstanceOf(SqsSetupException.class)
           .hasMessage("queueName=missing-queue does not exist")
           .hasCause(original);
     }

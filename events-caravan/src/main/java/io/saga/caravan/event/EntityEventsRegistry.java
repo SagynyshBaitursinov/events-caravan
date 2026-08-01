@@ -7,20 +7,25 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
-public class EventPayloadClassMappingKeeper {
+public class EntityEventsRegistry {
+
+  private static final Pattern ALLOWED_ENTITY_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
 
   private final Map<EventType, Class<?>> map = new HashMap<>();
 
-  public static EventPayloadClassMappingKeeper create(
+  public static EntityEventsRegistry createFor(
       Collection<EntityEventsRegistration> entityEventsRegistrations) {
 
-    var result = new EventPayloadClassMappingKeeper();
+    var result = new EntityEventsRegistry();
     var alreadyProcessedEntityNames = new HashSet<String>();
 
     entityEventsRegistrations.forEach(
         entityEventsRegistration -> {
           var entityName = entityEventsRegistration.entityName();
+
+          validateEntityName(entityName);
 
           if (!alreadyProcessedEntityNames.add(entityName)) {
             throw new EntityEventsRegistrationException(
@@ -44,6 +49,14 @@ public class EventPayloadClassMappingKeeper {
 
   public Set<EventType> registeredEventTypes() {
     return map.keySet();
+  }
+
+  private static void validateEntityName(String entityName) {
+    if (!ALLOWED_ENTITY_NAME_PATTERN.matcher(entityName).matches()) {
+      throw new EntityEventsRegistrationException(
+          "entityName must contain only alphanumerics, hyphens and underscores, got '%s'"
+              .formatted(entityName));
+    }
   }
 
   private static void validate(Class<?> eventPayloadClass) {

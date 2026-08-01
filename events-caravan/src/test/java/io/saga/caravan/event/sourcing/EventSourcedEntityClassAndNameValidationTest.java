@@ -2,8 +2,8 @@ package io.saga.caravan.event.sourcing;
 
 import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.EntityEventsRegistration;
+import io.saga.caravan.event.EntityEventsRegistry;
 import io.saga.caravan.event.Event;
-import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.sourcing.applying.ApplyEvent;
 import io.saga.caravan.event.sourcing.applying.ApplyEventMethodPayloadsValidator;
@@ -164,7 +164,7 @@ class EventSourcedEntityClassAndNameValidationTest {
     }
   }
 
-  EventPayloadClassMappingKeeper eventPayloadClassMap = EventPayloadClassMappingKeeper.create(
+  EntityEventsRegistry eventPayloadClassMap = EntityEventsRegistry.createFor(
       List.of(new EntityEventsRegistration(CAR, Map.of(TURNED_ON, TurnedOnPayload.class), true)));
 
   EventStore eventStore = mock(EventStore.class);

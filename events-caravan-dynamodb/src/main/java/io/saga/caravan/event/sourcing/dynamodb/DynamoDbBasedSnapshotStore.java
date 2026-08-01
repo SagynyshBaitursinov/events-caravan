@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.saga.caravan.event.sourcing.dynamodb.DynamoDbUtils.requireTableIsActive;
 import static io.saga.caravan.event.sourcing.dynamodb.PrimaryKeyUtils.toPartitionKeyValue;
 import static io.saga.caravan.utils.TextUtils.hasText;
 import static java.util.Objects.requireNonNull;
@@ -38,8 +39,9 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
     requireNonNull(snapshotDeserializer);
 
     if (!hasText(snapshotsTableName)) {
-      throw new IllegalArgumentException("snapshotsTableName must be set");
+      throw new DynamoDbSetupException("snapshotsTableName must be set");
     }
+    requireTableIsActive(dynamoDbClient, snapshotsTableName);
 
     this.snapshotSerializer = snapshotSerializer;
     this.snapshotDeserializer = snapshotDeserializer;

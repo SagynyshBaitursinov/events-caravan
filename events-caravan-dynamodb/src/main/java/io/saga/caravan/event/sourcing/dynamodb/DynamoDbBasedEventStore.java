@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static io.saga.caravan.event.sourcing.dynamodb.DynamoDbUtils.requireTableIsActive;
 import static io.saga.caravan.event.sourcing.dynamodb.PrimaryKeyUtils.toShardedPartitionKeyValue;
 import static io.saga.caravan.utils.TextUtils.hasText;
 import static java.util.Objects.requireNonNull;
@@ -76,16 +77,17 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     requireNonNull(eventPayloadDeserializer);
 
     if (!hasText(eventsTableName)) {
-      throw new IllegalArgumentException("eventsTableName must be set");
+      throw new DynamoDbSetupException("eventsTableName must be set");
     }
+    requireTableIsActive(dynamoDbClient, eventsTableName);
 
     if (partitionShardSize <= 0) {
-      throw new IllegalArgumentException(
+      throw new DynamoDbSetupException(
           "partitionShardSize must be positive, got %d".formatted(partitionShardSize));
     }
 
     if (maxPageSize <= 0) {
-      throw new IllegalArgumentException(
+      throw new DynamoDbSetupException(
           "maxPageSize must be positive, got %d".formatted(maxPageSize));
     }
 
@@ -232,7 +234,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
   public Stream<Event<?>> getEventsOfEntity(EntityReference entityReference,
                                             long fromSequenceNumberExclusive) {
     if (fromSequenceNumberExclusive < 0) {
-      throw new IllegalArgumentException(
+      throw new EventStoreException(
           "fromSequenceNumberExclusive must not be negative (sequence numbers start at 1; "
               + "0 means from the beginning), got %d".formatted(fromSequenceNumberExclusive));
     }

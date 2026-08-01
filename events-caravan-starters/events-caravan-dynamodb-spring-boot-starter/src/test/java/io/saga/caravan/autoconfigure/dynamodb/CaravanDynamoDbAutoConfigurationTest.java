@@ -15,13 +15,30 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.DescribeTableRequest;
+import software.amazon.awssdk.services.dynamodb.model.DescribeTableResponse;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.dynamodb.model.TableDescription;
+import software.amazon.awssdk.services.dynamodb.model.TableStatus;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class CaravanDynamoDbAutoConfigurationTest {
 
   AutoConfigurations autoConfigurations = AutoConfigurations.of(CaravanDynamoDbAutoConfiguration.class);
+
+  static DynamoDbClient dynamoDbClientWithActiveTable() {
+    var dynamoDbClient = mock(DynamoDbClient.class);
+    when(dynamoDbClient.describeTable(any(DescribeTableRequest.class)))
+        .thenReturn(
+            DescribeTableResponse.builder()
+                .table(TableDescription.builder().tableStatus(TableStatus.ACTIVE).build())
+                .build());
+    return dynamoDbClient;
+  }
 
   ApplicationContextRunner contextRunner = new ApplicationContextRunner()
       .withConfiguration(autoConfigurations)
@@ -57,7 +74,7 @@ class CaravanDynamoDbAutoConfigurationTest {
 
     @Bean
     DynamoDbClient dynamoDbClient() {
-      return mock(DynamoDbClient.class);
+      return dynamoDbClientWithActiveTable();
     }
   }
 
@@ -124,6 +141,57 @@ class CaravanDynamoDbAutoConfigurationTest {
     contextRunner
         .withPropertyValues("caravan.event.store.dynamo-db.query-max-page-size=0")
         .run(context -> assertThat(context).hasFailed());
+  }
+
+  @Test
+  void failsWhenEventsTableDoesNotExist() {
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withUserConfiguration(ApplicationConfigurationWithMissingTable.class)
+        .withPropertyValues(
+            "caravan.event.store.dynamo-db.table-name=test-app_events",
+            "caravan.event.sourcing.snapshot-store.dynamo-db.table-name=test-app_snapshots")
+        .run(context -> assertThat(context).hasFailed());
+  }
+
+  @Test
+  void failsWhenEventsTableIsNotActive() {
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withUserConfiguration(ApplicationConfigurationWithInactiveTable.class)
+        .withPropertyValues(
+            "caravan.event.store.dynamo-db.table-name=test-app_events",
+            "caravan.event.sourcing.snapshot-store.dynamo-db.table-name=test-app_snapshots")
+        .run(context -> assertThat(context).hasFailed());
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class ApplicationConfigurationWithMissingTable extends ApplicationConfiguration {
+
+    @Bean
+    @Override
+    DynamoDbClient dynamoDbClient() {
+      var dynamoDbClient = mock(DynamoDbClient.class);
+      when(dynamoDbClient.describeTable(any(DescribeTableRequest.class)))
+          .thenThrow(ResourceNotFoundException.builder().message("table not found").build());
+      return dynamoDbClient;
+    }
+  }
+
+  @Configuration(proxyBeanMethods = false)
+  static class ApplicationConfigurationWithInactiveTable extends ApplicationConfiguration {
+
+    @Bean
+    @Override
+    DynamoDbClient dynamoDbClient() {
+      var dynamoDbClient = mock(DynamoDbClient.class);
+      when(dynamoDbClient.describeTable(any(DescribeTableRequest.class)))
+          .thenReturn(
+              DescribeTableResponse.builder()
+                  .table(TableDescription.builder().tableStatus(TableStatus.CREATING).build())
+                  .build());
+      return dynamoDbClient;
+    }
   }
 
   @Test

@@ -1,8 +1,8 @@
 package io.saga.caravan.event.sourcing.applying;
 
 import io.saga.caravan.event.EntityEventsRegistration;
+import io.saga.caravan.event.EntityEventsRegistry;
 import io.saga.caravan.event.Event;
-import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import io.saga.caravan.event.sourcing.EntityName;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
@@ -143,12 +143,12 @@ class ExternalApplyEventMethodPayloadsValidatorTest {
   }
 
   ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator;
-  EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper;
+  EntityEventsRegistry entityEventsRegistry;
 
   @BeforeEach
   void setUp() {
-    eventPayloadClassMappingKeeper =
-        EventPayloadClassMappingKeeper.create(
+    entityEventsRegistry =
+        EntityEventsRegistry.createFor(
             List.of(new EntityEventsRegistration(
                 "car",
                 Map.of(
@@ -156,7 +156,7 @@ class ExternalApplyEventMethodPayloadsValidatorTest {
                     "turned-off", CarTurnedOffPayload.class),
                 true)));
 
-    applyEventMethodPayloadsValidator = new ApplyEventMethodPayloadsValidator(eventPayloadClassMappingKeeper);
+    applyEventMethodPayloadsValidator = new ApplyEventMethodPayloadsValidator(entityEventsRegistry);
   }
 
   @Test

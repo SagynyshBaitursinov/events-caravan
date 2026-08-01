@@ -5,9 +5,9 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-final class PrimaryKeyUtils {
+public final class PrimaryKeyUtils {
 
-  private static final String SEPARATOR = "#";
+  public static final String SEPARATOR = "#";
 
   static String toPartitionKeyValue(EntityReference entityReference) {
     requireFreeOfSeparator(entityReference);
@@ -22,7 +22,7 @@ final class PrimaryKeyUtils {
   private static void requireFreeOfSeparator(EntityReference entityReference) {
     if (entityReference.entityName().contains(SEPARATOR)
         || entityReference.entityId().contains(SEPARATOR)) {
-      throw new IllegalArgumentException(
+      throw new DynamoDbStoreException(
           "EntityReference must not contain '%s' to be stored in DynamoDB, got %s"
               .formatted(SEPARATOR, entityReference));
     }

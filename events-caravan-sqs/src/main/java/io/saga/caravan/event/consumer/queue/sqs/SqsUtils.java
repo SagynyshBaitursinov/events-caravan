@@ -132,7 +132,7 @@ public final class SqsUtils {
                   .build())
           .queueUrl();
     } catch (QueueDoesNotExistException exception) {
-      throw new IllegalStateException(
+      throw new SqsSetupException(
           "queueName=%s does not exist".formatted(queueName), exception);
     }
   }

@@ -3,7 +3,7 @@ package io.saga.caravan.autoconfigure.sqs;
 import io.saga.caravan.autoconfigure.CaravanEventDrivenComponentsAutoConfiguration;
 import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.consumer.EventMessageConsumer;
-import io.saga.caravan.queue.polling.ContinuousPollingMessageProcessor;
+import io.saga.caravan.queue.polling.ContinuousMessagePollingController;
 import io.saga.caravan.queue.polling.QueuePollingProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -35,7 +35,7 @@ public class CaravanSqsAutoConfiguration {
   }
 
   @Bean
-  public SmartLifecycle sqsMessagePollersLifecycle(
+  public SmartLifecycle sqsMessagePollingControllerLifecycle(
       SqsClient sqsClient,
       EventMessageConsumer eventMessageConsumer,
       ObjectProvider<EntityEventsRegistration> entityEventsRegistrations,
@@ -47,10 +47,10 @@ public class CaravanSqsAutoConfiguration {
       throw new SqsQueuesSetupException("Queue name prefix must be present");
     }
 
-    var sqsPollers = subscribedQueueNames(entityEventsRegistrations, queueNamePrefix)
+    var sqsPollingControllers = subscribedQueueNames(entityEventsRegistrations, queueNamePrefix)
         .stream()
         .map(queueName ->
-            createSqsPoller(
+            createSqsPollingController(
                 sqsClient,
                 eventMessageConsumer,
                 queuePollingProperties,
@@ -60,26 +60,26 @@ public class CaravanSqsAutoConfiguration {
 
     int gracefulShutdownSeconds = caravanQueuePollingConfigurationProperties.gracefulShutdownSeconds();
     if (gracefulShutdownSeconds < 0) {
-      throw new IllegalArgumentException("gracefulShutdownSeconds must be greater or equal to 0");
+      throw new SqsQueuesSetupException("gracefulShutdownSeconds must be greater or equal to 0");
     }
 
     return new SmartLifecycle() {
 
       @Override
       public void start() {
-        sqsPollers.forEach(ContinuousPollingMessageProcessor::startContinuousPolling);
+        sqsPollingControllers.forEach(ContinuousMessagePollingController::startContinuousPolling);
       }
 
       @Override
       public void stop() {
         var deadline = Instant.now().plusSeconds(gracefulShutdownSeconds);
-        sqsPollers.forEach(ContinuousPollingMessageProcessor::requestStopOfContinuousPolling);
-        sqsPollers.forEach(poller -> poller.awaitStopOfContinuousPolling(deadline));
+        sqsPollingControllers.forEach(ContinuousMessagePollingController::requestStopOfContinuousPolling);
+        sqsPollingControllers.forEach(pollingController -> pollingController.awaitStopOfContinuousPolling(deadline));
       }
 
       @Override
       public boolean isRunning() {
-        return sqsPollers.stream().anyMatch(ContinuousPollingMessageProcessor::isContinuousPollingRunning);
+        return sqsPollingControllers.stream().anyMatch(ContinuousMessagePollingController::isContinuousPollingRunning);
       }
     };
   }
@@ -98,12 +98,12 @@ public class CaravanSqsAutoConfiguration {
     return QUEUE_NAME_TEMPLATE.formatted(queueNamePrefix, entityName);
   }
 
-  private ContinuousPollingMessageProcessor createSqsPoller(SqsClient sqsClient,
-                                                            EventMessageConsumer eventMessageConsumer,
-                                                            QueuePollingProperties queuePollingProperties,
-                                                            String queueName,
-                                                            String sqsQueueUrl) {
-    return ContinuousPollingMessageProcessor.builder()
+  private ContinuousMessagePollingController createSqsPollingController(SqsClient sqsClient,
+                                                                        EventMessageConsumer eventMessageConsumer,
+                                                                        QueuePollingProperties queuePollingProperties,
+                                                                        String queueName,
+                                                                        String sqsQueueUrl) {
+    return ContinuousMessagePollingController.builder()
         .queuePollingProperties(queuePollingProperties)
         .queueName(queueName)
         .messagesPoller((pollingRequest) -> pollMessagesFromQueue(sqsClient, sqsQueueUrl, pollingRequest))

@@ -1,6 +1,6 @@
 package io.saga.caravan.autoconfigure;
 
-import io.saga.caravan.event.EventPayloadClassMappingKeeper;
+import io.saga.caravan.event.EntityEventsRegistry;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcingRepositoryContext;
@@ -19,9 +19,9 @@ public class CaravanEventSourcingAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator(
-      EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper) {
+      EntityEventsRegistry entityEventsRegistry) {
 
-    return new ApplyEventMethodPayloadsValidator(eventPayloadClassMappingKeeper);
+    return new ApplyEventMethodPayloadsValidator(entityEventsRegistry);
   }
 
   @Bean

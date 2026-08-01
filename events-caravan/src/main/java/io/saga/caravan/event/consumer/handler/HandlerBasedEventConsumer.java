@@ -55,10 +55,10 @@ public class HandlerBasedEventConsumer implements EventConsumer {
           return Optional.empty();
         }
       } else {
-        throw new IllegalStateException("Cannot extract handle method parameter type");
+        throw new EventHandlerSetupException("Cannot extract handle method parameter type");
       }
     } catch (NoSuchMethodException exception) {
-      throw new IllegalStateException("Cannot extract handle method parameter type", exception);
+      throw new EventHandlerSetupException("Cannot extract handle method parameter type", exception);
     }
   }
 

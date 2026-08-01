@@ -2,8 +2,8 @@ package io.saga.caravan.event.producer;
 
 import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.EntityEventsRegistration;
+import io.saga.caravan.event.EntityEventsRegistry;
 import io.saga.caravan.event.Event;
-import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +44,7 @@ class ValidatingEventProducerTest {
 
   ValidatingEventProducer validatingEventProducer = new ValidatingEventProducer(
       delegate,
-      EventPayloadClassMappingKeeper.create(
+      EntityEventsRegistry.createFor(
           List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true))));
 
   @Test

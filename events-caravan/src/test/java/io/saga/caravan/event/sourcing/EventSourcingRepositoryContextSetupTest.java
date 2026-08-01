@@ -2,8 +2,8 @@ package io.saga.caravan.event.sourcing;
 
 import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.EntityEventsRegistration;
+import io.saga.caravan.event.EntityEventsRegistry;
 import io.saga.caravan.event.Event;
-import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.sourcing.applying.ApplyEvent;
 import io.saga.caravan.event.sourcing.applying.ApplyEventMethodPayloadsValidator;
@@ -252,7 +252,7 @@ class EventSourcingRepositoryContextSetupTest {
     }
   }
 
-  EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper = EventPayloadClassMappingKeeper.create(
+  EntityEventsRegistry entityEventsRegistry = EntityEventsRegistry.createFor(
       List.of(
           new EntityEventsRegistration(CAR, Map.of(TURNED_ON, TurnedOnPayload.class), true),
           new EntityEventsRegistration(TRUCK, Map.of(TURNED_ON, TurnedOnPayload.class), true)));
@@ -270,7 +270,7 @@ class EventSourcingRepositoryContextSetupTest {
         eventStore,
         eventProducer,
         snapshotStore,
-        new ApplyEventMethodPayloadsValidator(eventPayloadClassMappingKeeper),
+        new ApplyEventMethodPayloadsValidator(entityEventsRegistry),
         snapshotTakers);
   }
 

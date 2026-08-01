@@ -19,7 +19,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Slf4j
-public class ContinuousPollingMessageProcessor {
+public class ContinuousMessagePollingController {
 
   private static final int SECONDS_TO_WAIT_BEFORE_THROUGHPUT_GETS_AVAILABLE = 1;
   private static final int SECONDS_TO_SLEEP_AFTER_FAILURE = 5;
@@ -39,14 +39,14 @@ public class ContinuousPollingMessageProcessor {
   private volatile MessageDeletionBatcher messageDeletionBatcher;
   private volatile boolean shouldKeepPolling;
   @Nullable
-  private volatile Future<?> primaryContinuousPoller;
+  private volatile Future<?> primaryPoller;
 
   @Builder
-  public ContinuousPollingMessageProcessor(QueuePollingProperties queuePollingProperties,
-                                           String queueName,
-                                           MessagesPoller messagesPoller,
-                                           MessageConsumer messageConsumer,
-                                           MessagesDeleter messagesDeleter) {
+  public ContinuousMessagePollingController(QueuePollingProperties queuePollingProperties,
+                                            String queueName,
+                                            MessagesPoller messagesPoller,
+                                            MessageConsumer messageConsumer,
+                                            MessagesDeleter messagesDeleter) {
     this.queuePollingProperties = requireNonNull(queuePollingProperties);
     this.queueName = requireNonNull(queueName);
 
@@ -104,7 +104,7 @@ public class ContinuousPollingMessageProcessor {
     restartComponentsIfShutdown();
 
     log.info("Starting to continuously poll messages from queueName={}", queueName);
-    primaryContinuousPoller = pollingExecutor
+    primaryPoller = pollingExecutor
         .submit(
             maxPollersCount,
             () -> pollUntilStopped(pollingExecutor, true))
@@ -128,8 +128,8 @@ public class ContinuousPollingMessageProcessor {
   }
 
   public boolean isContinuousPollingRunning() {
-    var polling = primaryContinuousPoller;
-    return polling != null && !polling.isDone();
+    var poller = primaryPoller;
+    return poller != null && !poller.isDone();
   }
 
   private void pollUntilStopped(PollingExecutor pollingExecutor,
@@ -218,7 +218,7 @@ public class ContinuousPollingMessageProcessor {
   }
 
   public synchronized void requestStopOfContinuousPolling() {
-    if (primaryContinuousPoller == null) {
+    if (primaryPoller == null) {
       log.info("Continuous polling of messages from queueName={} is already stopped", queueName);
       return;
     }
@@ -228,15 +228,15 @@ public class ContinuousPollingMessageProcessor {
   }
 
   public synchronized void awaitStopOfContinuousPolling(Instant deadline) {
-    if (primaryContinuousPoller == null) {
+    if (primaryPoller == null) {
       return;
     }
 
     awaitPollingThreadsToFinish(deadline);
-    awaitInFlightMessageProcessors(deadline);
-    awaitPendingMessageDeletions(deadline);
+    awaitInFlightMessages(deadline);
+    awaitInFlightMessageDeletions(deadline);
 
-    primaryContinuousPoller = null;
+    primaryPoller = null;
   }
 
   private void awaitPollingThreadsToFinish(Instant deadline) {
@@ -256,12 +256,12 @@ public class ContinuousPollingMessageProcessor {
     }
   }
 
-  private void awaitPendingMessageDeletions(Instant deadline) {
+  private void awaitInFlightMessageDeletions(Instant deadline) {
     messageDeletionBatcher.shutdown();
     try {
       Duration remainingTimeout = Duration.between(Instant.now(), deadline);
       if (!messageDeletionBatcher.awaitTermination(remainingTimeout.isPositive() ? remainingTimeout : Duration.ZERO)) {
-        log.warn("Pending message deletions for queueName={} did not finish before shutdown deadline", queueName);
+        log.warn("In-flight message deletions for queueName={} did not finish before shutdown deadline. Interrupting", queueName);
         messageDeletionBatcher.shutdownNow();
       }
     } catch (InterruptedException exception) {
@@ -270,12 +270,12 @@ public class ContinuousPollingMessageProcessor {
     }
   }
 
-  private void awaitInFlightMessageProcessors(Instant deadline) {
+  private void awaitInFlightMessages(Instant deadline) {
     messageProcessingExecutorService.shutdown();
     try {
       long remainingMillis = Math.max(0, Duration.between(Instant.now(), deadline).toMillis());
       if (!messageProcessingExecutorService.awaitTermination(remainingMillis, MILLISECONDS)) {
-        log.warn("In-flight messages processing for queueName={} did not finish before shutdown deadline, interrupting processors", queueName);
+        log.warn("In-flight messages processing for queueName={} did not finish before shutdown deadline. Interrupting", queueName);
         messageProcessingExecutorService.shutdownNow();
       }
     } catch (InterruptedException exception) {

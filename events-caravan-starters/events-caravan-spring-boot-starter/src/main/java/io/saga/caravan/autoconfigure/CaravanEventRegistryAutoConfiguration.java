@@ -1,10 +1,8 @@
 package io.saga.caravan.autoconfigure;
 
 import io.saga.caravan.event.EntityEventsRegistration;
-import io.saga.caravan.event.EntityEventsRegistrationValidator;
-import io.saga.caravan.event.EventPayloadClassMappingKeeper;
+import io.saga.caravan.event.EntityEventsRegistry;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -14,24 +12,9 @@ public class CaravanEventRegistryAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  public EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper(
+  public EntityEventsRegistry entityEventsRegistry(
       ObjectProvider<EntityEventsRegistration> entityEventsRegistrations) {
 
-    return EventPayloadClassMappingKeeper.create(entityEventsRegistrations.stream().toList());
-  }
-
-  @Bean
-  @ConditionalOnMissingBean
-  public EntityEventsRegistrationValidator entityEventsRegistrationValidator(
-      ObjectProvider<EntityEventsRegistration> entityEventsRegistrations) {
-
-    return new EntityEventsRegistrationValidator(entityEventsRegistrations.stream().toList());
-  }
-
-  @Bean
-  public SmartInitializingSingleton entityEventsRegistrationValidatorTrigger(
-      EntityEventsRegistrationValidator entityEventsRegistrationValidator) {
-
-    return entityEventsRegistrationValidator::validateAll;
+    return EntityEventsRegistry.createFor(entityEventsRegistrations.stream().toList());
   }
 }

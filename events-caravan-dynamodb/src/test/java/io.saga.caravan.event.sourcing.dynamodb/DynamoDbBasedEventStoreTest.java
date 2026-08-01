@@ -7,17 +7,23 @@ import io.saga.caravan.event.producer.DuplicateEventProductionException;
 import io.saga.caravan.event.producer.EventProductionException;
 import io.saga.caravan.event.serialization.EventPayloadDeserializer;
 import io.saga.caravan.event.serialization.EventPayloadSerializer;
+import io.saga.caravan.event.sourcing.EventStoreException;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.CancellationReason;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
+import software.amazon.awssdk.services.dynamodb.model.DescribeTableRequest;
+import software.amazon.awssdk.services.dynamodb.model.DescribeTableResponse;
 import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.TableDescription;
+import software.amazon.awssdk.services.dynamodb.model.TableStatus;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 
@@ -30,6 +36,7 @@ import java.util.stream.LongStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -46,13 +53,26 @@ class DynamoDbBasedEventStoreTest {
   EventPayloadDeserializer eventPayloadDeserializer = mock(EventPayloadDeserializer.class);
   EventPayloadSerializer eventPayloadSerializer = mock(EventPayloadSerializer.class);
 
-  DynamoDbBasedEventStore eventStore = new DynamoDbBasedEventStore(
-      dynamoDbClient,
-      eventPayloadSerializer,
-      eventPayloadDeserializer,
-      "events-table",
-      100,
-      PARTITION_SHARD_SIZE);
+  DynamoDbBasedEventStore eventStore;
+
+  @BeforeEach
+  void clearMockInvocations() {
+    when(dynamoDbClient.describeTable(any(DescribeTableRequest.class)))
+        .thenReturn(
+            DescribeTableResponse.builder()
+                .table(TableDescription.builder().tableStatus(TableStatus.ACTIVE).build())
+                .build());
+
+    eventStore = new DynamoDbBasedEventStore(
+        dynamoDbClient,
+        eventPayloadSerializer,
+        eventPayloadDeserializer,
+        "events-table",
+        100,
+        PARTITION_SHARD_SIZE);
+
+    clearInvocations(dynamoDbClient);
+  }
 
   @Test
   @SneakyThrows
@@ -134,7 +154,7 @@ class DynamoDbBasedEventStoreTest {
   @Test
   void cannotEnterNegativeAsSequenceNumber() {
     assertThatThrownBy(() -> eventStore.getEventsOfEntity(ENTITY_REFERENCE, -1))
-        .isExactlyInstanceOf(IllegalArgumentException.class);
+        .isExactlyInstanceOf(EventStoreException.class);
   }
 
   @Test

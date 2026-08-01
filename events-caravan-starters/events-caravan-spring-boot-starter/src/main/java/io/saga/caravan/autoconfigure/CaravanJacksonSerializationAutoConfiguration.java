@@ -1,6 +1,6 @@
 package io.saga.caravan.autoconfigure;
 
-import io.saga.caravan.event.EventPayloadClassMappingKeeper;
+import io.saga.caravan.event.EntityEventsRegistry;
 import io.saga.caravan.event.serialization.EventDeserializer;
 import io.saga.caravan.event.serialization.EventPayloadDeserializer;
 import io.saga.caravan.event.serialization.EventPayloadSerializer;
@@ -34,8 +34,8 @@ public class CaravanJacksonSerializationAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public EventPayloadDeserializer eventPayloadDeserializer(JsonMapper jsonMapper,
-                                                           EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper) {
-    return new JacksonEventPayloadDeserializer(jsonMapper, eventPayloadClassMappingKeeper);
+                                                           EntityEventsRegistry entityEventsRegistry) {
+    return new JacksonEventPayloadDeserializer(jsonMapper, entityEventsRegistry);
   }
 
   @Bean

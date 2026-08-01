@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @NullMarked
-class EventPayloadClassMappingKeeperTest {
+class EntityEventsRegistryTest {
 
   static class CarTurnedOnPayload {
   }
@@ -36,12 +36,32 @@ class EventPayloadClassMappingKeeperTest {
   }
 
   @Test
+  void shouldRejectEntityNameWithCharactersOutsideTheAllowedFormat() {
+    var registrations = List.of(
+        new EntityEventsRegistration("shopping cart", Map.of("added", CarTurnedOnPayload.class), true));
+
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(registrations))
+        .isInstanceOf(EntityEventsRegistrationException.class)
+        .hasMessageContaining("shopping cart");
+  }
+
+  @Test
+  void shouldRejectEntityNameContainingTheDynamoDbKeySeparator() {
+    var registrations = List.of(
+        new EntityEventsRegistration("car#1", Map.of("turned-on", CarTurnedOnPayload.class), true));
+
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(registrations))
+        .isInstanceOf(EntityEventsRegistrationException.class)
+        .hasMessageContaining("car#1");
+  }
+
+  @Test
   void shouldThrowOnSameEntityAcrossMultipleRegistrations() {
     var registrations = List.of(
         new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true),
         new EntityEventsRegistration("car", Map.of("turned-off", CarTurnedOffPayload.class), true));
 
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(registrations))
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(registrations))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessage("Registration for entityName=car is duplicated");
   }
@@ -52,11 +72,11 @@ class EventPayloadClassMappingKeeperTest {
         new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true),
         new EntityEventsRegistration("truck", Map.of("turned-on", CarTurnedOnPayload.class), true));
 
-    var eventPayloadClassMappingKeeper = EventPayloadClassMappingKeeper.create(registrations);
+    var entityEventsRegistry = EntityEventsRegistry.createFor(registrations);
 
-    assertThat(eventPayloadClassMappingKeeper.payloadClassFor(new EventType("car", "turned-on")))
+    assertThat(entityEventsRegistry.payloadClassFor(new EventType("car", "turned-on")))
         .contains(CarTurnedOnPayload.class);
-    assertThat(eventPayloadClassMappingKeeper.payloadClassFor(new EventType("truck", "turned-on")))
+    assertThat(entityEventsRegistry.payloadClassFor(new EventType("truck", "turned-on")))
         .contains(CarTurnedOnPayload.class);
   }
 
@@ -70,11 +90,11 @@ class EventPayloadClassMappingKeeperTest {
                 "turned-off", CarEventPayload.class),
             true));
 
-    var eventPayloadClassMappingKeeper = EventPayloadClassMappingKeeper.create(registrations);
+    var entityEventsRegistry = EntityEventsRegistry.createFor(registrations);
 
-    assertThat(eventPayloadClassMappingKeeper.payloadClassFor(new EventType("car", "turned-on")))
+    assertThat(entityEventsRegistry.payloadClassFor(new EventType("car", "turned-on")))
         .contains(CarEventPayload.class);
-    assertThat(eventPayloadClassMappingKeeper.payloadClassFor(new EventType("car", "turned-off")))
+    assertThat(entityEventsRegistry.payloadClassFor(new EventType("car", "turned-off")))
         .contains(CarEventPayload.class);
   }
 
@@ -83,9 +103,9 @@ class EventPayloadClassMappingKeeperTest {
     var registrations = List.of(
         new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true));
 
-    var eventPayloadClassMappingKeeper = EventPayloadClassMappingKeeper.create(registrations);
+    var entityEventsRegistry = EntityEventsRegistry.createFor(registrations);
 
-    assertThat(eventPayloadClassMappingKeeper.payloadClassFor(new EventType("car", "turned-off")))
+    assertThat(entityEventsRegistry.payloadClassFor(new EventType("car", "turned-off")))
         .isEmpty();
   }
 
@@ -95,9 +115,9 @@ class EventPayloadClassMappingKeeperTest {
         new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true),
         new EntityEventsRegistration("truck", Map.of("turned-off", CarTurnedOffPayload.class), true));
 
-    var eventPayloadClassMappingKeeper = EventPayloadClassMappingKeeper.create(registrations);
+    var entityEventsRegistry = EntityEventsRegistry.createFor(registrations);
 
-    assertThat(eventPayloadClassMappingKeeper.registeredEventTypes())
+    assertThat(entityEventsRegistry.registeredEventTypes())
         .containsExactlyInAnyOrder(
             new EventType("car", "turned-on"),
             new EventType("truck", "turned-off"));
@@ -105,7 +125,7 @@ class EventPayloadClassMappingKeeperTest {
 
   @Test
   void shouldRejectAbstractClassPayload() {
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", AbstractPayload.class), true))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
@@ -114,7 +134,7 @@ class EventPayloadClassMappingKeeperTest {
 
   @Test
   void shouldRejectInterfacePayload() {
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", InterfacePayload.class), true))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
@@ -123,7 +143,7 @@ class EventPayloadClassMappingKeeperTest {
 
   @Test
   void shouldRejectArrayPayload() {
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload[].class), true))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class");
@@ -131,7 +151,7 @@ class EventPayloadClassMappingKeeperTest {
 
   @Test
   void shouldRejectPrimitivePayload() {
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", int.class), true))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class");
@@ -139,7 +159,7 @@ class EventPayloadClassMappingKeeperTest {
 
   @Test
   void shouldRejectNonStaticInnerClassPayload() {
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", NonStaticInnerPayload.class), true))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
@@ -151,7 +171,7 @@ class EventPayloadClassMappingKeeperTest {
     var anonymousPayload = new Object() {
     };
 
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", anonymousPayload.getClass()), true))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class");
@@ -162,7 +182,7 @@ class EventPayloadClassMappingKeeperTest {
     class LocalPayload {
     }
 
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", LocalPayload.class), true))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
@@ -171,7 +191,7 @@ class EventPayloadClassMappingKeeperTest {
 
   @Test
   void shouldRejectEnumPayload() {
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", EnumPayload.class), true))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
@@ -180,7 +200,7 @@ class EventPayloadClassMappingKeeperTest {
 
   @Test
   void shouldRejectJavaBuiltInPayload() {
-    assertThatThrownBy(() -> EventPayloadClassMappingKeeper.create(
+    assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", String.class), true))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")

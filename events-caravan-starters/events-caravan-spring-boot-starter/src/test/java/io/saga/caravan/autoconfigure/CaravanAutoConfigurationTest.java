@@ -1,8 +1,7 @@
 package io.saga.caravan.autoconfigure;
 
 import io.saga.caravan.event.EntityEventsRegistration;
-import io.saga.caravan.event.EntityEventsRegistrationValidator;
-import io.saga.caravan.event.EventPayloadClassMappingKeeper;
+import io.saga.caravan.event.EntityEventsRegistry;
 import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.consumer.EventConsumer;
 import io.saga.caravan.event.consumer.EventMessageConsumer;
@@ -172,7 +171,7 @@ class CaravanAutoConfigurationTest {
     void indexesEveryRegisteredEventPayloadClass() {
       contextRunner.run(context ->
           assertThat(context)
-              .getBean(EventPayloadClassMappingKeeper.class)
+              .getBean(EntityEventsRegistry.class)
               .satisfies(map ->
                   assertThat(map.payloadClassFor(new EventType("calculator", "added")))
                       .hasValue(NumberPayload.class)));
@@ -187,19 +186,14 @@ class CaravanAutoConfigurationTest {
     }
 
     @Test
-    void applicationCanSupplyOwnRegistryComponents() {
-      var ownEventPayloadClassMappingKeeper = mock(EventPayloadClassMappingKeeper.class);
-      var ownValidator = mock(EntityEventsRegistrationValidator.class);
+    void applicationCanSupplyOwnEntityEventsRegistry() {
+      var ownEntityEventsRegistry = mock(EntityEventsRegistry.class);
 
       contextRunner
-          .withBean(EventPayloadClassMappingKeeper.class, () -> ownEventPayloadClassMappingKeeper)
-          .withBean(EntityEventsRegistrationValidator.class, () -> ownValidator)
-          .run(context -> {
-            assertThat(context).getBean(EventPayloadClassMappingKeeper.class)
-                .isSameAs(ownEventPayloadClassMappingKeeper);
-            assertThat(context).getBean(EntityEventsRegistrationValidator.class)
-                .isSameAs(ownValidator);
-          });
+          .withBean(EntityEventsRegistry.class, () -> ownEntityEventsRegistry)
+          .run(context ->
+              assertThat(context).getBean(EntityEventsRegistry.class)
+                  .isSameAs(ownEntityEventsRegistry));
     }
   }
 

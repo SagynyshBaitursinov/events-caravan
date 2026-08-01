@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,7 +22,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class ContinuousPollingMessageProcessorTest {
+class ContinuousMessagePollingControllerTest {
 
   public static final String TEST_QUEUE_NAME = "test-queue";
 
@@ -45,11 +46,11 @@ class ContinuousPollingMessageProcessorTest {
         .build();
   }
 
-  private static ContinuousPollingMessageProcessor processorWith(QueuePollingProperties properties,
-                                                                 MessagesPoller messagesPoller,
-                                                                 MessageConsumer messageConsumer,
-                                                                 MessagesDeleter messagesDeleter) {
-    return ContinuousPollingMessageProcessor.builder()
+  private static ContinuousMessagePollingController pollingController(QueuePollingProperties properties,
+                                                                      MessagesPoller messagesPoller,
+                                                                      MessageConsumer messageConsumer,
+                                                                      MessagesDeleter messagesDeleter) {
+    return ContinuousMessagePollingController.builder()
         .queuePollingProperties(properties)
         .queueName(TEST_QUEUE_NAME)
         .messagesPoller(messagesPoller)
@@ -58,9 +59,9 @@ class ContinuousPollingMessageProcessorTest {
         .build();
   }
 
-  private static void stop(ContinuousPollingMessageProcessor processor) {
-    processor.requestStopOfContinuousPolling();
-    processor.awaitStopOfContinuousPolling(Instant.now().plusSeconds(5));
+  private static void stop(ContinuousMessagePollingController controller) {
+    controller.requestStopOfContinuousPolling();
+    controller.awaitStopOfContinuousPolling(Instant.now().plusSeconds(5));
   }
 
   private static MessagesPoller emptyPollerWithShortDelay() {
@@ -95,10 +96,10 @@ class ContinuousPollingMessageProcessorTest {
       MessagesPoller messagesPoller = pollerReturningOnceThenEmpty(messages);
       MessageConsumer messageConsumer = mock(MessageConsumer.class);
       MessagesDeleter messagesDeleter = mock(MessagesDeleter.class);
-      var processor = processorWith(
+      var controller = pollingController(
           propertiesFor(), messagesPoller, messageConsumer, messagesDeleter);
 
-      processor.startContinuousPolling();
+      controller.startContinuousPolling();
 
       await().atMost(Duration.ofSeconds(3))
           .untilAsserted(() -> {
@@ -107,7 +108,7 @@ class ContinuousPollingMessageProcessorTest {
             verify(messagesDeleter).delete(List.of(message1));
           });
 
-      stop(processor);
+      stop(controller);
     }
 
     @Test
@@ -118,17 +119,17 @@ class ContinuousPollingMessageProcessorTest {
       MessageConsumer messageConsumer = mock(MessageConsumer.class);
       doThrow(new RuntimeException("boom")).when(messageConsumer).consume(message);
       MessagesDeleter messagesDeleter = mock(MessagesDeleter.class);
-      var processor = processorWith(
+      var controller = pollingController(
           propertiesFor(), messagesPoller, messageConsumer, messagesDeleter);
 
-      processor.startContinuousPolling();
+      controller.startContinuousPolling();
 
       await().atMost(Duration.ofSeconds(3))
           .untilAsserted(() -> verify(messageConsumer).consume(message));
 
       verify(messagesDeleter, never()).delete(any());
 
-      stop(processor);
+      stop(controller);
     }
   }
 
@@ -137,86 +138,90 @@ class ContinuousPollingMessageProcessorTest {
 
     @Test
     void isNotRunningBeforeBeingStarted() {
-      var processor = processorWith(
+      var controller = pollingController(
           propertiesFor(), emptyPollerWithShortDelay(), mock(MessageConsumer.class), mock(MessagesDeleter.class));
 
-      assertThat(processor.isContinuousPollingRunning()).isFalse();
+      assertThat(controller.isContinuousPollingRunning()).isFalse();
     }
 
     @Test
     void reportsRunningWhileStartedAndNotRunningOnceFullyStopped() {
-      var processor = processorWith(
+      var controller = pollingController(
           propertiesFor(), emptyPollerWithShortDelay(), mock(MessageConsumer.class), mock(MessagesDeleter.class));
 
-      processor.startContinuousPolling();
-      assertThat(processor.isContinuousPollingRunning()).isTrue();
+      controller.startContinuousPolling();
+      assertThat(controller.isContinuousPollingRunning()).isTrue();
 
-      stop(processor);
-      assertThat(processor.isContinuousPollingRunning()).isFalse();
+      stop(controller);
+      assertThat(controller.isContinuousPollingRunning()).isFalse();
     }
 
     @Test
     void startingWhileAlreadyRunningShouldNotThrowException() {
-      var processor = processorWith(
+      var controller = pollingController(
           propertiesFor(), emptyPollerWithShortDelay(), mock(MessageConsumer.class), mock(MessagesDeleter.class));
 
-      processor.startContinuousPolling();
+      controller.startContinuousPolling();
 
-      assertThatCode(processor::startContinuousPolling).doesNotThrowAnyException();
+      assertThatCode(controller::startContinuousPolling).doesNotThrowAnyException();
 
-      stop(processor);
+      stop(controller);
     }
 
     @Test
     void requestingStopBeforeStartingShouldNotThrowException() {
-      var processor = processorWith(
+      var controller = pollingController(
           propertiesFor(), emptyPollerWithShortDelay(), mock(MessageConsumer.class), mock(MessagesDeleter.class));
 
-      assertThatCode(processor::requestStopOfContinuousPolling).doesNotThrowAnyException();
+      assertThatCode(controller::requestStopOfContinuousPolling).doesNotThrowAnyException();
     }
 
     @Test
     void awaitingStopBeforeStartingDoesNotThrowException() {
-      var processor = processorWith(
+      var controller = pollingController(
           propertiesFor(), emptyPollerWithShortDelay(), mock(MessageConsumer.class), mock(MessagesDeleter.class));
 
-      assertThatCode(() -> processor.awaitStopOfContinuousPolling(Instant.now())).doesNotThrowAnyException();
+      assertThatCode(() -> controller.awaitStopOfContinuousPolling(Instant.now())).doesNotThrowAnyException();
     }
 
     @Test
     void canBeRestartedAfterBeingFullyStopped() {
-      var processor = processorWith(
+      var controller = pollingController(
           propertiesFor(), emptyPollerWithShortDelay(), mock(MessageConsumer.class), mock(MessagesDeleter.class));
 
-      processor.startContinuousPolling();
-      stop(processor);
-      assertThat(processor.isContinuousPollingRunning()).isFalse();
+      controller.startContinuousPolling();
+      stop(controller);
+      assertThat(controller.isContinuousPollingRunning()).isFalse();
 
-      processor.startContinuousPolling();
+      controller.startContinuousPolling();
 
-      assertThat(processor.isContinuousPollingRunning()).isTrue();
+      assertThat(controller.isContinuousPollingRunning()).isTrue();
 
-      stop(processor);
+      stop(controller);
     }
 
     @Test
-    void throwsWhenStartingAfterStopWasRequestedButNotYetAwaited() {
+    void throwsWhenStartingAfterStopWasRequestedButNotYetAwaited() throws InterruptedException {
+      CountDownLatch pollEntered = new CountDownLatch(1);
       CountDownLatch pollThreadBlocker = new CountDownLatch(1);
       MessagesPoller messagesPoller = mock(MessagesPoller.class);
       when(messagesPoller.poll(any())).thenAnswer(_ -> {
+        pollEntered.countDown();
         pollThreadBlocker.await();
         return List.of();
       });
 
-      var processor = processorWith(
+      var controller = pollingController(
           propertiesFor(), messagesPoller, mock(MessageConsumer.class), mock(MessagesDeleter.class));
 
-      processor.startContinuousPolling();
-      assertThat(processor.isContinuousPollingRunning()).isTrue();
+      controller.startContinuousPolling();
 
-      processor.requestStopOfContinuousPolling();
+      assertThat(controller.isContinuousPollingRunning()).isTrue();
+      assertThat(pollEntered.await(5, TimeUnit.SECONDS)).isTrue();
 
-      assertThatThrownBy(processor::startContinuousPolling)
+      controller.requestStopOfContinuousPolling();
+
+      assertThatThrownBy(controller::startContinuousPolling)
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("stop was requested but not awaited");
 

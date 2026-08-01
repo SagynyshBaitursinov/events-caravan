@@ -1,6 +1,6 @@
 package io.saga.caravan.autoconfigure;
 
-import io.saga.caravan.event.EventPayloadClassMappingKeeper;
+import io.saga.caravan.event.EntityEventsRegistry;
 import io.saga.caravan.event.consumer.EventConsumer;
 import io.saga.caravan.event.consumer.EventMessageConsumer;
 import io.saga.caravan.event.consumer.handler.EventHandler;
@@ -36,7 +36,7 @@ public class CaravanEventDrivenComponentsAutoConfiguration {
   @Bean
   @Primary
   public EventProducer validatingEventProducer(EventProducer eventProducer,
-                                               EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper) {
-    return new ValidatingEventProducer(eventProducer, eventPayloadClassMappingKeeper);
+                                               EntityEventsRegistry entityEventsRegistry) {
+    return new ValidatingEventProducer(eventProducer, entityEventsRegistry);
   }
 }

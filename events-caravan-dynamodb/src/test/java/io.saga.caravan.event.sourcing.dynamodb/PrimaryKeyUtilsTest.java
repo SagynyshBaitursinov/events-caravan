@@ -24,7 +24,7 @@ class PrimaryKeyUtilsTest {
   void rejectsSeparatorInEntityName() {
     assertThatThrownBy(() ->
         PrimaryKeyUtils.toPartitionKeyValue(new EntityReference("calculator#1", "2")))
-        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .isExactlyInstanceOf(DynamoDbStoreException.class)
         .hasMessageContaining("calculator#1");
   }
 
@@ -32,7 +32,7 @@ class PrimaryKeyUtilsTest {
   void rejectsSeparatorInEntityId() {
     assertThatThrownBy(() ->
         PrimaryKeyUtils.toPartitionKeyValue(new EntityReference("calculator", "1#2")))
-        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .isExactlyInstanceOf(DynamoDbStoreException.class)
         .hasMessageContaining("1#2");
   }
 
@@ -40,16 +40,16 @@ class PrimaryKeyUtilsTest {
   void distinctEntitiesCannotBeFlattenedIntoOneKey() {
     assertThatThrownBy(() ->
         PrimaryKeyUtils.toPartitionKeyValue(new EntityReference("a#b", "c")))
-        .isExactlyInstanceOf(IllegalArgumentException.class);
+        .isExactlyInstanceOf(DynamoDbStoreException.class);
     assertThatThrownBy(() ->
         PrimaryKeyUtils.toPartitionKeyValue(new EntityReference("a", "b#c")))
-        .isExactlyInstanceOf(IllegalArgumentException.class);
+        .isExactlyInstanceOf(DynamoDbStoreException.class);
   }
 
   @Test
   void rejectsSeparatorWhenSharding() {
     assertThatThrownBy(() ->
         PrimaryKeyUtils.toShardedPartitionKeyValue(new EntityReference("a", "b#c"), 0))
-        .isExactlyInstanceOf(IllegalArgumentException.class);
+        .isExactlyInstanceOf(DynamoDbStoreException.class);
   }
 }
