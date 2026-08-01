@@ -1,9 +1,9 @@
 package io.saga.caravan.event.sourcing;
 
 import io.saga.caravan.entity.EntityReference;
+import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.EventPayloadClassMappingKeeper;
-import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.sourcing.applying.ApplyEvent;
 import io.saga.caravan.event.sourcing.applying.ApplyEventMethodPayloadsValidator;
@@ -15,6 +15,7 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -94,11 +95,11 @@ class EventSourcingRepositoryContextSetupTest {
 
   @SuppressWarnings("EmptyMethod")
   @EntityName(CAR)
-  static class Van extends EventSourcedEntity {
+  static class VanCalledCar extends EventSourcedEntity {
 
     final String id;
 
-    Van(String id) {
+    VanCalledCar(String id) {
       this.id = id;
     }
 
@@ -156,15 +157,15 @@ class EventSourcingRepositoryContextSetupTest {
     }
   }
 
-  static class VanRepository extends EventSourcedRepository<Van> {
+  static class VanCalledCarRepository extends EventSourcedRepository<VanCalledCar> {
 
-    VanRepository(EventSourcingRepositoryContext context) {
-      super(Van.class, context);
+    VanCalledCarRepository(EventSourcingRepositoryContext context) {
+      super(VanCalledCar.class, context);
     }
 
     @Override
-    protected Van createWithBlankState(String entityId) {
-      return new Van(entityId);
+    protected VanCalledCar createWithBlankState(String entityId) {
+      return new VanCalledCar(entityId);
     }
   }
 
@@ -251,10 +252,10 @@ class EventSourcingRepositoryContextSetupTest {
     }
   }
 
-  EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper =
-      new EventPayloadClassMappingKeeper()
-          .register(new EventType(CAR, TURNED_ON), TurnedOnPayload.class)
-          .register(new EventType(TRUCK, TURNED_ON), TurnedOnPayload.class);
+  EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper = EventPayloadClassMappingKeeper.create(
+      List.of(
+          new EntityEventsRegistration(CAR, Map.of(TURNED_ON, TurnedOnPayload.class), true),
+          new EntityEventsRegistration(TRUCK, Map.of(TURNED_ON, TurnedOnPayload.class), true)));
 
   EventStore eventStore = mock(EventStore.class);
   EventProducer eventProducer = mock(EventProducer.class);
@@ -285,14 +286,14 @@ class EventSourcingRepositoryContextSetupTest {
   void shouldPreventRegisteringEntityWithSameNameTwice() {
     new CarRepository(context);
 
-    assertThatThrownBy(() -> new VanRepository(context))
+    assertThatThrownBy(() -> new VanCalledCarRepository(context))
         .isInstanceOf(EventSourcedEntitySetupException.class)
         .hasMessage("entityName=%s or entityClass=%s are duplicated"
-            .formatted(CAR, Van.class));
+            .formatted(CAR, VanCalledCar.class));
   }
 
   @Test
-  void shouldPreventRegisteringEntityWithSameClass() {
+  void shouldPreventRegisteringRepositoryWithSameEntityClass() {
     new CarRepository(context);
 
     assertThatThrownBy(() -> new SecondCarRepository(context))

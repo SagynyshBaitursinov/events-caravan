@@ -1,11 +1,15 @@
 package io.saga.caravan.event.serialization.jackson;
 
+import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.EventPayloadClassMappingKeeper;
 import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.serialization.EventPayloadDeserializationException;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -18,8 +22,8 @@ class JacksonEventPayloadDeserializerTest {
 
   JsonMapper jsonMapper = JsonMapper.builder().build();
 
-  EventPayloadClassMappingKeeper mappingKeeper = new EventPayloadClassMappingKeeper()
-      .register(new EventType("car", "turned-on"), CarTurnedOnPayload.class);
+  EventPayloadClassMappingKeeper mappingKeeper = EventPayloadClassMappingKeeper.create(
+      List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true)));
 
   JacksonEventPayloadDeserializer deserializer =
       new JacksonEventPayloadDeserializer(jsonMapper, mappingKeeper);

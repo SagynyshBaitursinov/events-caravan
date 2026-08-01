@@ -16,24 +16,11 @@ public class CalculatorEventsConfiguration {
 
   @Bean
   public EntityEventsRegistration calculatorEventsRegistration() {
-    return new EntityEventsRegistration() {
-
-      @Override
-      public String entityName() {
-        return CALCULATOR;
-      }
-
-      @Override
-      public Map<String, Class<?>> eventToPayloadClass() {
-        return Map.of(
+    return new EntityEventsRegistration(
+        CALCULATOR,
+        Map.of(
             NUMBER_ADDED, NumberCarryingPayload.class,
-            NUMBER_SUBTRACTED, NumberCarryingPayload.class);
-      }
-
-      @Override
-      public boolean isSubscriptionActive() {
-        return true;
-      }
-    };
+            NUMBER_SUBTRACTED, NumberCarryingPayload.class),
+        true);
   }
 }

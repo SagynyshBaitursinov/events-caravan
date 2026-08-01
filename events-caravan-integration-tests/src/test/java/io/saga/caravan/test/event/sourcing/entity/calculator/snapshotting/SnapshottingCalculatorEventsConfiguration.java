@@ -17,24 +17,11 @@ public class SnapshottingCalculatorEventsConfiguration {
 
   @Bean
   public EntityEventsRegistration snapshottingCalculatorEventsRegistration() {
-    return new EntityEventsRegistration() {
-
-      @Override
-      public String entityName() {
-        return SNAPSHOTTING_CALCULATOR;
-      }
-
-      @Override
-      public Map<String, Class<?>> eventToPayloadClass() {
-        return Map.of(
+    return new EntityEventsRegistration(
+        SNAPSHOTTING_CALCULATOR,
+        Map.of(
             NUMBER_ADDED, NumberCarryingPayload.class,
-            NUMBER_SUBTRACTED, NumberCarryingPayload.class);
-      }
-
-      @Override
-      public boolean isSubscriptionActive() {
-        return false;
-      }
-    };
+            NUMBER_SUBTRACTED, NumberCarryingPayload.class),
+        false);
   }
 }

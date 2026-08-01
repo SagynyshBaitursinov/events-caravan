@@ -1,12 +1,12 @@
 package io.saga.caravan.test.event;
 
-import io.saga.caravan.test.AbstractSpringBootTest;
 import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.consumer.EventConsumer;
 import io.saga.caravan.event.producer.DuplicateEventProductionException;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.producer.EventProductionException;
+import io.saga.caravan.test.AbstractSpringBootTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 

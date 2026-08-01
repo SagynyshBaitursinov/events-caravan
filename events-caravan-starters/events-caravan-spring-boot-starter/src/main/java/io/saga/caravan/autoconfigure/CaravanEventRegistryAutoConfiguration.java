@@ -14,7 +14,7 @@ public class CaravanEventRegistryAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  public EventPayloadClassMappingKeeper eventPayloadClassMap(
+  public EventPayloadClassMappingKeeper eventPayloadClassMappingKeeper(
       ObjectProvider<EntityEventsRegistration> entityEventsRegistrations) {
 
     return EventPayloadClassMappingKeeper.create(entityEventsRegistrations.stream().toList());
@@ -22,14 +22,14 @@ public class CaravanEventRegistryAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  public EntityEventsRegistrationValidator entityNamesValidator(
+  public EntityEventsRegistrationValidator entityEventsRegistrationValidator(
       ObjectProvider<EntityEventsRegistration> entityEventsRegistrations) {
 
     return new EntityEventsRegistrationValidator(entityEventsRegistrations.stream().toList());
   }
 
   @Bean
-  public SmartInitializingSingleton entityEventsRegistrationValidationTrigger(
+  public SmartInitializingSingleton entityEventsRegistrationValidatorTrigger(
       EntityEventsRegistrationValidator entityEventsRegistrationValidator) {
 
     return entityEventsRegistrationValidator::validateAll;

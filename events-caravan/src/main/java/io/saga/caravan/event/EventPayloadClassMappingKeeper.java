@@ -3,6 +3,7 @@ package io.saga.caravan.event;
 import java.lang.reflect.Modifier;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -15,33 +16,26 @@ public class EventPayloadClassMappingKeeper {
       Collection<EntityEventsRegistration> entityEventsRegistrations) {
 
     var result = new EventPayloadClassMappingKeeper();
+    var alreadyProcessedEntityNames = new HashSet<String>();
 
     entityEventsRegistrations.forEach(
         entityEventsRegistration -> {
           var entityName = entityEventsRegistration.entityName();
 
+          if (!alreadyProcessedEntityNames.add(entityName)) {
+            throw new EntityEventsRegistrationException(
+                "Registration for entityName=%s is duplicated".formatted(entityName));
+          }
+
           entityEventsRegistration.eventToPayloadClass()
               .forEach((eventName, eventPayloadClass) -> {
                 validate(eventPayloadClass);
-                result.register(
-                    new EventType(entityName, eventName),
-                    eventPayloadClass);
+                result.map.put(
+                    new EventType(entityName, eventName), eventPayloadClass);
               });
         });
 
     return result;
-  }
-
-  public EventPayloadClassMappingKeeper register(EventType eventType,
-                                                 Class<?> eventPayloadClass) {
-    var alreadyRegisteredClass = map.putIfAbsent(eventType, eventPayloadClass);
-    if (alreadyRegisteredClass != null) {
-      throw new EntityEventsRegistrationException(
-          "Event payload class must be registered exactly once, which is not the case for %s: registered both %s and %s"
-              .formatted(eventType, alreadyRegisteredClass, eventPayloadClass));
-    }
-
-    return this;
   }
 
   public Optional<Class<?>> payloadClassFor(EventType eventType) {
@@ -62,6 +56,7 @@ public class EventPayloadClassMappingKeeper {
         || isLocalClass(eventPayloadClass)
         || isEnum(eventPayloadClass)
         || isJavaBuiltIn(eventPayloadClass)) {
+
       throw new EntityEventsRegistrationException(
           "Event payload class must be concrete class, which is not the case for %s"
               .formatted(eventPayloadClass));

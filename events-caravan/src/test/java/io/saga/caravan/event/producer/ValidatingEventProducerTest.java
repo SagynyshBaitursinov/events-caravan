@@ -1,15 +1,16 @@
 package io.saga.caravan.event.producer;
 
 import io.saga.caravan.entity.EntityReference;
+import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.EventPayloadClassMappingKeeper;
-import io.saga.caravan.event.EventType;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -43,8 +44,8 @@ class ValidatingEventProducerTest {
 
   ValidatingEventProducer validatingEventProducer = new ValidatingEventProducer(
       delegate,
-      new EventPayloadClassMappingKeeper()
-          .register(new EventType("car", "turned-on"), CarTurnedOnPayload.class));
+      EventPayloadClassMappingKeeper.create(
+          List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true))));
 
   @Test
   void shouldProduceEventWithRegisteredPayloadClass() {

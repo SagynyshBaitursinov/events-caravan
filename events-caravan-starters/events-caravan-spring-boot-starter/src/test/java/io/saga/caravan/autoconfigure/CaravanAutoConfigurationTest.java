@@ -70,24 +70,9 @@ class CaravanAutoConfigurationTest {
     }
 
     @Bean
-    EntityEventsRegistration calculatorEvents() {
-      return new EntityEventsRegistration() {
-
-        @Override
-        public String entityName() {
-          return "calculator";
-        }
-
-        @Override
-        public Map<String, Class<?>> eventToPayloadClass() {
-          return Map.of("added", NumberPayload.class);
-        }
-
-        @Override
-        public boolean isSubscriptionActive() {
-          return true;
-        }
-      };
+    EntityEventsRegistration calculatorEventsRegistration() {
+      return new EntityEventsRegistration(
+          "calculator", Map.of("added", NumberPayload.class), true);
     }
   }
 
@@ -100,24 +85,9 @@ class CaravanAutoConfigurationTest {
     }
 
     @Bean
-    EntityEventsRegistration calculatorEvents() {
-      return new EntityEventsRegistration() {
-
-        @Override
-        public String entityName() {
-          return "calculator";
-        }
-
-        @Override
-        public Map<String, Class<?>> eventToPayloadClass() {
-          return Map.of("added", NumberPayload.class);
-        }
-
-        @Override
-        public boolean isSubscriptionActive() {
-          return true;
-        }
-      };
+    EntityEventsRegistration calculatorEventsRegistration() {
+      return new EntityEventsRegistration(
+          "calculator", Map.of("added", NumberPayload.class), true);
     }
   }
 
@@ -135,45 +105,15 @@ class CaravanAutoConfigurationTest {
     }
 
     @Bean
-    EntityEventsRegistration calculatorEvents() {
-      return new EntityEventsRegistration() {
-
-        @Override
-        public String entityName() {
-          return "calculator";
-        }
-
-        @Override
-        public Map<String, Class<?>> eventToPayloadClass() {
-          return Map.of("added", NumberPayload.class);
-        }
-
-        @Override
-        public boolean isSubscriptionActive() {
-          return true;
-        }
-      };
+    EntityEventsRegistration calculatorEventsRegistration() {
+      return new EntityEventsRegistration(
+          "calculator", Map.of("added", NumberPayload.class), true);
     }
 
     @Bean
     EntityEventsRegistration calculatorEventsAgain() {
-      return new EntityEventsRegistration() {
-
-        @Override
-        public String entityName() {
-          return "calculator";
-        }
-
-        @Override
-        public Map<String, Class<?>> eventToPayloadClass() {
-          return Map.of("subtracted", NumberPayload.class);
-        }
-
-        @Override
-        public boolean isSubscriptionActive() {
-          return false;
-        }
-      };
+      return new EntityEventsRegistration(
+          "calculator", Map.of("subtracted", NumberPayload.class), false);
     }
   }
 
@@ -191,24 +131,9 @@ class CaravanAutoConfigurationTest {
     }
 
     @Bean
-    EntityEventsRegistration calculatorEvents() {
-      return new EntityEventsRegistration() {
-
-        @Override
-        public String entityName() {
-          return "calculator";
-        }
-
-        @Override
-        public Map<String, Class<?>> eventToPayloadClass() {
-          return Map.of("added", NumberPayload.class);
-        }
-
-        @Override
-        public boolean isSubscriptionActive() {
-          return true;
-        }
-      };
+    EntityEventsRegistration calculatorEventsRegistration() {
+      return new EntityEventsRegistration(
+          "calculator", Map.of("added", NumberPayload.class), true);
     }
   }
 
@@ -231,24 +156,9 @@ class CaravanAutoConfigurationTest {
     }
 
     @Bean
-    EntityEventsRegistration calculatorEvents() {
-      return new EntityEventsRegistration() {
-
-        @Override
-        public String entityName() {
-          return "calculator";
-        }
-
-        @Override
-        public Map<String, Class<?>> eventToPayloadClass() {
-          return Map.of("added", NumberPayload.class);
-        }
-
-        @Override
-        public boolean isSubscriptionActive() {
-          return true;
-        }
-      };
+    EntityEventsRegistration calculatorEventsRegistration() {
+      return new EntityEventsRegistration(
+          "calculator", Map.of("added", NumberPayload.class), true);
     }
   }
 

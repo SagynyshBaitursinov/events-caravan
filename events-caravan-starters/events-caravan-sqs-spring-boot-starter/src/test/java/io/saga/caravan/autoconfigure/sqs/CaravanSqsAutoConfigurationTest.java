@@ -60,24 +60,8 @@ class CaravanSqsAutoConfigurationTest {
     }
 
     @Bean
-    EntityEventsRegistration calculatorEvents() {
-      return new EntityEventsRegistration() {
-
-        @Override
-        public String entityName() {
-          return "calculator";
-        }
-
-        @Override
-        public Map<String, Class<?>> eventToPayloadClass() {
-          return Map.of();
-        }
-
-        @Override
-        public boolean isSubscriptionActive() {
-          return true;
-        }
-      };
+    EntityEventsRegistration calculatorEventsRegistration() {
+      return new EntityEventsRegistration("calculator", Map.of(), true);
     }
   }
 
@@ -90,24 +74,8 @@ class CaravanSqsAutoConfigurationTest {
     }
 
     @Bean
-    EntityEventsRegistration calculatorEvents() {
-      return new EntityEventsRegistration() {
-
-        @Override
-        public String entityName() {
-          return "calculator";
-        }
-
-        @Override
-        public Map<String, Class<?>> eventToPayloadClass() {
-          return Map.of();
-        }
-
-        @Override
-        public boolean isSubscriptionActive() {
-          return true;
-        }
-      };
+    EntityEventsRegistration calculatorEventsRegistration() {
+      return new EntityEventsRegistration("calculator", Map.of(), true);
     }
   }
 

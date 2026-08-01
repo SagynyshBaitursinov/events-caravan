@@ -1,9 +1,9 @@
 package io.saga.caravan.event.sourcing;
 
 import io.saga.caravan.entity.EntityReference;
+import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.EventPayloadClassMappingKeeper;
-import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.sourcing.applying.ApplyEvent;
 import io.saga.caravan.event.sourcing.applying.ApplyEventMethodPayloadsValidator;
@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -29,7 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @NullMarked
-class EventSourcedEntityClassAndNameTest {
+class EventSourcedEntityClassAndNameValidationTest {
 
   static final String CAR = "car";
   static final String SPORTS_CAR = "sports-car";
@@ -163,14 +164,14 @@ class EventSourcedEntityClassAndNameTest {
     }
   }
 
-  EventPayloadClassMappingKeeper eventPayloadClassMap = new EventPayloadClassMappingKeeper()
-      .register(new EventType(CAR, TURNED_ON), TurnedOnPayload.class);
+  EventPayloadClassMappingKeeper eventPayloadClassMap = EventPayloadClassMappingKeeper.create(
+      List.of(new EntityEventsRegistration(CAR, Map.of(TURNED_ON, TurnedOnPayload.class), true)));
 
   EventStore eventStore = mock(EventStore.class);
   EventProducer eventProducer = mock(EventProducer.class);
   SnapshotStore snapshotStore = mock(SnapshotStore.class);
 
-  private EventSourcingRepositoryContext contextWith(
+  private EventSourcingRepositoryContext contextWithSnapshotTakers(
       List<SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakers) {
 
     return new EventSourcingRepositoryContext(
@@ -182,7 +183,7 @@ class EventSourcedEntityClassAndNameTest {
   }
 
   private EventSourcingRepositoryContext context() {
-    return contextWith(List.of());
+    return contextWithSnapshotTakers(List.of());
   }
 
   @Nested
@@ -223,7 +224,7 @@ class EventSourcedEntityClassAndNameTest {
   class EntityClassGuard {
 
     @Test
-    void shouldRejectSavingAnEntityOfASubclass() {
+    void shouldRejectSavingAnEntityOfSubclassType() {
       var repository = new CarRepository(context());
 
       var sportsCar = new SportsCar("car-1");
@@ -236,7 +237,7 @@ class EventSourcedEntityClassAndNameTest {
     }
 
     @Test
-    void shouldRejectBlankStateEntityOfASubclass() {
+    void shouldRejectIfEntityIsCreatedOfSubclassType() {
       var repository = new CarRepositoryCreatingSportsCar(context());
 
       assertThatThrownBy(() -> repository.findBy("car-1"))
@@ -245,11 +246,12 @@ class EventSourcedEntityClassAndNameTest {
     }
 
     @Test
-    void shouldRejectSnapshotEntityOfASubclass() {
-      var repository = new CarRepositoryCreatingSportsCar(
-          contextWith(List.of(
-              new MisbehavingCarSnapshotTaker(
-                  reference -> new SportsCar(reference.entityId())))));
+    void shouldRejectIfEntityIsRecreatedOfSubclassType() {
+      var repository = new CarRepository(
+          contextWithSnapshotTakers(
+              List.of(
+                  new MisbehavingCarSnapshotTaker(
+                      entityReference -> new SportsCar(entityReference.entityId())))));
 
       givenSnapshotExists();
 
@@ -271,7 +273,7 @@ class EventSourcedEntityClassAndNameTest {
     @Test
     void shouldRejectSnapshotEntityRecreatedUnderAnotherReference() {
       var repository = new CarRepository(
-          contextWith(List.of(
+          contextWithSnapshotTakers(List.of(
               new MisbehavingCarSnapshotTaker(_ -> new Car("another-car-id")))));
 
       givenSnapshotExists();

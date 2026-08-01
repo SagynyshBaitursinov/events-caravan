@@ -1,14 +1,17 @@
 package io.saga.caravan.event.sourcing.applying;
 
+import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.EventPayloadClassMappingKeeper;
-import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.sourcing.EntityName;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.EventSourcedEntitySetupException;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -145,9 +148,13 @@ class ExternalApplyEventMethodPayloadsValidatorTest {
   @BeforeEach
   void setUp() {
     eventPayloadClassMappingKeeper =
-        new EventPayloadClassMappingKeeper()
-            .register(new EventType("car", "turned-on"), CarTurnedOnPayload.class)
-            .register(new EventType("car", "turned-off"), CarTurnedOffPayload.class);
+        EventPayloadClassMappingKeeper.create(
+            List.of(new EntityEventsRegistration(
+                "car",
+                Map.of(
+                    "turned-on", CarTurnedOnPayload.class,
+                    "turned-off", CarTurnedOffPayload.class),
+                true)));
 
     applyEventMethodPayloadsValidator = new ApplyEventMethodPayloadsValidator(eventPayloadClassMappingKeeper);
   }

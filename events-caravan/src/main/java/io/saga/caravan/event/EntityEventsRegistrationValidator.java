@@ -3,8 +3,6 @@ package io.saga.caravan.event;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 @RequiredArgsConstructor
@@ -14,26 +12,14 @@ public class EntityEventsRegistrationValidator {
   private static final int MAX_ENTITY_NAME_LENGTH = 64;
 
   private final Collection<EntityEventsRegistration> entityEventsRegistrations;
-  private final Set<String> alreadyProcessedEntityNames = new HashSet<>();
 
   public void validateAll() {
     entityEventsRegistrations.stream()
         .map(EntityEventsRegistration::entityName)
-        .filter(this::validateIsNotAlreadyRegistered)
-        .filter(this::validate)
-        .forEach(alreadyProcessedEntityNames::add);
+        .forEach(this::validate);
   }
 
-  private boolean validateIsNotAlreadyRegistered(String entityName) {
-    if (alreadyProcessedEntityNames.contains(entityName)) {
-      throw new EntityEventsRegistrationException(
-          "Registration for entityName=%s is duplicated".formatted(entityName));
-    }
-
-    return true;
-  }
-
-  private boolean validate(String entityName) {
+  private void validate(String entityName) {
     if (!ALLOWED_ENTITY_NAME.matcher(entityName).matches()) {
       throw new EntityEventsRegistrationException(
           "entityName must contain only alphanumerics, hyphens and underscores, got '%s'"
@@ -45,7 +31,5 @@ public class EntityEventsRegistrationValidator {
           "entityName must not be longer than %d characters, got '%s' of %d"
               .formatted(MAX_ENTITY_NAME_LENGTH, entityName, entityName.length()));
     }
-
-    return true;
   }
 }

@@ -16,24 +16,11 @@ public class TestEntityEventsConfiguration {
 
   @Bean
   public EntityEventsRegistration testEntityEventsRegistration() {
-    return new EntityEventsRegistration() {
-
-      @Override
-      public String entityName() {
-        return TEST_ENTITY;
-      }
-
-      @Override
-      public Map<String, Class<?>> eventToPayloadClass() {
-        return Map.of(
+    return new EntityEventsRegistration(
+        TEST_ENTITY,
+        Map.of(
             TEST_EVENT, TestEventPayload.class,
-            ANOTHER_TEST_EVENT, TestEventPayload.class);
-      }
-
-      @Override
-      public boolean isSubscriptionActive() {
-        return true;
-      }
-    };
+            ANOTHER_TEST_EVENT, TestEventPayload.class),
+        true);
   }
 }
