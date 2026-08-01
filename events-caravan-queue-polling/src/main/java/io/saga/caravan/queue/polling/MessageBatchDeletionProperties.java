@@ -1,15 +1,15 @@
-package io.saga.caravan.messaging;
+package io.saga.caravan.queue.polling;
 
 import lombok.Builder;
 
 @Builder
-public record MessageBatchDeletionProperties(int maxDeleteBatchSize,
+public record MessageBatchDeletionProperties(int maxBatchSize,
                                              int periodSeconds,
                                              int concurrency) {
 
   public MessageBatchDeletionProperties {
-    if (maxDeleteBatchSize < 1) {
-      throw new IllegalArgumentException("maxDeleteBatchSize must be greater or equal to 1");
+    if (maxBatchSize < 1) {
+      throw new IllegalArgumentException("maxBatchSize must be greater or equal to 1");
     }
 
     if (periodSeconds < 1) {

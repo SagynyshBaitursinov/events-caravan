@@ -1,4 +1,4 @@
-package io.saga.caravan.messaging;
+package io.saga.caravan.queue.polling;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -98,7 +98,7 @@ class MessageDeletionBatcher {
   }
 
   private List<Message> awaitNextBatch() {
-    int maxDeleteBatchSize = messageBatchDeletionProperties.maxDeleteBatchSize();
+    int maxDeleteBatchSize = messageBatchDeletionProperties.maxBatchSize();
     List<Message> batch = new ArrayList<>(maxDeleteBatchSize);
     try {
       Instant deadline = Instant.now().plusSeconds(

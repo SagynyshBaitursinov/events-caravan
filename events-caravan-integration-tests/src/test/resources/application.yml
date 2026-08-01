@@ -18,11 +18,11 @@ caravan:
         partition-shard-size: 10
     messaging:
       queue-name-prefix: ${app.name}
+      graceful-shutdown-seconds: 0
       concurrency: 20
       max-poll-size: 10
       min-poll-size: 3
       poll-wait-seconds: 5
-      graceful-shutdown-seconds: 0
       deletion:
         max-batch-size: 10
         period-seconds: 1

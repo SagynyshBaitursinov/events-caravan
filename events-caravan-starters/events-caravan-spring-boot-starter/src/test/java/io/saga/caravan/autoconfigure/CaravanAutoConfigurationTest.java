@@ -7,7 +7,6 @@ import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.consumer.EventConsumer;
 import io.saga.caravan.event.consumer.EventMessageConsumer;
 import io.saga.caravan.event.consumer.handler.HandlerBasedEventConsumer;
-import io.saga.caravan.event.consumer.queue.SubscribedEntityQueueNamesKeeper;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.producer.ValidatingEventProducer;
 import io.saga.caravan.event.serialization.EventDeserializer;
@@ -19,8 +18,6 @@ import io.saga.caravan.event.sourcing.EventStore;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotStore;
-import io.saga.caravan.messaging.MessageBatchDeletionProperties;
-import io.saga.caravan.messaging.MessagingProperties;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -43,13 +40,11 @@ class CaravanAutoConfigurationTest {
       CaravanEventRegistryAutoConfiguration.class,
       CaravanEventDrivenComponentsAutoConfiguration.class,
       CaravanJacksonSerializationAutoConfiguration.class,
-      CaravanEventSourcingAutoConfiguration.class,
-      CaravanEventMessagingAutoConfiguration.class);
+      CaravanEventSourcingAutoConfiguration.class);
 
   ApplicationContextRunner contextRunner = new ApplicationContextRunner()
       .withConfiguration(autoConfigurations)
-      .withUserConfiguration(ApplicationConfiguration.class)
-      .withPropertyValues("caravan.event.messaging.queue-name-prefix=test-app");
+      .withUserConfiguration(ApplicationConfiguration.class);
 
   @Configuration(proxyBeanMethods = false)
   static class ApplicationConfiguration {
@@ -278,7 +273,6 @@ class CaravanAutoConfigurationTest {
       new ApplicationContextRunner()
           .withConfiguration(autoConfigurations)
           .withUserConfiguration(ApplicationConfigurationWithDoubleRegistration.class)
-          .withPropertyValues("caravan.event.messaging.queue-name-prefix=test-app")
           .run(context -> assertThat(context).hasFailed());
     }
 
@@ -337,7 +331,6 @@ class CaravanAutoConfigurationTest {
       new ApplicationContextRunner()
           .withConfiguration(autoConfigurations)
           .withUserConfiguration(ApplicationConfigurationWithoutJsonMapper.class)
-          .withPropertyValues("caravan.event.messaging.queue-name-prefix=test-app")
           .run(context -> assertThat(context).hasFailed());
     }
   }
@@ -356,7 +349,6 @@ class CaravanAutoConfigurationTest {
       new ApplicationContextRunner()
           .withConfiguration(autoConfigurations)
           .withUserConfiguration(ApplicationConfigurationWithoutStorageBackend.class)
-          .withPropertyValues("caravan.event.messaging.queue-name-prefix=test-app")
           .run(context -> assertThat(context).hasFailed());
     }
   }
@@ -383,7 +375,6 @@ class CaravanAutoConfigurationTest {
       new ApplicationContextRunner()
           .withConfiguration(autoConfigurations)
           .withUserConfiguration(ApplicationConfigurationWithoutEventProducer.class)
-          .withPropertyValues("caravan.event.messaging.queue-name-prefix=test-app")
           .run(context -> assertThat(context).hasFailed());
     }
 
@@ -398,110 +389,6 @@ class CaravanAutoConfigurationTest {
           .run(context -> {
             assertThat(context).getBean(EventConsumer.class).isSameAs(ownEventConsumer);
             assertThat(context).getBean(EventMessageConsumer.class).isSameAs(ownEventMessageConsumer);
-          });
-    }
-  }
-
-  @Nested
-  class Messaging {
-
-    @Test
-    void appliesDefaultsWhenNothingIsConfigured() {
-      contextRunner.run(context -> {
-        assertThat(context).getBean(MessagingProperties.class)
-            .satisfies(properties -> {
-              assertThat(properties.concurrency()).isEqualTo(10);
-              assertThat(properties.maxPollSize()).isEqualTo(10);
-              assertThat(properties.minPollSize()).isEqualTo(3);
-              assertThat(properties.pollersCountCap()).isEqualTo(0);
-              assertThat(properties.pollWaitSeconds()).isEqualTo(10);
-              assertThat(properties.messageBatchDeletionProperties().maxDeleteBatchSize())
-                  .isEqualTo(10);
-              assertThat(properties.messageBatchDeletionProperties().periodSeconds())
-                  .isEqualTo(1);
-              assertThat(properties.messageBatchDeletionProperties().concurrency())
-                  .isEqualTo(3);
-            });
-        assertThat(context).getBean(CaravanMessagingConfigurationProperties.class)
-            .satisfies(properties -> assertThat(properties.gracefulShutdownSeconds()).isEqualTo(10));
-      });
-    }
-
-    @Test
-    void bindsConfiguredValues() {
-      contextRunner
-          .withPropertyValues(
-              "caravan.event.messaging.concurrency=25",
-              "caravan.event.messaging.max-poll-size=15",
-              "caravan.event.messaging.min-poll-size=2",
-              "caravan.event.messaging.pollers-count-cap=12",
-              "caravan.event.messaging.poll-wait-seconds=7",
-              "caravan.event.messaging.graceful-shutdown-seconds=17",
-              "caravan.event.messaging.deletion.max-batch-size=7",
-              "caravan.event.messaging.deletion.period-seconds=9",
-              "caravan.event.messaging.deletion.concurrency=2"
-          )
-          .run(context -> {
-            assertThat(context).getBean(MessagingProperties.class)
-                .satisfies(properties -> {
-                  assertThat(properties.concurrency()).isEqualTo(25);
-                  assertThat(properties.maxPollSize()).isEqualTo(15);
-                  assertThat(properties.minPollSize()).isEqualTo(2);
-                  assertThat(properties.pollersCountCap()).isEqualTo(12);
-                  assertThat(properties.pollWaitSeconds()).isEqualTo(7);
-                  assertThat(properties.messageBatchDeletionProperties().maxDeleteBatchSize())
-                      .isEqualTo(7);
-                  assertThat(properties.messageBatchDeletionProperties().periodSeconds())
-                      .isEqualTo(9);
-                  assertThat(properties.messageBatchDeletionProperties().concurrency())
-                      .isEqualTo(2);
-                });
-            assertThat(context).getBean(CaravanMessagingConfigurationProperties.class)
-                .satisfies(properties -> assertThat(properties.gracefulShutdownSeconds()).isEqualTo(17));
-          });
-    }
-
-    @Test
-    void derivesQueueNamesOfSubscribedEntitiesFromThePrefix() {
-      contextRunner
-          .run(context ->
-              assertThat(context).getBean(SubscribedEntityQueueNamesKeeper.class)
-                  .satisfies(queueNames ->
-                      assertThat(queueNames.queueNameOf("calculator"))
-                          .contains("test-app_calculator")));
-    }
-
-    @Test
-    void failsWhenQueueNamePrefixIsNotProvided() {
-      new ApplicationContextRunner()
-          .withConfiguration(autoConfigurations)
-          .withUserConfiguration(ApplicationConfiguration.class)
-          .run(context -> assertThat(context).hasFailed());
-    }
-
-    @Test
-    void applicationCanSupplyOwnMessagingComponents() {
-      var ownMessagingProperties = MessagingProperties.builder()
-          .concurrency(1)
-          .maxPollSize(1)
-          .minPollSize(1)
-          .pollersCountCap(0)
-          .pollWaitSeconds(1)
-          .messageBatchDeletionProperties(
-              MessageBatchDeletionProperties.builder()
-                  .maxDeleteBatchSize(1)
-                  .periodSeconds(1)
-                  .concurrency(1)
-                  .build())
-          .build();
-      var ownQueueNamesKeeper = mock(SubscribedEntityQueueNamesKeeper.class);
-
-      contextRunner
-          .withBean(MessagingProperties.class, () -> ownMessagingProperties)
-          .withBean(SubscribedEntityQueueNamesKeeper.class, () -> ownQueueNamesKeeper)
-          .run(context -> {
-            assertThat(context).getBean(MessagingProperties.class).isSameAs(ownMessagingProperties);
-            assertThat(context).getBean(SubscribedEntityQueueNamesKeeper.class).isSameAs(ownQueueNamesKeeper);
           });
     }
   }

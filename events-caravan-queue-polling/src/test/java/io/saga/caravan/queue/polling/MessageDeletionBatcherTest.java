@@ -1,4 +1,4 @@
-package io.saga.caravan.messaging;
+package io.saga.caravan.queue.polling;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ class MessageDeletionBatcherTest {
                                                              int deletionPeriodSeconds,
                                                              int concurrency) {
     return MessageBatchDeletionProperties.builder()
-        .maxDeleteBatchSize(maxDeleteBatchSize)
+        .maxBatchSize(maxDeleteBatchSize)
         .periodSeconds(deletionPeriodSeconds)
         .concurrency(concurrency)
         .build();

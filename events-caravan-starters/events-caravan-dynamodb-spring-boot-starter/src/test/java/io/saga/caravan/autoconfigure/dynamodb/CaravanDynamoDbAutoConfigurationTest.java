@@ -1,8 +1,6 @@
 package io.saga.caravan.autoconfigure.dynamodb;
 
-import io.saga.caravan.autoconfigure.CaravanMessagingConfigurationProperties;
 import io.saga.caravan.event.consumer.EventMessageConsumer;
-import io.saga.caravan.event.consumer.queue.SubscribedEntityQueueNamesKeeper;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.serialization.EventPayloadDeserializer;
 import io.saga.caravan.event.serialization.EventPayloadSerializer;

@@ -1,4 +1,4 @@
-package io.saga.caravan.messaging;
+package io.saga.caravan.queue.polling;
 
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +24,7 @@ public class ContinuousPollingMessageProcessor {
   private static final int SECONDS_TO_WAIT_BEFORE_THROUGHPUT_GETS_AVAILABLE = 1;
   private static final int SECONDS_TO_SLEEP_AFTER_FAILURE = 5;
 
-  private final MessagingProperties messagingProperties;
+  private final QueuePollingProperties queuePollingProperties;
   private final String queueName;
 
   private final MessagesPoller messagesPoller;
@@ -42,31 +42,31 @@ public class ContinuousPollingMessageProcessor {
   private volatile Future<?> primaryContinuousPoller;
 
   @Builder
-  public ContinuousPollingMessageProcessor(MessagingProperties messagingProperties,
+  public ContinuousPollingMessageProcessor(QueuePollingProperties queuePollingProperties,
                                            String queueName,
                                            MessagesPoller messagesPoller,
                                            MessageConsumer messageConsumer,
                                            MessagesDeleter messagesDeleter) {
-    this.messagingProperties = requireNonNull(messagingProperties);
+    this.queuePollingProperties = requireNonNull(queuePollingProperties);
     this.queueName = requireNonNull(queueName);
 
     this.messagesPoller = requireNonNull(messagesPoller);
     this.messageConsumer = requireNonNull(messageConsumer);
     this.messagesDeleter = requireNonNull(messagesDeleter);
 
-    this.throughputController = createThroughputController(messagingProperties);
-    this.maxPollersCount = messagingProperties.maxPollersCount();
+    this.throughputController = createThroughputController(queuePollingProperties);
+    this.maxPollersCount = queuePollingProperties.maxPollersCount();
 
     this.pollingExecutor = createNewPollingExecutor();
     this.messageProcessingExecutorService = createMessageProcessingExecutorService();
     this.messageDeletionBatcher = createNewMessageDeletionBatcher();
   }
 
-  private ProcessingThroughputController createThroughputController(MessagingProperties messagingProperties) {
+  private ProcessingThroughputController createThroughputController(QueuePollingProperties queuePollingProperties) {
     return new ProcessingThroughputController(
-        new Semaphore(messagingProperties.concurrency()),
-        messagingProperties.minPollSize(),
-        messagingProperties.maxPollSize(),
+        new Semaphore(queuePollingProperties.concurrency()),
+        queuePollingProperties.minPollSize(),
+        queuePollingProperties.maxPollSize(),
         Duration.ofSeconds(SECONDS_TO_WAIT_BEFORE_THROUGHPUT_GETS_AVAILABLE));
   }
 
@@ -78,8 +78,8 @@ public class ContinuousPollingMessageProcessor {
     return new MessageDeletionBatcher(
         queueName,
         messagesDeleter,
-        messagingProperties.concurrency(),
-        messagingProperties.messageBatchDeletionProperties());
+        queuePollingProperties.concurrency(),
+        queuePollingProperties.messageBatchDeletionProperties());
   }
 
   private ExecutorService createMessageProcessingExecutorService() {
@@ -177,7 +177,7 @@ public class ContinuousPollingMessageProcessor {
       return messagesPoller.poll(
           PollMessagesRequest.builder()
               .numberOfMessages(numberOfMessages)
-              .waitForSeconds(messagingProperties.pollWaitSeconds())
+              .waitForSeconds(queuePollingProperties.pollWaitSeconds())
               .build());
     } catch (Exception exception) {
       log.warn("Exception occurred when polling from queueName={}", queueName, exception);

@@ -1,4 +1,4 @@
 @NullMarked
-package io.saga.caravan.messaging;
+package io.saga.caravan.autoconfigure.sqs;
 
 import org.jspecify.annotations.NullMarked;

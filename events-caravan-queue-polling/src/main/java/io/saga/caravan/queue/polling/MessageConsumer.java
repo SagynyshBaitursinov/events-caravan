@@ -1,4 +1,4 @@
-package io.saga.caravan.messaging;
+package io.saga.caravan.queue.polling;
 
 public interface MessageConsumer {
 

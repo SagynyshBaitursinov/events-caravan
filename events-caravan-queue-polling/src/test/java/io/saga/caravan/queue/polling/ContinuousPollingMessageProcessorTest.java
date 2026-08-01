@@ -1,4 +1,4 @@
-package io.saga.caravan.messaging;
+package io.saga.caravan.queue.polling;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -29,8 +29,8 @@ class ContinuousPollingMessageProcessorTest {
     return new Message(id, "body-" + id, Map.of("meta", "data"));
   }
 
-  private static MessagingProperties propertiesFor() {
-    return MessagingProperties.builder()
+  private static QueuePollingProperties propertiesFor() {
+    return QueuePollingProperties.builder()
         .concurrency(2)
         .maxPollSize(2)
         .minPollSize(1)
@@ -38,19 +38,19 @@ class ContinuousPollingMessageProcessorTest {
         .pollWaitSeconds(1)
         .messageBatchDeletionProperties(
             MessageBatchDeletionProperties.builder()
-                .maxDeleteBatchSize(1)
+                .maxBatchSize(1)
                 .periodSeconds(1)
                 .concurrency(2)
                 .build())
         .build();
   }
 
-  private static ContinuousPollingMessageProcessor processorWith(MessagingProperties properties,
+  private static ContinuousPollingMessageProcessor processorWith(QueuePollingProperties properties,
                                                                  MessagesPoller messagesPoller,
                                                                  MessageConsumer messageConsumer,
                                                                  MessagesDeleter messagesDeleter) {
     return ContinuousPollingMessageProcessor.builder()
-        .messagingProperties(properties)
+        .queuePollingProperties(properties)
         .queueName(TEST_QUEUE_NAME)
         .messagesPoller(messagesPoller)
         .messageConsumer(messageConsumer)

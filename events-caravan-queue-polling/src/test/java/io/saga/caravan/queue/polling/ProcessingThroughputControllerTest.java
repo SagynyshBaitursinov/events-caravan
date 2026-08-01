@@ -1,4 +1,4 @@
-package io.saga.caravan.messaging;
+package io.saga.caravan.queue.polling;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,7 @@
 package io.saga.caravan.event.consumer.queue.sqs;
 
-import io.saga.caravan.messaging.Message;
-import io.saga.caravan.messaging.PollMessagesRequest;
+import io.saga.caravan.queue.polling.Message;
+import io.saga.caravan.queue.polling.PollMessagesRequest;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

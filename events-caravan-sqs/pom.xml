@@ -23,6 +23,12 @@
         </dependency>
 
         <dependency>
+            <groupId>io.saga</groupId>
+            <artifactId>events-caravan-queue-polling</artifactId>
+            <version>${revision}</version>
+        </dependency>
+
+        <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sqs</artifactId>
             <version>${aws.sdk.version}</version>

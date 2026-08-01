@@ -1,8 +1,10 @@
 package io.saga.caravan.autoconfigure.sqs;
 
-import io.saga.caravan.autoconfigure.CaravanEventMessagingAutoConfiguration;
+import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.consumer.EventMessageConsumer;
-import io.saga.caravan.event.consumer.queue.SubscribedEntityQueueNamesKeeper;
+import io.saga.caravan.queue.polling.MessageBatchDeletionProperties;
+import io.saga.caravan.queue.polling.QueuePollingProperties;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -15,7 +17,7 @@ import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -31,9 +33,7 @@ class CaravanSqsAutoConfigurationTest {
 
   private static final String QUEUE_URL = "http://localhost:4566/000000000000/test-app_calculator";
 
-  AutoConfigurations autoConfigurations = AutoConfigurations.of(
-      CaravanEventMessagingAutoConfiguration.class,
-      CaravanSqsAutoConfiguration.class);
+  AutoConfigurations autoConfigurations = AutoConfigurations.of(CaravanSqsAutoConfiguration.class);
 
   ApplicationContextRunner contextRunner = new ApplicationContextRunner()
       .withConfiguration(autoConfigurations)
@@ -60,10 +60,24 @@ class CaravanSqsAutoConfigurationTest {
     }
 
     @Bean
-    SubscribedEntityQueueNamesKeeper subscribedEntityQueueNamesKeeper() {
-      SubscribedEntityQueueNamesKeeper mock = mock(SubscribedEntityQueueNamesKeeper.class);
-      when(mock.queueNames()).thenReturn(List.of("test-app_calculator"));
-      return mock;
+    EntityEventsRegistration calculatorEvents() {
+      return new EntityEventsRegistration() {
+
+        @Override
+        public String entityName() {
+          return "calculator";
+        }
+
+        @Override
+        public Map<String, Class<?>> eventToPayloadClass() {
+          return Map.of();
+        }
+
+        @Override
+        public boolean isSubscriptionActive() {
+          return true;
+        }
+      };
     }
   }
 
@@ -76,10 +90,24 @@ class CaravanSqsAutoConfigurationTest {
     }
 
     @Bean
-    SubscribedEntityQueueNamesKeeper subscribedEntityQueueNamesKeeper() {
-      SubscribedEntityQueueNamesKeeper mock = mock(SubscribedEntityQueueNamesKeeper.class);
-      when(mock.queueNames()).thenReturn(List.of("test-app_calculator"));
-      return mock;
+    EntityEventsRegistration calculatorEvents() {
+      return new EntityEventsRegistration() {
+
+        @Override
+        public String entityName() {
+          return "calculator";
+        }
+
+        @Override
+        public Map<String, Class<?>> eventToPayloadClass() {
+          return Map.of();
+        }
+
+        @Override
+        public boolean isSubscriptionActive() {
+          return true;
+        }
+      };
     }
   }
 
@@ -94,13 +122,6 @@ class CaravanSqsAutoConfigurationTest {
     @Bean
     EventMessageConsumer eventMessageConsumer() {
       return mock(EventMessageConsumer.class);
-    }
-
-    @Bean
-    SubscribedEntityQueueNamesKeeper subscribedEntityQueueNamesKeeper() {
-      SubscribedEntityQueueNamesKeeper mock = mock(SubscribedEntityQueueNamesKeeper.class);
-      when(mock.queueNames()).thenReturn(List.of());
-      return mock;
     }
   }
 
@@ -164,5 +185,95 @@ class CaravanSqsAutoConfigurationTest {
           assertThat(lifecycle.isRunning()).isFalse();
           verify(sqsClient, never()).getQueueUrl(any(GetQueueUrlRequest.class));
         });
+  }
+
+  @Test
+  void failsWhenQueueNamePrefixIsNotProvided() {
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withUserConfiguration(ApplicationConfiguration.class)
+        .run(context -> assertThat(context).hasFailed());
+  }
+
+  @Nested
+  class MessagingProperties {
+
+    @Test
+    void appliesDefaultsWhenNothingIsConfigured() {
+      contextRunner.run(context -> {
+        assertThat(context).getBean(QueuePollingProperties.class)
+            .satisfies(properties -> {
+              assertThat(properties.concurrency()).isEqualTo(10);
+              assertThat(properties.maxPollSize()).isEqualTo(10);
+              assertThat(properties.minPollSize()).isEqualTo(3);
+              assertThat(properties.pollersCountCap()).isEqualTo(0);
+              assertThat(properties.pollWaitSeconds()).isEqualTo(10);
+              assertThat(properties.messageBatchDeletionProperties().maxBatchSize())
+                  .isEqualTo(10);
+              assertThat(properties.messageBatchDeletionProperties().periodSeconds())
+                  .isEqualTo(1);
+              assertThat(properties.messageBatchDeletionProperties().concurrency())
+                  .isEqualTo(3);
+            });
+        assertThat(context).getBean(CaravanQueuePollingConfigurationProperties.class)
+            .satisfies(properties -> assertThat(properties.gracefulShutdownSeconds()).isEqualTo(10));
+      });
+    }
+
+    @Test
+    void bindsConfiguredValues() {
+      contextRunner
+          .withPropertyValues(
+              "caravan.event.messaging.concurrency=25",
+              "caravan.event.messaging.max-poll-size=15",
+              "caravan.event.messaging.min-poll-size=2",
+              "caravan.event.messaging.pollers-count-cap=12",
+              "caravan.event.messaging.poll-wait-seconds=7",
+              "caravan.event.messaging.graceful-shutdown-seconds=17",
+              "caravan.event.messaging.deletion.max-batch-size=7",
+              "caravan.event.messaging.deletion.period-seconds=9",
+              "caravan.event.messaging.deletion.concurrency=2"
+          )
+          .run(context -> {
+            assertThat(context).getBean(QueuePollingProperties.class)
+                .satisfies(properties -> {
+                  assertThat(properties.concurrency()).isEqualTo(25);
+                  assertThat(properties.maxPollSize()).isEqualTo(15);
+                  assertThat(properties.minPollSize()).isEqualTo(2);
+                  assertThat(properties.pollersCountCap()).isEqualTo(12);
+                  assertThat(properties.pollWaitSeconds()).isEqualTo(7);
+                  assertThat(properties.messageBatchDeletionProperties().maxBatchSize())
+                      .isEqualTo(7);
+                  assertThat(properties.messageBatchDeletionProperties().periodSeconds())
+                      .isEqualTo(9);
+                  assertThat(properties.messageBatchDeletionProperties().concurrency())
+                      .isEqualTo(2);
+                });
+            assertThat(context).getBean(CaravanQueuePollingConfigurationProperties.class)
+                .satisfies(properties -> assertThat(properties.gracefulShutdownSeconds()).isEqualTo(17));
+          });
+    }
+
+    @Test
+    void applicationCanSupplyOwnQueuePollingProperties() {
+      var ownQueuePollingProperties = QueuePollingProperties.builder()
+          .concurrency(1)
+          .maxPollSize(1)
+          .minPollSize(1)
+          .pollersCountCap(0)
+          .pollWaitSeconds(1)
+          .messageBatchDeletionProperties(
+              MessageBatchDeletionProperties.builder()
+                  .maxBatchSize(1)
+                  .periodSeconds(1)
+                  .concurrency(1)
+                  .build())
+          .build();
+
+      contextRunner
+          .withBean(QueuePollingProperties.class, () -> ownQueuePollingProperties)
+          .run(context ->
+              assertThat(context).getBean(QueuePollingProperties.class).isSameAs(ownQueuePollingProperties));
+    }
   }
 }
