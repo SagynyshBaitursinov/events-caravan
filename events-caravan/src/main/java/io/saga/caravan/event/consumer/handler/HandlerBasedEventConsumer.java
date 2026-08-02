@@ -2,7 +2,6 @@ package io.saga.caravan.event.consumer.handler;
 
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.consumer.EventConsumer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Method;
@@ -12,7 +11,6 @@ import java.util.Collection;
 import java.util.Optional;
 
 @Slf4j
-@RequiredArgsConstructor
 public class HandlerBasedEventConsumer implements EventConsumer {
 
   private static final String HANDLE_METHOD_NAME = "handle";
@@ -25,6 +23,11 @@ public class HandlerBasedEventConsumer implements EventConsumer {
   };
 
   private final Collection<EventHandler<?>> eventHandlers;
+
+  public HandlerBasedEventConsumer(Collection<EventHandler<?>> eventHandlers) {
+    this.eventHandlers = eventHandlers;
+    eventHandlers.forEach(handler -> HANDLED_PAYLOAD_CLASSES.get(handler.getClass()));
+  }
 
   @Override
   public void consume(Event<?> event) {
