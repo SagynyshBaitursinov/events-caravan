@@ -21,7 +21,6 @@ public class SnapshottingCalculatorEventsConfiguration {
         SNAPSHOTTING_CALCULATOR,
         Map.of(
             NUMBER_ADDED, NumberCarryingPayload.class,
-            NUMBER_SUBTRACTED, NumberCarryingPayload.class),
-        false);
+            NUMBER_SUBTRACTED, NumberCarryingPayload.class));
   }
 }

@@ -15,10 +15,13 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
 
 import static io.saga.caravan.event.consumer.queue.sqs.SqsUtils.deleteMessages;
 import static io.saga.caravan.event.consumer.queue.sqs.SqsUtils.getQueueUrl;
 import static io.saga.caravan.event.consumer.queue.sqs.SqsUtils.pollMessagesFromQueue;
+import static java.util.stream.Collectors.toSet;
 
 @AutoConfiguration(after = CaravanEventDrivenComponentsAutoConfiguration.class)
 @EnableConfigurationProperties(CaravanQueuePollingConfigurationProperties.class)
@@ -47,7 +50,11 @@ public class CaravanSqsAutoConfiguration {
       throw new SqsQueuesSetupException("Queue name prefix must be present");
     }
 
-    var sqsPollingControllers = subscribedQueueNames(entityEventsRegistrations, queueNamePrefix)
+    Set<String> subscribedEntities = caravanQueuePollingConfigurationProperties.subscribedEntities() != null
+        ? caravanQueuePollingConfigurationProperties.subscribedEntities()
+        : Collections.emptySet();
+
+    var sqsPollingControllers = subscribedQueueNames(entityEventsRegistrations, subscribedEntities, queueNamePrefix)
         .stream()
         .map(queueName ->
             createSqsPollingController(
@@ -85,11 +92,24 @@ public class CaravanSqsAutoConfiguration {
   }
 
   private Collection<String> subscribedQueueNames(ObjectProvider<EntityEventsRegistration> entityEventsRegistrations,
+                                                  Set<String> subscribedEntities,
                                                   String queueNamePrefix) {
-    return entityEventsRegistrations.stream()
-        .filter(EntityEventsRegistration::isSubscriptionActive)
+    var registeredEntityNames = entityEventsRegistrations.stream()
         .map(EntityEventsRegistration::entityName)
-        .distinct()
+        .collect(toSet());
+
+    var unregisteredSubscribedEntities = subscribedEntities.stream()
+        .filter(entityName -> !registeredEntityNames.contains(entityName))
+        .toList();
+
+    if (!unregisteredSubscribedEntities.isEmpty()) {
+      throw new SqsQueuesSetupException(
+          "Subscribed entities %s are not registered using EntityEventsRegistration"
+              .formatted(unregisteredSubscribedEntities));
+    }
+
+    return registeredEntityNames.stream()
+        .filter(subscribedEntities::contains)
         .map(entityName -> toQueueName(queueNamePrefix, entityName))
         .toList();
   }

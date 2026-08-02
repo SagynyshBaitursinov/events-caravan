@@ -18,6 +18,9 @@ caravan:
         partition-shard-size: 10
     messaging:
       queue-name-prefix: ${app.name}
+      subscribed-entities:
+        - calculator
+        - test-entity
       graceful-shutdown-seconds: 0
       concurrency: 20
       max-poll-size: 10

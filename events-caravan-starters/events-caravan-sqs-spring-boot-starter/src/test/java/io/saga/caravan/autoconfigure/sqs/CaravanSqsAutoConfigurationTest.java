@@ -38,7 +38,9 @@ class CaravanSqsAutoConfigurationTest {
   ApplicationContextRunner contextRunner = new ApplicationContextRunner()
       .withConfiguration(autoConfigurations)
       .withUserConfiguration(ApplicationConfiguration.class)
-      .withPropertyValues("caravan.event.messaging.queue-name-prefix=test-app");
+      .withPropertyValues(
+          "caravan.event.messaging.queue-name-prefix=test-app",
+          "caravan.event.messaging.subscribed-entities=calculator");
 
   @Configuration(proxyBeanMethods = false)
   static class ApplicationConfiguration {
@@ -61,7 +63,7 @@ class CaravanSqsAutoConfigurationTest {
 
     @Bean
     EntityEventsRegistration calculatorEventsRegistration() {
-      return new EntityEventsRegistration("calculator", Map.of(), true);
+      return new EntityEventsRegistration("calculator", Map.of());
     }
   }
 
@@ -75,7 +77,7 @@ class CaravanSqsAutoConfigurationTest {
 
     @Bean
     EntityEventsRegistration calculatorEventsRegistration() {
-      return new EntityEventsRegistration("calculator", Map.of(), true);
+      return new EntityEventsRegistration("calculator", Map.of());
     }
   }
 
@@ -104,7 +106,9 @@ class CaravanSqsAutoConfigurationTest {
     new ApplicationContextRunner()
         .withConfiguration(autoConfigurations)
         .withUserConfiguration(ApplicationConfigurationWithoutSqsClient.class)
-        .withPropertyValues("caravan.event.messaging.queue-name-prefix=test-app")
+        .withPropertyValues(
+            "caravan.event.messaging.queue-name-prefix=test-app",
+            "caravan.event.messaging.subscribed-entities=calculator")
         .run(context -> assertThat(context).hasFailed());
   }
 
@@ -161,6 +165,20 @@ class CaravanSqsAutoConfigurationTest {
         .withConfiguration(autoConfigurations)
         .withUserConfiguration(ApplicationConfiguration.class)
         .run(context -> assertThat(context).hasFailed());
+  }
+
+  @Test
+  void failsWhenSubscribedEntityIsNotRegistered() {
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withUserConfiguration(ApplicationConfiguration.class)
+        .withPropertyValues(
+            "caravan.event.messaging.queue-name-prefix=test-app",
+            "caravan.event.messaging.subscribed-entities=calculator,unregistered-entity")
+        .run(context -> assertThat(context).getFailure()
+            .rootCause()
+            .isInstanceOf(SqsQueuesSetupException.class)
+            .hasMessageContaining("unregistered-entity"));
   }
 
   @Nested

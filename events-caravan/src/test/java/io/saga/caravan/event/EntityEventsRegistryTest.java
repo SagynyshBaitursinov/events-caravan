@@ -38,7 +38,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldRejectEntityNameWithCharactersOutsideTheAllowedFormat() {
     var registrations = List.of(
-        new EntityEventsRegistration("shopping cart", Map.of("added", CarTurnedOnPayload.class), true));
+        new EntityEventsRegistration("shopping cart", Map.of("added", CarTurnedOnPayload.class)));
 
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(registrations))
         .isInstanceOf(EntityEventsRegistrationException.class)
@@ -48,7 +48,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldRejectEntityNameContainingTheDynamoDbKeySeparator() {
     var registrations = List.of(
-        new EntityEventsRegistration("car#1", Map.of("turned-on", CarTurnedOnPayload.class), true));
+        new EntityEventsRegistration("car#1", Map.of("turned-on", CarTurnedOnPayload.class)));
 
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(registrations))
         .isInstanceOf(EntityEventsRegistrationException.class)
@@ -58,8 +58,8 @@ class EntityEventsRegistryTest {
   @Test
   void shouldThrowOnSameEntityAcrossMultipleRegistrations() {
     var registrations = List.of(
-        new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true),
-        new EntityEventsRegistration("car", Map.of("turned-off", CarTurnedOffPayload.class), true));
+        new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class)),
+        new EntityEventsRegistration("car", Map.of("turned-off", CarTurnedOffPayload.class)));
 
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(registrations))
         .isInstanceOf(EntityEventsRegistrationException.class)
@@ -69,8 +69,8 @@ class EntityEventsRegistryTest {
   @Test
   void shouldAllowSameEventNameAndPayloadOnDifferentEntities() {
     var registrations = List.of(
-        new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true),
-        new EntityEventsRegistration("truck", Map.of("turned-on", CarTurnedOnPayload.class), true));
+        new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class)),
+        new EntityEventsRegistration("truck", Map.of("turned-on", CarTurnedOnPayload.class)));
 
     var entityEventsRegistry = EntityEventsRegistry.createFor(registrations);
 
@@ -87,8 +87,7 @@ class EntityEventsRegistryTest {
             "car",
             Map.of(
                 "turned-on", CarEventPayload.class,
-                "turned-off", CarEventPayload.class),
-            true));
+                "turned-off", CarEventPayload.class)));
 
     var entityEventsRegistry = EntityEventsRegistry.createFor(registrations);
 
@@ -101,7 +100,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldReturnEmptyWhenEventTypeNotRegistered() {
     var registrations = List.of(
-        new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true));
+        new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class)));
 
     var entityEventsRegistry = EntityEventsRegistry.createFor(registrations);
 
@@ -112,8 +111,8 @@ class EntityEventsRegistryTest {
   @Test
   void shouldReturnAllRegisteredEventTypes() {
     var registrations = List.of(
-        new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true),
-        new EntityEventsRegistration("truck", Map.of("turned-off", CarTurnedOffPayload.class), true));
+        new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class)),
+        new EntityEventsRegistration("truck", Map.of("turned-off", CarTurnedOffPayload.class)));
 
     var entityEventsRegistry = EntityEventsRegistry.createFor(registrations);
 
@@ -126,7 +125,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldRejectAbstractClassPayload() {
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
-        List.of(new EntityEventsRegistration("car", Map.of("turned-on", AbstractPayload.class), true))))
+        List.of(new EntityEventsRegistration("car", Map.of("turned-on", AbstractPayload.class)))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
         .hasMessageContaining(AbstractPayload.class.getName());
@@ -135,7 +134,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldRejectInterfacePayload() {
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
-        List.of(new EntityEventsRegistration("car", Map.of("turned-on", InterfacePayload.class), true))))
+        List.of(new EntityEventsRegistration("car", Map.of("turned-on", InterfacePayload.class)))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
         .hasMessageContaining(InterfacePayload.class.getName());
@@ -144,7 +143,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldRejectArrayPayload() {
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
-        List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload[].class), true))))
+        List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload[].class)))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class");
   }
@@ -152,7 +151,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldRejectPrimitivePayload() {
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
-        List.of(new EntityEventsRegistration("car", Map.of("turned-on", int.class), true))))
+        List.of(new EntityEventsRegistration("car", Map.of("turned-on", int.class)))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class");
   }
@@ -160,7 +159,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldRejectNonStaticInnerClassPayload() {
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
-        List.of(new EntityEventsRegistration("car", Map.of("turned-on", NonStaticInnerPayload.class), true))))
+        List.of(new EntityEventsRegistration("car", Map.of("turned-on", NonStaticInnerPayload.class)))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
         .hasMessageContaining(NonStaticInnerPayload.class.getName());
@@ -172,7 +171,7 @@ class EntityEventsRegistryTest {
     };
 
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
-        List.of(new EntityEventsRegistration("car", Map.of("turned-on", anonymousPayload.getClass()), true))))
+        List.of(new EntityEventsRegistration("car", Map.of("turned-on", anonymousPayload.getClass())))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class");
   }
@@ -183,7 +182,7 @@ class EntityEventsRegistryTest {
     }
 
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
-        List.of(new EntityEventsRegistration("car", Map.of("turned-on", LocalPayload.class), true))))
+        List.of(new EntityEventsRegistration("car", Map.of("turned-on", LocalPayload.class)))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
         .hasMessageContaining(LocalPayload.class.getName());
@@ -192,7 +191,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldRejectEnumPayload() {
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
-        List.of(new EntityEventsRegistration("car", Map.of("turned-on", EnumPayload.class), true))))
+        List.of(new EntityEventsRegistration("car", Map.of("turned-on", EnumPayload.class)))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
         .hasMessageContaining(EnumPayload.class.getName());
@@ -201,7 +200,7 @@ class EntityEventsRegistryTest {
   @Test
   void shouldRejectJavaBuiltInPayload() {
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
-        List.of(new EntityEventsRegistration("car", Map.of("turned-on", String.class), true))))
+        List.of(new EntityEventsRegistration("car", Map.of("turned-on", String.class)))))
         .isInstanceOf(EntityEventsRegistrationException.class)
         .hasMessageContaining("must be concrete class")
         .hasMessageContaining(String.class.getName());

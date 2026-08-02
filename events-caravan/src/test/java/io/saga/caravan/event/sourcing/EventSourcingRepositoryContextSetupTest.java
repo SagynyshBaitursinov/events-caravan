@@ -254,8 +254,8 @@ class EventSourcingRepositoryContextSetupTest {
 
   EntityEventsRegistry entityEventsRegistry = EntityEventsRegistry.createFor(
       List.of(
-          new EntityEventsRegistration(CAR, Map.of(TURNED_ON, TurnedOnPayload.class), true),
-          new EntityEventsRegistration(TRUCK, Map.of(TURNED_ON, TurnedOnPayload.class), true)));
+          new EntityEventsRegistration(CAR, Map.of(TURNED_ON, TurnedOnPayload.class)),
+          new EntityEventsRegistration(TRUCK, Map.of(TURNED_ON, TurnedOnPayload.class))));
 
   EventStore eventStore = mock(EventStore.class);
   EventProducer eventProducer = mock(EventProducer.class);

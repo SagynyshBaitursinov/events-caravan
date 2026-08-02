@@ -132,8 +132,7 @@ class ApplyEventMethodPayloadsValidatorTest {
             "car",
             Map.of(
                 "turned-on", CarTurnedOnPayload.class,
-                "turned-off", CarTurnedOffPayload.class),
-            true)));
+                "turned-off", CarTurnedOffPayload.class))));
 
     applyEventMethodPayloadsValidator = new ApplyEventMethodPayloadsValidator(entityEventsRegistry);
   }

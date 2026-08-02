@@ -71,7 +71,7 @@ class CaravanAutoConfigurationTest {
     @Bean
     EntityEventsRegistration calculatorEventsRegistration() {
       return new EntityEventsRegistration(
-          "calculator", Map.of("added", NumberPayload.class), true);
+          "calculator", Map.of("added", NumberPayload.class));
     }
   }
 
@@ -86,7 +86,7 @@ class CaravanAutoConfigurationTest {
     @Bean
     EntityEventsRegistration calculatorEventsRegistration() {
       return new EntityEventsRegistration(
-          "calculator", Map.of("added", NumberPayload.class), true);
+          "calculator", Map.of("added", NumberPayload.class));
     }
   }
 
@@ -106,13 +106,13 @@ class CaravanAutoConfigurationTest {
     @Bean
     EntityEventsRegistration calculatorEventsRegistration() {
       return new EntityEventsRegistration(
-          "calculator", Map.of("added", NumberPayload.class), true);
+          "calculator", Map.of("added", NumberPayload.class));
     }
 
     @Bean
     EntityEventsRegistration calculatorEventsAgain() {
       return new EntityEventsRegistration(
-          "calculator", Map.of("subtracted", NumberPayload.class), false);
+          "calculator", Map.of("subtracted", NumberPayload.class));
     }
   }
 
@@ -132,7 +132,7 @@ class CaravanAutoConfigurationTest {
     @Bean
     EntityEventsRegistration calculatorEventsRegistration() {
       return new EntityEventsRegistration(
-          "calculator", Map.of("added", NumberPayload.class), true);
+          "calculator", Map.of("added", NumberPayload.class));
     }
   }
 
@@ -157,7 +157,7 @@ class CaravanAutoConfigurationTest {
     @Bean
     EntityEventsRegistration calculatorEventsRegistration() {
       return new EntityEventsRegistration(
-          "calculator", Map.of("added", NumberPayload.class), true);
+          "calculator", Map.of("added", NumberPayload.class));
     }
   }
 

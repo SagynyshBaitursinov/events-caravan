@@ -23,7 +23,7 @@ class JacksonEventPayloadDeserializerTest {
   JsonMapper jsonMapper = JsonMapper.builder().build();
 
   EntityEventsRegistry entityEventsRegistry = EntityEventsRegistry.createFor(
-      List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true)));
+      List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class))));
 
   JacksonEventPayloadDeserializer deserializer =
       new JacksonEventPayloadDeserializer(jsonMapper, entityEventsRegistry);

@@ -6,6 +6,8 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
+import java.util.Set;
+
 @ConfigurationProperties(CaravanQueuePollingConfigurationProperties.PREFIX)
 public record CaravanQueuePollingConfigurationProperties(@Nullable String queueNamePrefix,
                                                          @DefaultValue("10") int gracefulShutdownSeconds,
@@ -14,7 +16,8 @@ public record CaravanQueuePollingConfigurationProperties(@Nullable String queueN
                                                          @DefaultValue("3") int minPollSize,
                                                          @DefaultValue("0") int pollersCountCap,
                                                          @DefaultValue("10") int pollWaitSeconds,
-                                                         @DefaultValue DeletionConfigurationProperties deletion) {
+                                                         @DefaultValue DeletionConfigurationProperties deletion,
+                                                         @Nullable Set<String> subscribedEntities) {
 
   public static final String PREFIX = "caravan.event.messaging";
 

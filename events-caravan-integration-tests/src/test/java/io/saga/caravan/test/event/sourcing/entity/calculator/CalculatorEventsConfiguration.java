@@ -20,7 +20,6 @@ public class CalculatorEventsConfiguration {
         CALCULATOR,
         Map.of(
             NUMBER_ADDED, NumberCarryingPayload.class,
-            NUMBER_SUBTRACTED, NumberCarryingPayload.class),
-        true);
+            NUMBER_SUBTRACTED, NumberCarryingPayload.class));
   }
 }

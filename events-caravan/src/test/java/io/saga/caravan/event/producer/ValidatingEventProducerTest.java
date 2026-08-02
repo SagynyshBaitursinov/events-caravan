@@ -45,7 +45,7 @@ class ValidatingEventProducerTest {
   ValidatingEventProducer validatingEventProducer = new ValidatingEventProducer(
       delegate,
       EntityEventsRegistry.createFor(
-          List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class), true))));
+          List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class)))));
 
   @Test
   void shouldProduceEventWithRegisteredPayloadClass() {

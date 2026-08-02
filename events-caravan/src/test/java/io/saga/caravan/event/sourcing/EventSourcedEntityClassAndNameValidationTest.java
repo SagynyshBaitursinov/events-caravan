@@ -165,7 +165,7 @@ class EventSourcedEntityClassAndNameValidationTest {
   }
 
   EntityEventsRegistry eventPayloadClassMap = EntityEventsRegistry.createFor(
-      List.of(new EntityEventsRegistration(CAR, Map.of(TURNED_ON, TurnedOnPayload.class), true)));
+      List.of(new EntityEventsRegistration(CAR, Map.of(TURNED_ON, TurnedOnPayload.class))));
 
   EventStore eventStore = mock(EventStore.class);
   EventProducer eventProducer = mock(EventProducer.class);

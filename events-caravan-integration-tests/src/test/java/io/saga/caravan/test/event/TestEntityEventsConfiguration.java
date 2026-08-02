@@ -20,7 +20,6 @@ public class TestEntityEventsConfiguration {
         TEST_ENTITY,
         Map.of(
             TEST_EVENT, TestEventPayload.class,
-            ANOTHER_TEST_EVENT, TestEventPayload.class),
-        true);
+            ANOTHER_TEST_EVENT, TestEventPayload.class));
   }
 }
