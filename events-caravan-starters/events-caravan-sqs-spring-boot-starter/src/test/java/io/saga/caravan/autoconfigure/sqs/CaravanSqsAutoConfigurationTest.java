@@ -15,8 +15,10 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,7 +42,8 @@ class CaravanSqsAutoConfigurationTest {
       .withUserConfiguration(ApplicationConfiguration.class)
       .withPropertyValues(
           "caravan.event.messaging.queue-name-prefix=test-app",
-          "caravan.event.messaging.subscribed-entities=calculator");
+          "caravan.event.messaging.subscribed-entities=calculator",
+          "caravan.event.messaging.graceful-shutdown-seconds=0");
 
   @Configuration(proxyBeanMethods = false)
   static class ApplicationConfiguration {
@@ -53,6 +56,8 @@ class CaravanSqsAutoConfigurationTest {
               GetQueueUrlResponse.builder()
                   .queueUrl(QUEUE_URL)
                   .build());
+      when(sqsClient.receiveMessage(any(ReceiveMessageRequest.class)))
+          .thenReturn(ReceiveMessageResponse.builder().messages(List.of()).build());
       return sqsClient;
     }
 
@@ -184,9 +189,14 @@ class CaravanSqsAutoConfigurationTest {
   @Nested
   class MessagingProperties {
 
+    ApplicationContextRunner propertiesContextRunner = new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withUserConfiguration(ApplicationConfigurationWithNoSubscribedQueues.class)
+        .withPropertyValues("caravan.event.messaging.queue-name-prefix=test-app");
+
     @Test
     void appliesDefaultsWhenNothingIsConfigured() {
-      contextRunner.run(context -> {
+      propertiesContextRunner.run(context -> {
         assertThat(context).getBean(QueuePollingProperties.class)
             .satisfies(properties -> {
               assertThat(properties.concurrency()).isEqualTo(10);
@@ -208,7 +218,7 @@ class CaravanSqsAutoConfigurationTest {
 
     @Test
     void bindsConfiguredValues() {
-      contextRunner
+      propertiesContextRunner
           .withPropertyValues(
               "caravan.event.messaging.concurrency=25",
               "caravan.event.messaging.max-poll-size=15",
@@ -256,7 +266,7 @@ class CaravanSqsAutoConfigurationTest {
                   .build())
           .build();
 
-      contextRunner
+      propertiesContextRunner
           .withBean(QueuePollingProperties.class, () -> ownQueuePollingProperties)
           .run(context ->
               assertThat(context).getBean(QueuePollingProperties.class).isSameAs(ownQueuePollingProperties));
