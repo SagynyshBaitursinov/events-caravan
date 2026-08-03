@@ -17,7 +17,6 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.CancellationReason;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
-import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.Put;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
@@ -111,6 +110,8 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
               .build());
     } catch (ConditionalCheckFailedException exception) {
       throw duplicateEventProductionException(event);
+    } catch (Exception exception) {
+      throw new EventProductionException(exception);
     }
   }
 
@@ -141,7 +142,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
               .build());
     } catch (TransactionCanceledException exception) {
       throw eventProductionException(events, exception);
-    } catch (DynamoDbException exception) {
+    } catch (Exception exception) {
       throw new EventProductionException(
           "Failed to produce %d events in a transaction: %s"
               .formatted(events.size(), exception.getMessage()));

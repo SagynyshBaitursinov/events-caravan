@@ -9,4 +9,8 @@ public class EventStoreException extends RuntimeException {
   public EventStoreException(String message, Exception cause) {
     super(message, cause);
   }
+
+  public EventStoreException(Exception cause) {
+    super(cause);
+  }
 }

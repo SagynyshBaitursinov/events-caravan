@@ -13,11 +13,23 @@ import java.util.Set;
 
 import static java.util.stream.Collectors.toSet;
 
+/**
+ * Validates, for one entity class, that its {@link ApplyEvent} methods agree with the
+ * application's {@link EntityEventsRegistry}: every registered event for that entity has exactly
+ * one apply method, and each apply method's payload type matches the registered one. Applications
+ * construct one instance and pass it to {@code EventSourcingRepositoryContext}, which runs this
+ * validation once per entity type as its repository is created.
+ */
 @RequiredArgsConstructor
 public class ApplyEventMethodPayloadsValidator {
 
   private final EntityEventsRegistry entityEventsRegistry;
 
+  /**
+   * @throws EventSourcedEntitySetupException if an apply method's payload type does not match
+   *                                          the registered event's payload class, or a
+   *                                          registered event has no apply method
+   */
   public void validate(String entityName,
                        Class<? extends EventSourcedEntity> entityClass) {
     Map<String, Method> applyEventMethods

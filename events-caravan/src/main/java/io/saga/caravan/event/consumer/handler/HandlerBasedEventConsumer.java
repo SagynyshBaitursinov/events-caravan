@@ -10,6 +10,11 @@ import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Optional;
 
+/**
+ * An {@link EventConsumer} that dispatches each event to every {@link EventHandler} whose
+ * declared payload type matches the event's payload, in the order the handlers were provided.
+ * The payload type each handler accepts is determined once per handler class.
+ */
 @Slf4j
 public class HandlerBasedEventConsumer implements EventConsumer {
 

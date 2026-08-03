@@ -9,6 +9,19 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Base class for an entity whose state is derived from a sequence of {@link Event}s.
+ * Applications extending this class must annotate it with {@link EntityName}, and
+ * mutate state exclusively by calling {@link #recordEvent(String, Object)} from
+ * domain-logic methods;
+ * For applying the resulting state changes immediately after event is recorded
+ * or when entity state is loaded later, methods annotated with
+ * {@link io.saga.caravan.event.sourcing.applying.ApplyEvent} are utilized.
+ *
+ * <p>Instances are saved and loaded by an {@link EventSourcedRepository} implementations,
+ * which load an entity state by replaying its events (or a snapshot plus the events since).
+ * Saving entity state happen by producing the events recorded since it was loaded.
+ */
 @Slf4j
 public abstract class EventSourcedEntity extends Entity {
 
@@ -40,6 +53,10 @@ public abstract class EventSourcedEntity extends Entity {
     return entityNameOf(this.getClass());
   }
 
+  /**
+   * The sequence number of the last event applied to this entity; 0 for a blank state
+   * entity, which cannot be yet saved or loaded.
+   */
   public final long version() {
     return version;
   }
@@ -48,6 +65,15 @@ public abstract class EventSourcedEntity extends Entity {
     this.version = version;
   }
 
+  /**
+   * Records a new event with the given name and payload against this entity, immediately
+   * applying it via the matching {@link io.saga.caravan.event.sourcing.applying.ApplyEvent}
+   * method so this entity's in-memory state reflects it. The event is queued to be produced the
+   * next time this entity is saved through its {@link EventSourcedRepository}.
+   *
+   * @param eventName    the name of the event, as declared in the application's event registry
+   * @param eventPayload the payload describing the details of what happened
+   */
   protected final <E> void recordEvent(String eventName,
                                        E eventPayload) {
     var event = buildEvent(eventName, eventPayload);

@@ -18,6 +18,18 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+/**
+ * Continuously polls a queue and processes each message, scaling the number of concurrent
+ * pollers and in-flight messages within the limits of {@link QueuePollingProperties}.
+ * Applications construct one instance per queue via {@link #builder()}, supplying a
+ * {@link MessagesPoller}, {@link MessageConsumer} and {@link MessagesDeleter} for the queue's
+ * transport, then call {@link #startContinuousPolling()} to begin and
+ * {@link #requestStopOfContinuousPolling()} followed by
+ * {@link #awaitStopOfContinuousPolling(Instant)} to shut down gracefully.
+ * <p>
+ * Messages are processed immediately after polling
+ * and are enqueued for deleting after consumption finishes without a runtime exception.
+ */
 @Slf4j
 public class ContinuousMessagePollingController {
 
@@ -87,6 +99,11 @@ public class ContinuousMessagePollingController {
         Thread.ofVirtual().name("proc-" + queueName + "-", 0).factory());
   }
 
+  /**
+   * Starts (or resumes) continuous polling. Idempotent while already running.
+   *
+   * @throws IllegalStateException if a previous stop was requested but not yet awaited
+   */
   public synchronized void startContinuousPolling() {
     if (isStopRequestedButNotAwaited()) {
       throw new IllegalStateException(
@@ -127,6 +144,9 @@ public class ContinuousMessagePollingController {
     return !shouldKeepPolling && isContinuousPollingRunning();
   }
 
+  /**
+   * Whether the primary poller thread is currently running.
+   */
   public boolean isContinuousPollingRunning() {
     var poller = primaryPoller;
     return poller != null && !poller.isDone();
@@ -217,6 +237,10 @@ public class ContinuousMessagePollingController {
     }
   }
 
+  /**
+   * Signals pollers to stop after their current iteration. Returns immediately; call
+   * {@link #awaitStopOfContinuousPolling(Instant)} to wait for in-flight work to finish.
+   */
   public synchronized void requestStopOfContinuousPolling() {
     if (primaryPoller == null) {
       log.info("Continuous polling of messages from queueName={} is already stopped", queueName);
@@ -227,6 +251,11 @@ public class ContinuousMessagePollingController {
     shouldKeepPolling = false;
   }
 
+  /**
+   * Waits for polling threads, in-flight message processing, and in-flight message deletions to
+   * finish, up to {@code deadline}; interrupts them if the deadline passes first. Call
+   * {@link #requestStopOfContinuousPolling()} beforehand.
+   */
   public synchronized void awaitStopOfContinuousPolling(Instant deadline) {
     if (primaryPoller == null) {
       return;

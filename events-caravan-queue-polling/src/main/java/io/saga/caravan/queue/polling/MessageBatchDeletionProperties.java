@@ -2,6 +2,15 @@ package io.saga.caravan.queue.polling;
 
 import lombok.Builder;
 
+/**
+ * Configures how successfully consumed messages are batched before being passed to a
+ * {@link MessagesDeleter}, as part of {@link QueuePollingProperties}.
+ *
+ * @param maxBatchSize  the maximum number of messages deleted in a single batch
+ * @param periodSeconds how long to wait for a batch to fill up to {@code maxBatchSize} before
+ *                      deleting whatever has accumulated so far
+ * @param concurrency   the maximum number of delete batches in flight at once
+ */
 @Builder
 public record MessageBatchDeletionProperties(int maxBatchSize,
                                              int periodSeconds,

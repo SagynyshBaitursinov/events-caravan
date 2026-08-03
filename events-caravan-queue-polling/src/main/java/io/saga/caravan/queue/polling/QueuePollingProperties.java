@@ -4,6 +4,23 @@ import lombok.Builder;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Configures how a {@link ContinuousMessagePollingController} polls and processes a single
+ * queue.
+ *
+ * @param concurrency                    the maximum number of messages processed concurrently;
+ *                                       *                                   pollers make next poll once throughput of minPollSize gets free
+ * @param maxPollSize                    the maximum number of messages requested in a single poll
+ * @param minPollSize                    the minimum number of messages worth requesting in a
+ *                                       single poll; polling waits for at least this much free
+ *                                       processing throughput before issuing a request
+ * @param pollersCountCap                the maximum number of concurrent poller threads; 0 for
+ *                                       no cap beyond what {@code concurrency}/{@code maxPollSize}
+ *                                       implies
+ * @param pollWaitSeconds                how long a single poll request waits for messages to
+ *                                       become available
+ * @param messageBatchDeletionProperties how consumed messages are batched for deletion
+ */
 @Builder
 public record QueuePollingProperties(int concurrency,
                                      int maxPollSize,
@@ -44,6 +61,10 @@ public record QueuePollingProperties(int concurrency,
     }
   }
 
+  /**
+   * The maximum number of poller threads implied by {@code concurrency} and {@code maxPollSize},
+   * capped by {@code pollersCountCap} if set.
+   */
   public int maxPollersCount() {
     var divisionResult = Math.ceilDiv(concurrency, maxPollSize);
     if (pollersCountCap == 0) {

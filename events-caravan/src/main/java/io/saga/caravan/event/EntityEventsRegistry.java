@@ -9,12 +9,24 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+/**
+ * The authoritative map from every {@link EventType} an application declares to its payload
+ * class. Built once at startup from the application's {@link EntityEventsRegistration}s, then
+ * used to validate that produced events and event-sourcing apply methods carry the expected
+ * payload type.
+ */
 public class EntityEventsRegistry {
 
   private static final Pattern ALLOWED_ENTITY_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
 
   private final Map<EventType, Class<?>> map = new HashMap<>();
 
+  /**
+   * Builds a registry from the given registrations.
+   *
+   * @throws EntityEventsRegistrationException if an entity name is invalid or duplicated, or an
+   *                                           event's payload class is not a concrete class
+   */
   public static EntityEventsRegistry createFor(
       Collection<EntityEventsRegistration> entityEventsRegistrations) {
 
@@ -43,10 +55,16 @@ public class EntityEventsRegistry {
     return result;
   }
 
+  /**
+   * The payload class registered for the given event type, if any.
+   */
   public Optional<Class<?>> payloadClassFor(EventType eventType) {
     return Optional.ofNullable(map.get(eventType));
   }
 
+  /**
+   * All event types known to this registry.
+   */
   public Set<EventType> registeredEventTypes() {
     return map.keySet();
   }

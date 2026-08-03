@@ -4,10 +4,23 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
+/**
+ * Base class for a domain entity, identified by an {@link #entityName()} and {@link #entityId()}.
+ *
+ * <p>Applications extend this class for each kind of entity in their domain model.
+ * {@code equals}/{@code hashCode} are defined in terms of {@link #entityReference()} and are
+ * {@code final}, so identity is always based on entity type and id, never on other fields.
+ */
 public abstract class Entity {
 
+  /**
+   * The identifier of this entity instance, must be unique within {@link #entityName()}.
+   */
   public abstract String entityId();
 
+  /**
+   * The name of this entity's type, must be unique.
+   */
   public abstract String entityName();
 
   public final EntityReference entityReference() {

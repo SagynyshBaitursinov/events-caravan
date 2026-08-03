@@ -12,6 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * The shared dependencies of every {@link EventSourcedRepository} in an application: the
+ * {@link EventStore}, {@link EventProducer} and {@link SnapshotStore} to use, plus the
+ * {@link SnapshotTaker}s available for specific entity types. Applications construct one
+ * instance and pass it to each of their {@link EventSourcedRepository} subclasses' constructors;
+ * it also enforces that at most one repository is registered per entity name.
+ */
 public class EventSourcingRepositoryContext {
 
   private final Set<String> entityNames = new HashSet<>();
@@ -21,6 +28,11 @@ public class EventSourcingRepositoryContext {
   private final ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator;
   private final Map<Class<? extends EventSourcedEntity>, SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakerMap;
 
+  /**
+   * @throws EventSourcedEntitySetupException if two snapshot takers are given for the same
+   *                                          entity class, or one declares a non-positive
+   *                                          snapshot frequency
+   */
   public EventSourcingRepositoryContext(EventStore eventStore,
                                         EventProducer eventProducer,
                                         SnapshotStore snapshotStore,

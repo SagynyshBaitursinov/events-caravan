@@ -6,18 +6,32 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
+/**
+ * An {@link EventProducer} decorator that validates each event's payload class against the
+ * {@link EntityEventsRegistry} before delegating production to another {@link EventProducer}.
+ * Applications wrap their transport-specific producer with this class to catch mismatches
+ * between an event's declared type and its actual payload before it is published.
+ */
 @RequiredArgsConstructor
 public class ValidatingEventProducer implements EventProducer {
 
   private final EventProducer delegate;
   private final EntityEventsRegistry entityEventsRegistry;
 
+  /**
+   * @throws EventProductionException if the event's type has no registered payload class, or
+   *                                  its payload's class does not match the registered one
+   */
   @Override
   public void produce(Event<?> event) {
     validate(event);
     delegate.produce(event);
   }
 
+  /**
+   * @throws EventProductionException if any event's type has no registered payload class, or
+   *                                  its payload's class does not match the registered one
+   */
   @Override
   public void produce(List<Event<?>> events) {
     events.forEach(this::validate);

@@ -12,6 +12,18 @@ import static io.saga.caravan.utils.TextUtils.hasText;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * A single fact that happened to an entity: the {@code sequenceNumber}-th event named
+ * {@code eventName} recorded against {@code entityReference}, carrying a {@code payload}
+ * describing details of what has happened.
+ *
+ * <p>{@code sequenceNumber} starts at 1 and increases by one for each subsequent event of the
+ * same entity. {@code timestamp} is normalized to millisecond precision in UTC. Two events are
+ * {@link #equals(Object) equal} when they share the same {@code entityReference} and
+ * {@code sequenceNumber}, regardless of their other fields.
+ *
+ * @param <T> the type of {@code payload}
+ */
 @Builder
 public record Event<T>(EntityReference entityReference,
                        String eventName,
@@ -42,6 +54,9 @@ public record Event<T>(EntityReference entityReference,
     return zonedDateTime.truncatedTo(MILLIS).withZoneSameInstant(Z);
   }
 
+  /**
+   * A lightweight reference to this event, without its payload.
+   */
   public EventReference eventReference() {
     return new EventReference(
         this.entityReference(),
@@ -49,6 +64,9 @@ public record Event<T>(EntityReference entityReference,
         this.eventName());
   }
 
+  /**
+   * The kind of event this is: its entity's name paired with its {@code eventName}.
+   */
   public EventType eventType() {
     return new EventType(
         this.entityReference().entityName(),

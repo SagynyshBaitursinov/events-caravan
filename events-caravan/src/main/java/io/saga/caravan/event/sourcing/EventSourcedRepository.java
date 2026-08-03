@@ -12,6 +12,20 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 
+/**
+ * A {@link Repository} for an event-sourced entity of type {@code T}. Applications extend this
+ * class per entity type, having to implement only {@link #createWithBlankState(String)}.
+ *
+ * <p>{@link #findBy(String)} restores an entity by loading its latest snapshot
+ * (if a {@link SnapshotTaker} is configured for it and snapshot already exists)
+ * and replaying the events recorded since.
+ * <p>
+ * Saving via {@link #save(T)} produces the events recorded on the entity since it was loaded and,
+ * depending on the configured {@link SnapshotTaker}'s frequency, takes a new snapshot.
+ * There's no guarantee that taking snapshot succeeds after events are produced atomically.
+ *
+ * @param <T> the concrete {@link EventSourcedEntity} type this repository manages
+ */
 public abstract class EventSourcedRepository<T extends EventSourcedEntity> implements Repository<T> {
 
   private final String entityName;
@@ -24,6 +38,16 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
   @Nullable
   private final SnapshotTaker<T, ?> snapshotTaker;
 
+  /**
+   * @param entityClass the concrete entity class this repository manages
+   * @param context     the shared context this repository draws its {@link EventStore},
+   *                    {@link EventProducer} and {@link SnapshotStore} from, and registers
+   *                    itself with
+   * @throws EventSourcedEntitySetupException if another repository is already registered for
+   *                                          the same entity name, or the entity class's
+   *                                          {@code @ApplyEvent} methods don't match its
+   *                                          registered events
+   */
   protected EventSourcedRepository(Class<T> entityClass,
                                    EventSourcingRepositoryContext context) {
     this.entityName = EventSourcedEntity.entityNameOf(entityClass);
@@ -37,6 +61,12 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
     context.register(this);
   }
 
+  /**
+   * @throws EventSourcedRepositoryException if the entity has blank-state or
+   *                                         is not of the exact class this repository
+   *                                         manages, or its events cannot be produced (e.g. it
+   *                                         was concurrently modified elsewhere)
+   */
   @Override
   public final void save(T entity) {
     validateEntityClass(entity);
@@ -101,6 +131,10 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
     return eventVersion % snapshotTaker().frequencyOfSnapshots() == 0;
   }
 
+  /**
+   * @throws EventSourcedRepositoryException if the restored entity is not of the exact class
+   *                                         this repository manages
+   */
   @Override
   public final Optional<T> findBy(String entityId) {
     return findBy(createEntityReference(entityId));
@@ -181,12 +215,23 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
     return snapshotTaker;
   }
 
+  /**
+   * Creates a new instance of the entity with no state yet applied, with the given id, ready to
+   * have events applied to it during {@link #findBy(String)} or ready to record its first event.
+   */
   protected abstract T createWithBlankState(String entityId);
 
+  /**
+   * The entity name this repository manages, as declared via {@link EntityName} on
+   * {@code entityClass}.
+   */
   public final String entityName() {
     return entityName;
   }
 
+  /**
+   * The concrete entity class this repository manages.
+   */
   public final Class<T> entityClass() {
     return entityClass;
   }

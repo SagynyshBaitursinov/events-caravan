@@ -2,6 +2,10 @@ package io.saga.caravan.event;
 
 import static io.saga.caravan.utils.TextUtils.hasText;
 
+/**
+ * Identifies a kind of event: the event named {@code eventName} as it occurs for entities named
+ * {@code entityName}.
+ */
 public record EventType(String entityName,
                         String eventName) {
 

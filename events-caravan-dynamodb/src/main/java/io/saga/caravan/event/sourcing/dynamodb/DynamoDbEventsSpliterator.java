@@ -1,6 +1,7 @@
 package io.saga.caravan.event.sourcing.dynamodb;
 
 import io.saga.caravan.event.Event;
+import io.saga.caravan.event.sourcing.EventStoreException;
 import org.jspecify.annotations.Nullable;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -21,7 +22,7 @@ import java.util.function.LongFunction;
  * {@code sequenceNumber/partitionShardSize}, so once a shard's own DynamoDB pagination is
  * exhausted, the highest sequence number observed in that shard is compared against the shard's
  * upper bound: an exact match means the shard was filled to capacity and a subsequent shard may
- * exist, anything less means this is the entity's last patition.
+ * exist, anything less means this is the entity's last partition.
  */
 public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
 
@@ -67,7 +68,12 @@ public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
       if (finished) {
         return false;
       }
-      fetchNextPage();
+
+      try {
+        fetchNextPage();
+      } catch (Exception exception) {
+        throw new EventStoreException(exception);
+      }
     }
 
     Event<?> event = eventMapper.mapAttributesToEvent(currentPageIterator.next());
@@ -93,7 +99,11 @@ public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
 
   private void ensureInitialized() {
     if (!initialized) {
-      fetchNextPage();
+      try {
+        fetchNextPage();
+      } catch (Exception exception) {
+        throw new EventStoreException(exception);
+      }
       initialized = true;
     }
   }

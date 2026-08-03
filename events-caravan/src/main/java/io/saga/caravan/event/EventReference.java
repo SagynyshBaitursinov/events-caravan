@@ -5,6 +5,10 @@ import io.saga.caravan.entity.EntityReference;
 import static io.saga.caravan.utils.TextUtils.hasText;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Identifies a single {@link Event}, without its payload: the {@code sequenceNumber}-th event
+ * named {@code eventName} recorded against {@code entityReference}.
+ */
 public record EventReference(EntityReference entityReference,
                              long sequenceNumber,
                              String eventName) {
