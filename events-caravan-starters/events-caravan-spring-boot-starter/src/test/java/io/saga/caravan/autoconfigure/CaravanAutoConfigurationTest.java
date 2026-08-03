@@ -1,13 +1,15 @@
 package io.saga.caravan.autoconfigure;
 
+import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.event.EntityEventsRegistry;
+import io.saga.caravan.event.Event;
 import io.saga.caravan.event.EventType;
 import io.saga.caravan.event.consumer.EventConsumer;
 import io.saga.caravan.event.consumer.EventMessageConsumer;
 import io.saga.caravan.event.consumer.handler.HandlerBasedEventConsumer;
 import io.saga.caravan.event.producer.EventProducer;
-import io.saga.caravan.event.producer.ValidatingEventProducer;
+import io.saga.caravan.event.producer.EventProductionException;
 import io.saga.caravan.event.serialization.EventDeserializer;
 import io.saga.caravan.event.serialization.EventPayloadDeserializer;
 import io.saga.caravan.event.serialization.EventPayloadSerializer;
@@ -27,9 +29,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 @NullMarked
@@ -45,12 +51,32 @@ class CaravanAutoConfigurationTest {
       .withConfiguration(autoConfigurations)
       .withUserConfiguration(ApplicationConfiguration.class);
 
+  static class RecordingEventProducer implements EventProducer {
+
+    final List<Event<?>> producedEvents = new ArrayList<>();
+
+    @Override
+    public void produce(Event<?> event) {
+      producedEvents.add(event);
+    }
+
+    @Override
+    public void produce(List<Event<?>> events) {
+      producedEvents.addAll(events);
+    }
+  }
+
+  interface CombinedEventStoreAndProducer extends EventStore, EventProducer {
+  }
+
   @Configuration(proxyBeanMethods = false)
   static class ApplicationConfiguration {
 
+    RecordingEventProducer eventProducer = new RecordingEventProducer();
+
     @Bean
     public EventProducer eventProducer() {
-      return mock(EventProducer.class);
+      return eventProducer;
     }
 
     @Bean
@@ -161,7 +187,42 @@ class CaravanAutoConfigurationTest {
     }
   }
 
+  @Configuration(proxyBeanMethods = false)
+  static class ApplicationConfigurationWithCombinedEventStoreAndProducer {
+
+    @Bean
+    public CombinedEventStoreAndProducer combinedEventStoreAndProducer() {
+      return mock(CombinedEventStoreAndProducer.class);
+    }
+
+    @Bean
+    public SnapshotStore snapshotStore() {
+      return mock(SnapshotStore.class);
+    }
+
+    @Bean
+    public JsonMapper jsonMapper() {
+      return JsonMapper.builder().build();
+    }
+
+    @Bean
+    EntityEventsRegistration calculatorEventsRegistration() {
+      return new EntityEventsRegistration(
+          "calculator", Map.of("added", NumberPayload.class));
+    }
+  }
+
   record NumberPayload(int number) {
+  }
+
+  private static Event<Object> event(String eventName, Object payload) {
+    return Event.builder()
+        .entityReference(new EntityReference("calculator", "1"))
+        .eventName(eventName)
+        .sequenceNumber(1)
+        .timestamp(ZonedDateTime.now())
+        .payload(payload)
+        .build();
   }
 
   @Nested
@@ -269,9 +330,20 @@ class CaravanAutoConfigurationTest {
     }
 
     @Test
-    void shouldWrapEventProducerIntoValidatingWrapper() {
-      contextRunner.run(context ->
-          assertThat(context).getBean(EventProducer.class).isInstanceOf(ValidatingEventProducer.class));
+    void shouldValidateEventsBeforeDelegatingToConfiguredProducer() {
+      contextRunner.run(context -> {
+        var applicationConfiguration = context.getBean(ApplicationConfiguration.class);
+        var eventProducer = context.getBean(EventProducer.class);
+
+        var validEvent = event("added", new NumberPayload(42));
+        eventProducer.produce(validEvent);
+        assertThat(applicationConfiguration.eventProducer.producedEvents).containsExactly(validEvent);
+
+        var invalidEvent = event("removed", new NumberPayload(42));
+        assertThatThrownBy(() -> eventProducer.produce(invalidEvent))
+            .isInstanceOf(EventProductionException.class);
+        assertThat(applicationConfiguration.eventProducer.producedEvents).containsExactly(validEvent);
+      });
     }
 
     @Test
@@ -280,6 +352,18 @@ class CaravanAutoConfigurationTest {
           .withConfiguration(autoConfigurations)
           .withUserConfiguration(ApplicationConfigurationWithoutEventProducer.class)
           .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void shouldPreserveOtherRolesOfAProducerThatAlsoActsAsAnEventStore() {
+      new ApplicationContextRunner()
+          .withConfiguration(autoConfigurations)
+          .withUserConfiguration(ApplicationConfigurationWithCombinedEventStoreAndProducer.class)
+          .run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(EventStore.class);
+            assertThat(context).hasSingleBean(EventSourcingRepositoryContext.class);
+          });
     }
 
     @Test
