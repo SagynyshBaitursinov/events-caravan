@@ -168,7 +168,7 @@ class ExternalApplyEventMethodPayloadsValidatorTest {
   void throwsWhenPayloadClassDiffersFromRegistration() {
     assertThatThrownBy(() -> applyEventMethodPayloadsValidator.validate("car", WrongPayloadClassEntity.class))
         .isInstanceOf(EventSourcedEntitySetupException.class)
-        .hasMessage("@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodPayloadsValidatorTest$WrongPayloadClassEntityEventApplier.applyTurnedOn");
+        .hasMessage("@ApplyEvent Event parameter's payload class must be of type io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodPayloadsValidatorTest$CarTurnedOnPayload, which is not the case for io.saga.caravan.event.sourcing.applying.ExternalApplyEventMethodPayloadsValidatorTest$WrongPayloadClassEntityEventApplier.applyTurnedOn");
   }
 
   @Test

@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -15,43 +16,49 @@ public final class EntityEventApplier {
   public static void apply(EventSourcedEntity entity,
                            Event<?> event) {
     var applyMethod =
-        ApplyMethodsCollector.applyEventMethodsOf(entity.getClass()).get(event.eventName());
+        ApplyMethodsCollector
+            .applyEventMethodsOf(entity.getClass())
+            .get(event.eventName());
 
     if (applyMethod == null) {
       throw new EventApplyingException(
-          "No @ApplyEvent method for eventName=%s in %s"
+          "No @ApplyEvent method for eventName=%s in entity class %s"
               .formatted(event.eventName(), entity.getClass().getName()));
     }
 
+    invoke(entity, event, applyMethod);
+
+    entity.setVersion(event.sequenceNumber());
+  }
+
+  private static void invoke(EventSourcedEntity entity,
+                             Event<?> event,
+                             Method applyMethod) {
     try {
       if (Modifier.isStatic(applyMethod.getModifiers())) {
         applyMethod.invoke(null, entity, event);
       } else {
         applyMethod.invoke(entity, event);
       }
-      incrementEntityVersion(entity, event);
     } catch (IllegalArgumentException | IllegalAccessException illegalAccessException) {
       throw new EventApplyingException(
-          "Cannot invoke apply method %s.%s with parameter %s, check its setup according to EventPayloadRegistration"
-              .formatted(
-                  entity.getClass().getName(),
-                  applyMethod.getName(),
-                  event),
+          getCannotInvokeMessage(entity, event, applyMethod),
           illegalAccessException);
     } catch (InvocationTargetException invocationTargetException) {
-      throw new EventApplyingException(invocationTargetException.getTargetException());
+      throw new EventApplyingException(
+          getCannotInvokeMessage(entity, event, applyMethod),
+          invocationTargetException.getTargetException());
     }
   }
 
-  private static void incrementEntityVersion(EventSourcedEntity entity,
-                                             Event<?> event) {
-    try {
-      entity.setVersion(event.sequenceNumber());
-    } catch (NumberFormatException exception) {
-      throw new EventApplyingException(
-          "%s was expected to contains a sequence number for event sourcing"
-              .formatted(event),
-          exception);
-    }
+  private static String getCannotInvokeMessage(EventSourcedEntity entity,
+                                               Event<?> event,
+                                               Method applyMethod) {
+    return "Cannot invoke apply method %s.%s with parameter %s of payload type %s"
+        .formatted(
+            entity.getClass().getName(),
+            applyMethod.getName(),
+            event,
+            event.payload().getClass());
   }
 }

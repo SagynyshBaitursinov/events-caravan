@@ -1,4 +1,4 @@
-package io.saga.caravan.test.event;
+package io.saga.caravan.test.event.driven;
 
 import io.saga.caravan.entity.EntityReference;
 import io.saga.caravan.event.Event;
@@ -7,6 +7,10 @@ import io.saga.caravan.event.producer.DuplicateEventProductionException;
 import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.producer.EventProductionException;
 import io.saga.caravan.test.AbstractSpringBootTest;
+import io.saga.caravan.test.event.handler.AllTestFieldSavingEventHandler;
+import io.saga.caravan.test.event.handler.AnotherTestFieldSavingEventHandler;
+import io.saga.caravan.test.event.handler.InterestingTestFieldSavingEventHandler;
+import io.saga.caravan.test.event.handler.UnsureTestFieldSavingEventHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -14,9 +18,9 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
-import static io.saga.caravan.test.event.TestEntityEventsConfiguration.ANOTHER_TEST_EVENT;
-import static io.saga.caravan.test.event.TestEntityEventsConfiguration.TEST_ENTITY;
-import static io.saga.caravan.test.event.TestEntityEventsConfiguration.TEST_EVENT;
+import static io.saga.caravan.test.event.driven.TestEntityEventsConfiguration.ANOTHER_TEST_EVENT;
+import static io.saga.caravan.test.event.driven.TestEntityEventsConfiguration.TEST_ENTITY;
+import static io.saga.caravan.test.event.driven.TestEntityEventsConfiguration.TEST_EVENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;

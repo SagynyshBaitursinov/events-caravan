@@ -1,4 +1,4 @@
-package io.saga.caravan.test.event;
+package io.saga.caravan.test.event.driven;
 
 import io.saga.caravan.event.EntityEventsRegistration;
 import org.springframework.context.annotation.Bean;

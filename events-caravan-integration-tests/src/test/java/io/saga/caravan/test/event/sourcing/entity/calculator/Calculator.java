@@ -4,6 +4,7 @@ import io.saga.caravan.event.Event;
 import io.saga.caravan.event.sourcing.EntityName;
 import io.saga.caravan.event.sourcing.EventSourcedEntity;
 import io.saga.caravan.event.sourcing.applying.ApplyEvent;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -13,10 +14,14 @@ import static io.saga.caravan.test.event.sourcing.entity.calculator.CalculatorEv
 import static io.saga.caravan.test.event.sourcing.entity.calculator.CalculatorEventsConfiguration.NUMBER_SUBTRACTED;
 
 @EntityName(CALCULATOR)
-@RequiredArgsConstructor
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public class Calculator extends EventSourcedEntity {
 
   final String id;
+
+  public static Calculator createNew(String id) {
+    return new Calculator(id);
+  }
 
   @Setter
   @Getter

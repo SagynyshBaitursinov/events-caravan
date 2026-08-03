@@ -1,4 +1,4 @@
-package io.saga.caravan.test.event.sourcing.entity.calculator.snapshotting;
+package io.saga.caravan.test.event.sourcing.snapshotting;
 
 import io.saga.caravan.event.EntityEventsRegistration;
 import io.saga.caravan.test.event.sourcing.entity.calculator.NumberCarryingPayload;

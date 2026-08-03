@@ -53,9 +53,9 @@ public abstract class EventSourcedEntity extends Entity {
     var event = buildEvent(eventName, eventPayload);
     log.debug("Recording {}", event.eventReference());
 
-    notProducedEvents.add(event);
-
     EntityEventApplier.apply(this, event);
+
+    notProducedEvents.add(event);
   }
 
   private <E> Event<E> buildEvent(String eventName,

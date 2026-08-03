@@ -41,8 +41,9 @@ public class ApplyEventMethodPayloadsValidator {
     var parametrizedType = (ParameterizedType) parameterTypes[parameterTypes.length - 1];
     if (!parametrizedType.getActualTypeArguments()[0].equals(registeredEventPayloadClass)) {
       throw new EventSourcedEntitySetupException(
-          "@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for %s.%s"
+          "@ApplyEvent Event parameter's payload class must be of type %s, which is not the case for %s.%s"
               .formatted(
+                  registeredEventPayloadClass.getName(),
                   applyEventMethod.getDeclaringClass().getName(),
                   applyEventMethod.getName()));
     }

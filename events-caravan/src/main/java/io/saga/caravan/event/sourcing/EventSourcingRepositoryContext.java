@@ -15,7 +15,6 @@ import java.util.Set;
 public class EventSourcingRepositoryContext {
 
   private final Set<String> entityNames = new HashSet<>();
-  private final Set<Class<? extends EventSourcedEntity>> entityClasses = new HashSet<>();
   private final EventStore eventStore;
   private final EventProducer eventProducer;
   private final SnapshotStore snapshotStore;
@@ -75,20 +74,17 @@ public class EventSourcingRepositoryContext {
     String entityName = eventSourcedRepository.entityName();
     Class<? extends EventSourcedEntity> entityClass = eventSourcedRepository.entityClass();
 
-    validateDuplication(entityName, entityClass);
+    validateDuplication(entityName);
 
     applyEventMethodPayloadsValidator.validate(entityName, entityClass);
 
     entityNames.add(entityName);
-    entityClasses.add(entityClass);
   }
 
-  private void validateDuplication(String entityName, Class<? extends EventSourcedEntity> entityClass) {
-    if (entityNames.contains(entityName)
-        || entityClasses.contains(entityClass)) {
+  private void validateDuplication(String entityName) {
+    if (entityNames.contains(entityName)) {
       throw new EventSourcedEntitySetupException(
-          "entityName=%s or entityClass=%s are duplicated"
-              .formatted(entityName, entityClass));
+          "Repository for entityName=%s already exists".formatted(entityName));
     }
   }
 }

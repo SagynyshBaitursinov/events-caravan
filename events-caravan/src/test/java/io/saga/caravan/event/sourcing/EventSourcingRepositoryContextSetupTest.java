@@ -288,8 +288,7 @@ class EventSourcingRepositoryContextSetupTest {
 
     assertThatThrownBy(() -> new VanCalledCarRepository(context))
         .isInstanceOf(EventSourcedEntitySetupException.class)
-        .hasMessage("entityName=%s or entityClass=%s are duplicated"
-            .formatted(CAR, VanCalledCar.class));
+        .hasMessage("Repository for entityName=%s already exists".formatted(CAR));
   }
 
   @Test
@@ -298,15 +297,14 @@ class EventSourcingRepositoryContextSetupTest {
 
     assertThatThrownBy(() -> new SecondCarRepository(context))
         .isInstanceOf(EventSourcedEntitySetupException.class)
-        .hasMessage("entityName=%s or entityClass=%s are duplicated"
-            .formatted(CAR, Car.class));
+        .hasMessage("Repository for entityName=%s already exists".formatted(CAR));
   }
 
   @Test
   void shouldValidateRegisteredEntitiesApplyEventMethodPayloads() {
     assertThatThrownBy(() -> new WrongPayloadClassTruckRepository(context))
         .isInstanceOf(EventSourcedEntitySetupException.class)
-        .hasMessage("@ApplyEvent Event parameter's payload class must be the one from EventPayloadRegistration, which is not the case for %s.applyTurnedOn"
+        .hasMessage("@ApplyEvent Event parameter's payload class must be of type io.saga.caravan.event.sourcing.EventSourcingRepositoryContextSetupTest$TurnedOnPayload, which is not the case for %s.applyTurnedOn"
             .formatted(WrongPayloadClassTruck.class.getName()));
   }
 

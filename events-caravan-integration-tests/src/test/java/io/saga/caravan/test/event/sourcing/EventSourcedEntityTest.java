@@ -1,9 +1,9 @@
 package io.saga.caravan.test.event.sourcing;
 
 import io.saga.caravan.test.AbstractSpringBootTest;
+import io.saga.caravan.test.event.handler.NumberCarryingEventsHandler;
 import io.saga.caravan.test.event.sourcing.entity.calculator.Calculator;
 import io.saga.caravan.test.event.sourcing.entity.calculator.CalculatorRepository;
-import io.saga.caravan.test.event.sourcing.entity.calculator.NumberCarryingEventsHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -24,7 +24,7 @@ class EventSourcedEntityTest extends AbstractSpringBootTest {
   @Test
   void versionUpdatingTest() {
     String entityId = UUID.randomUUID().toString();
-    var entity = new Calculator(entityId);
+    var entity = Calculator.createNew(entityId);
     assertThat(entity.version()).isEqualTo(0L);
 
     entity.addNumber(101L);
@@ -62,7 +62,7 @@ class EventSourcedEntityTest extends AbstractSpringBootTest {
   @Test
   void equalityAndHashCodeDependOnlyOnEntityReference() {
     String entityId = UUID.randomUUID().toString();
-    var entity = new Calculator(entityId);
+    var entity = Calculator.createNew(entityId);
     assertThat(entity.version()).isEqualTo(0L);
 
     entity.addNumber(101L);

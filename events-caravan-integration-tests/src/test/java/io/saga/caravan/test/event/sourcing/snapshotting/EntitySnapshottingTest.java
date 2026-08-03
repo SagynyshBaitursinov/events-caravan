@@ -1,10 +1,7 @@
-package io.saga.caravan.test.event.sourcing;
+package io.saga.caravan.test.event.sourcing.snapshotting;
 
 import io.saga.caravan.event.sourcing.snapshot.SnapshotStore;
 import io.saga.caravan.test.AbstractSpringBootTest;
-import io.saga.caravan.test.event.sourcing.entity.calculator.snapshotting.CalculatorSnapshot;
-import io.saga.caravan.test.event.sourcing.entity.calculator.snapshotting.SnapshottingCalculator;
-import io.saga.caravan.test.event.sourcing.entity.calculator.snapshotting.SnapshottingCalculatorRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

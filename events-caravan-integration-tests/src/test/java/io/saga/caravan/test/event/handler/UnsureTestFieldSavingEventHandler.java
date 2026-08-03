@@ -1,7 +1,8 @@
-package io.saga.caravan.test.event;
+package io.saga.caravan.test.event.handler;
 
 import io.saga.caravan.event.Event;
 import io.saga.caravan.event.consumer.handler.EventHandler;
+import io.saga.caravan.test.event.driven.TestEventPayload;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 

@@ -5,9 +5,9 @@ import io.saga.caravan.event.producer.DuplicateEventProductionException;
 import io.saga.caravan.event.producer.EventProductionException;
 import io.saga.caravan.event.sourcing.EventSourcedRepositoryException;
 import io.saga.caravan.test.AbstractSpringBootTest;
+import io.saga.caravan.test.event.handler.NumberCarryingEventsHandler;
 import io.saga.caravan.test.event.sourcing.entity.calculator.Calculator;
 import io.saga.caravan.test.event.sourcing.entity.calculator.CalculatorRepository;
-import io.saga.caravan.test.event.sourcing.entity.calculator.NumberCarryingEventsHandler;
 import io.saga.caravan.test.event.sourcing.entity.calculator.NumberCarryingPayload;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +40,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   @Test
   void shouldNotStoreBlankStateEntity() {
     String entityId = UUID.randomUUID().toString();
-    Calculator entity = new Calculator(entityId);
+    Calculator entity = Calculator.createNew(entityId);
 
     assertThatThrownBy(
         () -> repository.save(entity))
@@ -53,7 +53,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   void shouldSaveAndLoadEntity() {
     String entityId = UUID.randomUUID().toString();
 
-    Calculator entity = new Calculator(entityId);
+    Calculator entity = Calculator.createNew(entityId);
     entity.addNumber(0L);
     repository.save(entity);
 
@@ -65,13 +65,14 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
 
     entity = repository.findBy(entityId).orElseThrow();
     assertThat(entity.getCurrentNumber()).isEqualTo(-10L);
+    assertThat(entity.version()).isEqualTo(2);
   }
 
   @Test
   void shouldNotProhibitSavingWithoutNewEvents() {
     String entityId = UUID.randomUUID().toString();
 
-    Calculator entity = new Calculator(entityId);
+    Calculator entity = Calculator.createNew(entityId);
     entity.addNumber(0L);
     repository.save(entity);
 
@@ -82,7 +83,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   @Test
   void canSaveMoreThanOneEventAtOnce() {
     String entityId = UUID.randomUUID().toString();
-    Calculator entity = new Calculator(entityId);
+    Calculator entity = Calculator.createNew(entityId);
     entity.addNumber(1L);
     entity.subtractNumber(2L);
     entity.addNumber(5L);
@@ -98,7 +99,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   @Test
   void shouldBePossibleToSaveMoreThanOneEventAfterSaving() {
     String entityId = UUID.randomUUID().toString();
-    Calculator entity = new Calculator(entityId);
+    Calculator entity = Calculator.createNew(entityId);
     entity.addNumber(10L);
     repository.save(entity);
     entity.addNumber(10L);
@@ -114,7 +115,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   void canSaveMoreThanOneEventSequentially() {
     String entityId = UUID.randomUUID().toString();
 
-    Calculator entity = new Calculator(entityId);
+    Calculator entity = Calculator.createNew(entityId);
     entity.addNumber(1L);
     repository.save(entity);
 
@@ -130,7 +131,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   @Test
   void savedEventShouldProduceConsumableEvent() {
     String entityId = UUID.randomUUID().toString();
-    Calculator entity = new Calculator(entityId);
+    Calculator entity = Calculator.createNew(entityId);
     entity.addNumber(3L);
 
     repository.save(entity);
@@ -149,11 +150,11 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   void shouldNotPermitParallelSavingOfOneEntity() {
     String sameId = UUID.randomUUID().toString();
 
-    Calculator entityReferenceOne = new Calculator(sameId);
+    Calculator entityReferenceOne = Calculator.createNew(sameId);
     entityReferenceOne.addNumber(1L);
     repository.save(entityReferenceOne);
 
-    Calculator entityReferenceTwo = new Calculator(sameId);
+    Calculator entityReferenceTwo = Calculator.createNew(sameId);
     entityReferenceTwo.addNumber(2L);
     assertThatThrownBy(() -> repository.save(entityReferenceTwo))
         .isExactlyInstanceOf(EventSourcedRepositoryException.class)
@@ -164,7 +165,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   void shouldNotPermitParallelModificationOfEntity() {
     String sameId = UUID.randomUUID().toString();
 
-    Calculator entity = new Calculator(sameId);
+    Calculator entity = Calculator.createNew(sameId);
     entity.addNumber(10L);
     repository.save(entity);
 
@@ -185,7 +186,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   void shouldNotPermitDuplicateEventWithinTransaction() {
     String sameId = UUID.randomUUID().toString();
 
-    Calculator entity = new Calculator(sameId);
+    Calculator entity = Calculator.createNew(sameId);
     entity.addNumber(10L);
     repository.save(entity);
 
@@ -211,7 +212,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   @Test
   void canSaveMoreUpTo100EventsAtOnce() {
     String entityId = UUID.randomUUID().toString();
-    Calculator entity = new Calculator(entityId);
+    Calculator entity = Calculator.createNew(entityId);
     for (int i = 0; i < 100; i++) {
       entity.addNumber(1L);
     }
@@ -226,7 +227,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   @Test
   void cannotSaveMoreThan100EventsAtOnce() {
     String entityId = UUID.randomUUID().toString();
-    Calculator entity = new Calculator(entityId);
+    Calculator entity = Calculator.createNew(entityId);
     for (int i = 0; i < 101; i++) {
       entity.addNumber(1L);
     }
@@ -241,7 +242,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
   @Test
   void shouldPaginateThroughSeveralPagesOfEventDocuments() {
     String entityIdOne = UUID.randomUUID().toString();
-    Calculator entityOne = new Calculator(entityIdOne);
+    Calculator entityOne = Calculator.createNew(entityIdOne);
 
     for (int i = 0; i < 30; i++) {
       entityOne.addNumber(1L);
@@ -253,7 +254,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
             assertThat(loadedEntity.getCurrentNumber()).isEqualTo(30L));
 
     String entityIdTwo = UUID.randomUUID().toString();
-    Calculator entityTwo = new Calculator(entityIdTwo);
+    Calculator entityTwo = Calculator.createNew(entityIdTwo);
 
     for (int i = 0; i < 17; i++) {
       entityTwo.addNumber(1L);
