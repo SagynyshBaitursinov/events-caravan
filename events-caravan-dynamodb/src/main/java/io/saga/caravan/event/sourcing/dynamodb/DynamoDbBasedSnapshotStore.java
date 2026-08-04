@@ -28,14 +28,16 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
   private static final String PAYLOAD_KEY = "payload";
 
   private final DynamoDbClient dynamoDbClient;
+  private final String snapshotsTableName;
+  private final boolean consistentRead;
   private final SnapshotSerializer snapshotSerializer;
   private final SnapshotDeserializer snapshotDeserializer;
-  private final String snapshotsTableName;
 
   public DynamoDbBasedSnapshotStore(DynamoDbClient dynamoDbClient,
+                                    String snapshotsTableName,
+                                    boolean consistentRead,
                                     SnapshotSerializer snapshotSerializer,
-                                    SnapshotDeserializer snapshotDeserializer,
-                                    String snapshotsTableName) {
+                                    SnapshotDeserializer snapshotDeserializer) {
     requireNonNull(dynamoDbClient);
     requireNonNull(snapshotSerializer);
     requireNonNull(snapshotDeserializer);
@@ -45,10 +47,11 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
     }
     requireTableIsActive(dynamoDbClient, snapshotsTableName);
 
-    this.snapshotSerializer = snapshotSerializer;
-    this.snapshotDeserializer = snapshotDeserializer;
     this.dynamoDbClient = dynamoDbClient;
     this.snapshotsTableName = snapshotsTableName;
+    this.consistentRead = consistentRead;
+    this.snapshotSerializer = snapshotSerializer;
+    this.snapshotDeserializer = snapshotDeserializer;
   }
 
   @Override
@@ -75,6 +78,7 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
         GetItemRequest.builder()
             .tableName(snapshotsTableName)
             .key(Map.of(ENTITY_REFERENCE_KEY, AttributeValue.fromS(toPartitionKeyValue(entityReference))))
+            .consistentRead(consistentRead)
             .build());
 
     if (!response.hasItem() || response.item().isEmpty()) {

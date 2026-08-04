@@ -37,16 +37,17 @@ public class CaravanDynamoDbAutoConfiguration {
       EventPayloadDeserializer eventPayloadDeserializer,
       DynamoDbEventStoreProperties properties) {
 
-    log.info("Configuring DynamoDbBasedEventStore on tableName={} (queryMaxPageSize={}, partitionShardSize={})",
-        properties.tableName(), properties.queryMaxPageSize(), properties.partitionShardSize());
+    log.info(
+        "Configuring DynamoDbBasedEventStore on tableName={} "
+            + "(queryMaxPageSize={}, partitionShardSize={}, consistentRead={})",
+        properties.tableName(), properties.queryMaxPageSize(), properties.partitionShardSize(),
+        properties.consistentRead());
 
     return new DynamoDbBasedEventStore(
         dynamoDbClient,
-        eventPayloadSerializer,
-        eventPayloadDeserializer,
-        properties.tableName(),
-        properties.queryMaxPageSize(),
-        properties.partitionShardSize());
+        properties.tableName(), properties.queryMaxPageSize(), properties.partitionShardSize(), properties.consistentRead(), eventPayloadSerializer,
+        eventPayloadDeserializer
+    );
   }
 
   @Bean
@@ -57,12 +58,13 @@ public class CaravanDynamoDbAutoConfiguration {
       SnapshotDeserializer snapshotDeserializer,
       DynamoDbSnapshotStoreProperties properties) {
 
-    log.info("Configuring DynamoDbBasedSnapshotStore on tableName={}", properties.tableName());
+    log.info("Configuring DynamoDbBasedSnapshotStore on tableName={} (consistentRead={})",
+        properties.tableName(), properties.consistentRead());
 
     return new DynamoDbBasedSnapshotStore(
         dynamoDbClient,
-        snapshotSerializer,
-        snapshotDeserializer,
-        properties.tableName());
+        properties.tableName(), properties.consistentRead(), snapshotSerializer,
+        snapshotDeserializer
+    );
   }
 }

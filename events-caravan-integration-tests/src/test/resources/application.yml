@@ -11,11 +11,13 @@ caravan:
       snapshot-store:
         dynamo-db:
           table-name: ${app.name}_snapshots
+          consistent-read: false
     store:
       dynamo-db:
         table-name: ${app.name}_events
         query-max-page-size: 5
         partition-shard-size: 10
+        consistent-read: false
     messaging:
       queue-name-prefix: ${app.name}
       subscribed-entities:

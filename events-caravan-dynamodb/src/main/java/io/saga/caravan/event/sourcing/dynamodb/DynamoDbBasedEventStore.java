@@ -59,18 +59,20 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
       new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
 
   private final DynamoDbClient dynamoDbClient;
-  private final EventPayloadSerializer eventPayloadSerializer;
-  private final EventPayloadDeserializer eventPayloadDeserializer;
   private final String eventsTableName;
   private final int maxPageSize;
   private final long partitionShardSize;
+  private final boolean consistentRead;
+  private final EventPayloadSerializer eventPayloadSerializer;
+  private final EventPayloadDeserializer eventPayloadDeserializer;
 
   public DynamoDbBasedEventStore(DynamoDbClient dynamoDbClient,
-                                 EventPayloadSerializer eventPayloadSerializer,
-                                 EventPayloadDeserializer eventPayloadDeserializer,
                                  String eventsTableName,
                                  int maxPageSize,
-                                 long partitionShardSize) {
+                                 long partitionShardSize,
+                                 boolean consistentRead,
+                                 EventPayloadSerializer eventPayloadSerializer,
+                                 EventPayloadDeserializer eventPayloadDeserializer) {
     requireNonNull(dynamoDbClient);
     requireNonNull(eventPayloadSerializer);
     requireNonNull(eventPayloadDeserializer);
@@ -94,6 +96,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     this.eventsTableName = eventsTableName;
     this.maxPageSize = maxPageSize;
     this.partitionShardSize = partitionShardSize;
+    this.consistentRead = consistentRead;
     this.eventPayloadSerializer = eventPayloadSerializer;
     this.eventPayloadDeserializer = eventPayloadDeserializer;
   }
@@ -287,6 +290,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     return QueryRequest.builder()
         .tableName(eventsTableName)
         .scanIndexForward(true)
+        .consistentRead(consistentRead)
         .keyConditionExpression("#pk = :pkVal")
         .expressionAttributeNames(
             Map.of("#pk", PK))
