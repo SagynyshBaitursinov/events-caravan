@@ -35,9 +35,12 @@
 
     <properties>
         <revision>0.0.1-SNAPSHOT</revision>
+
         <java.version>25</java.version>
         <lombok.version>1.18.46</lombok.version>
 
+        <spring.boot.version>4.1.0</spring.boot.version>
+        <jackson.version>3.2.1</jackson.version>
         <aws.sdk.version>2.48.4</aws.sdk.version>
         <slf4j.version>2.0.18</slf4j.version>
         <jspecify.version>1.0.1</jspecify.version>
@@ -69,7 +72,6 @@
             <artifactId>lombok</artifactId>
             <version>${lombok.version}</version>
             <scope>provided</scope>
-            <optional>true</optional>
         </dependency>
 
         <dependency>

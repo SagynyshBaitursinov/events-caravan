@@ -19,7 +19,6 @@
             <groupId>io.saga</groupId>
             <artifactId>events-caravan</artifactId>
             <version>${revision}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>

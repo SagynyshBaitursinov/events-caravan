@@ -16,16 +16,12 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <properties>
-        <jackson-databind.version>3.2.1</jackson-databind.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>${jackson-databind.version}</version>
-            <scope>provided</scope>
+            <version>${jackson.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <dependency>
