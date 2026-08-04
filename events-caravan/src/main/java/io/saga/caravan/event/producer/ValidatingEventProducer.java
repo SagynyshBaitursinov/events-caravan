@@ -3,6 +3,7 @@ package io.saga.caravan.event.producer;
 import io.saga.caravan.event.EntityEventsRegistry;
 import io.saga.caravan.event.Event;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
@@ -12,6 +13,7 @@ import java.util.List;
  * Applications wrap their transport-specific producer with this class to catch mismatches
  * between an event's declared type and its actual payload before it is published.
  */
+@Slf4j
 @RequiredArgsConstructor
 public class ValidatingEventProducer implements EventProducer {
 
@@ -53,5 +55,8 @@ public class ValidatingEventProducer implements EventProducer {
                   registeredPayloadClass,
                   event.eventType()));
     }
+
+    log.debug("Successfully validated {} against registered payload class {}",
+        event.eventReference(), registeredPayloadClass);
   }
 }

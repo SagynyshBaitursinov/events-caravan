@@ -12,12 +12,14 @@ import io.saga.caravan.event.sourcing.dynamodb.DynamoDbBasedSnapshotStore;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotStore;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
+@Slf4j
 @AutoConfiguration(
     before = {CaravanEventSourcingAutoConfiguration.class, CaravanEventDrivenComponentsAutoConfiguration.class},
     after = CaravanJacksonSerializationAutoConfiguration.class)
@@ -35,6 +37,9 @@ public class CaravanDynamoDbAutoConfiguration {
       EventPayloadDeserializer eventPayloadDeserializer,
       DynamoDbEventStoreProperties properties) {
 
+    log.info("Configuring DynamoDbBasedEventStore on tableName={} (queryMaxPageSize={}, partitionShardSize={})",
+        properties.tableName(), properties.queryMaxPageSize(), properties.partitionShardSize());
+
     return new DynamoDbBasedEventStore(
         dynamoDbClient,
         eventPayloadSerializer,
@@ -51,6 +56,8 @@ public class CaravanDynamoDbAutoConfiguration {
       SnapshotSerializer snapshotSerializer,
       SnapshotDeserializer snapshotDeserializer,
       DynamoDbSnapshotStoreProperties properties) {
+
+    log.info("Configuring DynamoDbBasedSnapshotStore on tableName={}", properties.tableName());
 
     return new DynamoDbBasedSnapshotStore(
         dynamoDbClient,

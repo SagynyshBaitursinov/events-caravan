@@ -56,6 +56,7 @@ class MessageDeletionBatcher {
 
   void enqueueDeletion(Message message) {
     try {
+      log.debug("Enqueuing message with id={} for deletion", message.id());
       pendingDeletions.put(message);
     } catch (InterruptedException exception) {
       Thread.currentThread().interrupt();
@@ -80,6 +81,8 @@ class MessageDeletionBatcher {
       return;
     }
 
+    log.debug("Submitting batch of {} message(s) for deletion from queueName={}",
+        batch.size(), queueName);
     try {
       deletionExecutorService.execute(() -> {
         try {

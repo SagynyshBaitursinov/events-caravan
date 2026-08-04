@@ -1,5 +1,7 @@
 package io.saga.caravan.event;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.lang.reflect.Modifier;
 import java.util.Collection;
 import java.util.HashMap;
@@ -15,6 +17,7 @@ import java.util.regex.Pattern;
  * used to validate that produced events and event-sourcing apply methods carry the expected
  * payload type.
  */
+@Slf4j
 public class EntityEventsRegistry {
 
   private static final Pattern ALLOWED_ENTITY_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
@@ -49,8 +52,13 @@ public class EntityEventsRegistry {
                 validate(eventPayloadClass);
                 result.map.put(
                     new EventType(entityName, eventName), eventPayloadClass);
+                log.debug("Registered eventName={} of entityName={} with payloadClass={}",
+                    eventName, entityName, eventPayloadClass.getName());
               });
         });
+
+    log.info("Built EntityEventsRegistry with {} event type(s) across {} entity name(s)",
+        result.map.size(), alreadyProcessedEntityNames.size());
 
     return result;
   }

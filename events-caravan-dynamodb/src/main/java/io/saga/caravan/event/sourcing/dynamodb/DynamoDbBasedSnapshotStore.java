@@ -5,6 +5,7 @@ import io.saga.caravan.event.sourcing.snapshot.EntitySnapshot;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotStore;
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
@@ -19,6 +20,7 @@ import static io.saga.caravan.event.sourcing.dynamodb.PrimaryKeyUtils.toPartitio
 import static io.saga.caravan.utils.TextUtils.hasText;
 import static java.util.Objects.requireNonNull;
 
+@Slf4j
 public class DynamoDbBasedSnapshotStore implements SnapshotStore {
 
   private static final String ENTITY_REFERENCE_KEY = "entityReference";
@@ -61,6 +63,9 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
             .tableName(snapshotsTableName)
             .item(item)
             .build());
+
+    log.debug("Saved snapshot of {} at version={}",
+        snapshot.entityReference(), snapshot.version());
   }
 
   @Override
@@ -73,6 +78,7 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
             .build());
 
     if (!response.hasItem() || response.item().isEmpty()) {
+      log.debug("No snapshot found for {}", entityReference);
       return Optional.empty();
     }
 
@@ -81,6 +87,8 @@ public class DynamoDbBasedSnapshotStore implements SnapshotStore {
     S payload = snapshotDeserializer.deserializePayload(item.get(PAYLOAD_KEY).s(), snapshotClass);
 
     long version = Long.parseLong(item.get(VERSION_KEY).n());
+
+    log.debug("Loaded snapshot of {} at version={}", entityReference, version);
 
     return Optional.of(
         EntitySnapshot.<S>builder()

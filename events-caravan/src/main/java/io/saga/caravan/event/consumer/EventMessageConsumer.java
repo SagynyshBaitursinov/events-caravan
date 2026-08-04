@@ -4,11 +4,13 @@ import io.saga.caravan.event.Event;
 import io.saga.caravan.event.serialization.EventDeserializationException;
 import io.saga.caravan.event.serialization.EventDeserializer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Bridges a raw, serialized event message to an {@link EventConsumer}: deserializes it with the
  * given {@link EventDeserializer}, then hands the resulting {@link Event} to the consumer.
  */
+@Slf4j
 @RequiredArgsConstructor
 public class EventMessageConsumer {
 
@@ -22,6 +24,8 @@ public class EventMessageConsumer {
    *                                          consumer throws
    */
   public void consume(String eventMessage) {
+    log.debug("Consuming a message");
+
     Event<?> event = deserialize(eventMessage);
 
     try {

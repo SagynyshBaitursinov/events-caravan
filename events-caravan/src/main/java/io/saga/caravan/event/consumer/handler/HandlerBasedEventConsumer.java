@@ -36,19 +36,27 @@ public class HandlerBasedEventConsumer implements EventConsumer {
 
   @Override
   public void consume(Event<?> event) {
+    log.debug("Received {} for consumption", event.eventReference());
+
     eventHandlers.stream()
         .filter(handler ->
-            hasInterestingPayloadClass(handler, event))
+            hasAssignablePayloadClass(handler, event))
         .forEach(handler ->
             consumeTypeCastingIfInterested(handler, event));
   }
 
-  private boolean hasInterestingPayloadClass(EventHandler<?> eventHandler,
-                                             Event<?> event) {
-    return HANDLED_PAYLOAD_CLASSES.get(eventHandler.getClass())
+  private boolean hasAssignablePayloadClass(EventHandler<?> eventHandler,
+                                            Event<?> event) {
+    var hasAssignablePayloadClass = HANDLED_PAYLOAD_CLASSES.get(eventHandler.getClass())
         .map(payloadClass ->
             payloadClass.isAssignableFrom(event.payload().getClass()))
         .orElse(false);
+
+    log.debug("{} does not have a payload class assignable from {}",
+        eventHandler.getClass().getSimpleName(),
+        event);
+
+    return hasAssignablePayloadClass;
   }
 
   private static Optional<Class<?>> retrieveEventPayloadParameter(Class<?> handlerClass) {
@@ -77,7 +85,10 @@ public class HandlerBasedEventConsumer implements EventConsumer {
     var typeCastedEventHandler = (EventHandler<T>) eventHandler;
 
     if (typeCastedEventHandler.isOfInterest(typeCastedEvent)) {
+      log.debug("Handling {} with {}", event, eventHandler.getClass().getSimpleName());
       typeCastedEventHandler.handle(typeCastedEvent);
+    } else {
+      log.debug("{} reported no interest in {}", eventHandler.getClass().getSimpleName(), event);
     }
   }
 }

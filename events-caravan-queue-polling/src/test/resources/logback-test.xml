@@ -6,7 +6,7 @@
         </encoder>
     </appender>
 
-    <logger name="io.saga.caravan" level="OFF" additivity="false"/>
+    <logger name="io.saga.caravan" level="OFF"/>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>

@@ -100,6 +100,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
 
   @Override
   public void produce(Event<?> event) {
+    log.debug("Producing {}", event.eventReference());
     try {
       dynamoDbClient.putItem(
           PutItemRequest.builder()
@@ -109,15 +110,18 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
               .expressionAttributeNames(NOT_YET_EXISTS_EXPRESSION_ATTRIBUTE_NAMES)
               .build());
     } catch (ConditionalCheckFailedException exception) {
+      log.debug("Duplicate event production attempted for {}", event.eventReference());
       throw duplicateEventProductionException(event);
     } catch (Exception exception) {
       throw new EventProductionException(exception);
     }
+    log.debug("Produced {}", event.eventReference());
   }
 
   @Override
   public void produce(List<Event<?>> events) {
     if (events.isEmpty()) {
+      log.debug("Received empty list of events for producing");
       return;
     }
 
@@ -132,6 +136,8 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
               .formatted(events.size(), MAX_TRANSACTION_WRITE_ITEMS));
     }
 
+    log.debug("Producing {} events for {} in a transaction",
+        events.size(), events.getFirst().entityReference());
     try {
       dynamoDbClient.transactWriteItems(
           TransactWriteItemsRequest.builder()
@@ -147,6 +153,8 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
           "Failed to produce %d events in a transaction: %s"
               .formatted(events.size(), exception.getMessage()));
     }
+    log.debug("Produced {} events for {} in a transaction",
+        events.size(), events.getFirst().entityReference());
   }
 
   private TransactWriteItem toTransactWriteItem(Event<?> event) {
@@ -239,6 +247,9 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
           "fromSequenceNumberExclusive must not be negative (sequence numbers start at 1; "
               + "0 means from the beginning), got %d".formatted(fromSequenceNumberExclusive));
     }
+
+    log.debug("Initializing stream of events of {} from sequenceNumber={} exclusive",
+        entityReference, fromSequenceNumberExclusive);
     return StreamSupport.stream(
         createSpliterator(entityReference, fromSequenceNumberExclusive), false);
   }

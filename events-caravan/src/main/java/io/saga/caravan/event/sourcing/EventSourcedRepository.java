@@ -8,6 +8,7 @@ import io.saga.caravan.event.producer.EventProducer;
 import io.saga.caravan.event.sourcing.snapshot.EntitySnapshot;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotStore;
 import io.saga.caravan.event.sourcing.snapshot.SnapshotTaker;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
@@ -26,6 +27,7 @@ import java.util.Optional;
  *
  * @param <T> the concrete {@link EventSourcedEntity} type this repository manages
  */
+@Slf4j
 public abstract class EventSourcedRepository<T extends EventSourcedEntity> implements Repository<T> {
 
   private final String entityName;
@@ -77,7 +79,11 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
               .formatted(entity.entityReference()));
     }
 
+    int eventsToProduceCount = entity.notProducedEvents().size();
+
     produceEvents(entity);
+    log.debug("Saved {} new event(s) for {}, now at version={}",
+        eventsToProduceCount, entity.entityReference(), entity.version());
 
     if (shouldTakeSnapshot(entity)) {
       takeSnapshot(entity);
@@ -104,6 +110,9 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
     if (snapshotTaker() == null) {
       return;
     }
+
+    log.debug("Taking snapshot of {} at version={}",
+        entity.entityReference(), entity.version());
 
     snapshotStore.save(
         EntitySnapshot.builder()
@@ -146,12 +155,18 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
 
     validateEntity(entity, entityReference);
 
-    eventStore.getEventsOfEntity(entityReference, entity.version())
+    long versionBeforeApplyingEvents = entity.version();
+    log.debug("Loading events for {} from version={} (snapshot {})",
+        entityReference, versionBeforeApplyingEvents, versionBeforeApplyingEvents > 0 ? "hit" : "miss or disabled");
+
+    eventStore.getEventsOfEntity(entityReference, versionBeforeApplyingEvents)
         .forEach(event -> EntityEventApplier.apply(entity, event));
 
     if (entity.hasBlankState()) {
+      log.debug("No {} found", entityReference);
       return Optional.empty();
     } else {
+      log.debug("Loaded {} at version={}", entityReference, entity.version());
       return Optional.of(entity);
     }
   }

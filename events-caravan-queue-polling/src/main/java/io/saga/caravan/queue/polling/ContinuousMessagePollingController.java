@@ -59,6 +59,8 @@ public class ContinuousMessagePollingController {
                                             MessagesPoller messagesPoller,
                                             MessageConsumer messageConsumer,
                                             MessagesDeleter messagesDeleter) {
+    log.debug("Creating continuous polling for queueName={}", queueName);
+
     this.queuePollingProperties = requireNonNull(queuePollingProperties);
     this.queueName = requireNonNull(queueName);
 
@@ -194,11 +196,13 @@ public class ContinuousMessagePollingController {
 
   private Collection<Message> attemptMessagePolling(int numberOfMessages) {
     try {
-      return messagesPoller.poll(
+      var polledMessages = messagesPoller.poll(
           PollMessagesRequest.builder()
               .numberOfMessages(numberOfMessages)
               .waitForSeconds(queuePollingProperties.pollWaitSeconds())
               .build());
+      log.debug("Polled {} messages", polledMessages.size());
+      return polledMessages;
     } catch (Exception exception) {
       log.warn("Exception occurred when polling from queueName={}", queueName, exception);
       backOffPostPollingFailure();
@@ -265,6 +269,7 @@ public class ContinuousMessagePollingController {
     awaitInFlightMessages(deadline);
     awaitInFlightMessageDeletions(deadline);
 
+    log.info("Continuous polling of messages from queueName={} is stopped", queueName);
     primaryPoller = null;
   }
 
