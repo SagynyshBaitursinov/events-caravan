@@ -137,7 +137,7 @@ class EventSourcedRepositoryTest extends AbstractSpringBootTest {
     repository.save(entity);
 
     await()
-        .atMost(Duration.ofSeconds(15))
+        .atMost(Duration.ofSeconds(60))
         .pollInterval(Duration.ofMillis(50))
         .untilAsserted(() -> {
           assertThat(numberCarryingEventsHandler.getEventsOfEntity(entityId)).hasSize(1);

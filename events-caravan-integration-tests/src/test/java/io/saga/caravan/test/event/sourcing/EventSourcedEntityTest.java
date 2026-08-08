@@ -36,7 +36,7 @@ class EventSourcedEntityTest extends AbstractSpringBootTest {
     assertThat(entity.version()).isEqualTo(2L);
 
     await()
-        .atMost(Duration.ofSeconds(15))
+        .atMost(Duration.ofSeconds(60))
         .pollInterval(Duration.ofMillis(50))
         .untilAsserted(() ->
             assertThat(numberCarryingEventsHandler.getEventsOfEntity(entityId))

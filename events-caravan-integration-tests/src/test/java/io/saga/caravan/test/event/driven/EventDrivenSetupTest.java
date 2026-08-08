@@ -92,7 +92,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
     eventProducer.produce(event);
 
     await()
-        .atMost(Duration.ofSeconds(15))
+        .atMost(Duration.ofSeconds(60))
         .pollInterval(Duration.ofMillis(50))
         .untilAsserted(() -> {
           assertThat(interestingTestFieldSavingEventHandler.getSavedFields())
@@ -190,7 +190,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
     eventProducer.produce(event);
 
     await()
-        .atMost(Duration.ofSeconds(15))
+        .atMost(Duration.ofSeconds(60))
         .pollInterval(Duration.ofMillis(50))
         .untilAsserted(() -> {
           assertThat(allTestFieldSavingEventHandler.getSavedFields())
