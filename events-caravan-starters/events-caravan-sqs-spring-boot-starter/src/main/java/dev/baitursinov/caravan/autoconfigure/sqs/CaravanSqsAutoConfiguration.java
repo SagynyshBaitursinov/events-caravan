@@ -1,0 +1,136 @@
+package dev.baitursinov.caravan.autoconfigure.sqs;
+
+import dev.baitursinov.caravan.autoconfigure.CaravanEventDrivenComponentsAutoConfiguration;
+import dev.baitursinov.caravan.event.EntityEventsRegistration;
+import dev.baitursinov.caravan.event.consumer.EventMessageConsumer;
+import dev.baitursinov.caravan.queue.polling.ContinuousMessagePollingController;
+import dev.baitursinov.caravan.queue.polling.QueuePollingProperties;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.SmartLifecycle;
+import org.springframework.context.annotation.Bean;
+import software.amazon.awssdk.services.sqs.SqsClient;
+
+import java.time.Instant;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
+
+import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.deleteMessages;
+import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.getQueueUrl;
+import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.pollMessagesFromQueue;
+import static java.util.stream.Collectors.toSet;
+
+@Slf4j
+@AutoConfiguration(after = CaravanEventDrivenComponentsAutoConfiguration.class)
+@EnableConfigurationProperties(CaravanQueuePollingConfigurationProperties.class)
+public class CaravanSqsAutoConfiguration {
+
+  private static final String QUEUE_NAME_TEMPLATE = "%s_%s";
+
+  @Bean
+  @ConditionalOnMissingBean
+  public QueuePollingProperties queuePollingProperties(
+      CaravanQueuePollingConfigurationProperties properties) {
+
+    return properties.toMessagingProperties();
+  }
+
+  @Bean
+  public SmartLifecycle sqsMessagePollingControllerLifecycle(
+      SqsClient sqsClient,
+      EventMessageConsumer eventMessageConsumer,
+      ObjectProvider<EntityEventsRegistration> entityEventsRegistrations,
+      QueuePollingProperties queuePollingProperties,
+      CaravanQueuePollingConfigurationProperties caravanQueuePollingConfigurationProperties) {
+
+    String queueNamePrefix = caravanQueuePollingConfigurationProperties.queueNamePrefix();
+    if (queueNamePrefix == null || queueNamePrefix.isBlank()) {
+      throw new SqsQueuesSetupException("Queue name prefix must be present");
+    }
+
+    Set<String> subscribedEntities = caravanQueuePollingConfigurationProperties.subscribedEntities() != null
+        ? caravanQueuePollingConfigurationProperties.subscribedEntities()
+        : Collections.emptySet();
+
+    var sqsPollingControllers = subscribedQueueNames(entityEventsRegistrations, subscribedEntities, queueNamePrefix)
+        .stream()
+        .map(queueName ->
+            createSqsPollingController(
+                sqsClient,
+                eventMessageConsumer,
+                queuePollingProperties,
+                queueName,
+                getQueueUrl(sqsClient, queueName)))
+        .toList();
+
+    int gracefulShutdownSeconds = caravanQueuePollingConfigurationProperties.gracefulShutdownSeconds();
+    if (gracefulShutdownSeconds < 0) {
+      throw new SqsQueuesSetupException("gracefulShutdownSeconds must be greater or equal to 0");
+    }
+
+    return new SmartLifecycle() {
+
+      @Override
+      public void start() {
+        sqsPollingControllers.forEach(ContinuousMessagePollingController::startContinuousPolling);
+      }
+
+      @Override
+      public void stop() {
+        var deadline = Instant.now().plusSeconds(gracefulShutdownSeconds);
+        sqsPollingControllers.forEach(ContinuousMessagePollingController::requestStopOfContinuousPolling);
+        sqsPollingControllers.forEach(pollingController -> pollingController.awaitStopOfContinuousPolling(deadline));
+      }
+
+      @Override
+      public boolean isRunning() {
+        return sqsPollingControllers.stream().anyMatch(ContinuousMessagePollingController::isContinuousPollingRunning);
+      }
+    };
+  }
+
+  private Collection<String> subscribedQueueNames(ObjectProvider<EntityEventsRegistration> entityEventsRegistrations,
+                                                  Set<String> subscribedEntities,
+                                                  String queueNamePrefix) {
+    var registeredEntityNames = entityEventsRegistrations.stream()
+        .map(EntityEventsRegistration::entityName)
+        .collect(toSet());
+
+    var unregisteredSubscribedEntities = subscribedEntities.stream()
+        .filter(entityName -> !registeredEntityNames.contains(entityName))
+        .toList();
+
+    if (!unregisteredSubscribedEntities.isEmpty()) {
+      throw new SqsQueuesSetupException(
+          "Subscribed entities %s are not registered using EntityEventsRegistration"
+              .formatted(unregisteredSubscribedEntities));
+    }
+
+    return registeredEntityNames.stream()
+        .filter(subscribedEntities::contains)
+        .map(entityName -> toQueueName(queueNamePrefix, entityName))
+        .toList();
+  }
+
+  private static String toQueueName(String queueNamePrefix, String entityName) {
+    return QUEUE_NAME_TEMPLATE.formatted(queueNamePrefix, entityName);
+  }
+
+  private ContinuousMessagePollingController createSqsPollingController(SqsClient sqsClient,
+                                                                        EventMessageConsumer eventMessageConsumer,
+                                                                        QueuePollingProperties queuePollingProperties,
+                                                                        String queueName,
+                                                                        String sqsQueueUrl) {
+    return ContinuousMessagePollingController.builder()
+        .queuePollingProperties(queuePollingProperties)
+        .queueName(queueName)
+        .messagesPoller((pollingRequest) -> pollMessagesFromQueue(sqsClient, sqsQueueUrl, pollingRequest))
+        .messageConsumer(message -> eventMessageConsumer.consume(message.body()))
+        .messagesDeleter(messages -> deleteMessages(sqsClient, sqsQueueUrl, messages))
+        .build();
+  }
+}

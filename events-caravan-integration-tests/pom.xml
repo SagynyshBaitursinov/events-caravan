@@ -8,7 +8,7 @@
     <description>End-to-end tests exercising the full event-sourcing stack against local AWS.</description>
 
     <parent>
-        <groupId>io.saga</groupId>
+        <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-parent</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
@@ -21,14 +21,14 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.saga</groupId>
+            <groupId>dev.baitursinov</groupId>
             <artifactId>events-caravan-dynamodb-spring-boot-starter</artifactId>
             <version>${revision}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>io.saga</groupId>
+            <groupId>dev.baitursinov</groupId>
             <artifactId>events-caravan-sqs-spring-boot-starter</artifactId>
             <version>${revision}</version>
             <scope>test</scope>

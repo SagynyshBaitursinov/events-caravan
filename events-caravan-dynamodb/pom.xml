@@ -8,7 +8,7 @@
     <description>Horizontal scalability provided by AWS DynamoDB</description>
 
     <parent>
-        <groupId>io.saga</groupId>
+        <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-parent</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
@@ -16,7 +16,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.saga</groupId>
+            <groupId>dev.baitursinov</groupId>
             <artifactId>events-caravan</artifactId>
             <version>${revision}</version>
         </dependency>

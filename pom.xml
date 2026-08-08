@@ -17,7 +17,7 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.saga</groupId>
+    <groupId>dev.baitursinov</groupId>
     <artifactId>events-caravan-parent</artifactId>
     <version>${revision}</version>
 

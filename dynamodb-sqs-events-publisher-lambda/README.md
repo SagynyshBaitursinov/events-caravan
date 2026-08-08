@@ -8,7 +8,7 @@ but [Infrastructure expectations](#infrastructure-expectations) below describe w
 ## What the lambda does
 
 Events are written to a DynamoDB table by
-`io.saga.caravan.event.sourcing.dynamodb.DynamoDbBasedEventStore` and are immutable, so every insert into that table is
+`dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedEventStore` and are immutable, so every insert into that table is
 exactly one new event. This lambda is subscribed to the table's stream and republishes each inserted record to the SNS
 topic corresponding to its entity, where consumers can pick it up.
 
@@ -60,7 +60,7 @@ arn:{partition}:sns:{region}:{accountId}:{TOPIC_NAME_PREFIX}_{entityName}
 
 with partition, region and account id taken from `context.invokedFunctionArn`.
 
-The message body mirrors `io.saga.caravan.event.Event`:
+The message body mirrors `dev.baitursinov.caravan.event.Event`:
 
 ```json
 {

@@ -1,1 +1,1 @@
-io.saga.caravan.autoconfigure.sqs.CaravanSqsAutoConfiguration
+dev.baitursinov.caravan.autoconfigure.sqs.CaravanSqsAutoConfiguration

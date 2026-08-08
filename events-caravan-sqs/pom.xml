@@ -8,7 +8,7 @@
     <description>Event message consumption provided by AWS SQS</description>
 
     <parent>
-        <groupId>io.saga</groupId>
+        <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-parent</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
@@ -16,13 +16,13 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.saga</groupId>
+            <groupId>dev.baitursinov</groupId>
             <artifactId>events-caravan</artifactId>
             <version>${revision}</version>
         </dependency>
 
         <dependency>
-            <groupId>io.saga</groupId>
+            <groupId>dev.baitursinov</groupId>
             <artifactId>events-caravan-queue-polling</artifactId>
             <version>${revision}</version>
         </dependency>

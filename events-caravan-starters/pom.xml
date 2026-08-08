@@ -9,7 +9,7 @@
     <packaging>pom</packaging>
 
     <parent>
-        <groupId>io.saga</groupId>
+        <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-parent</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>

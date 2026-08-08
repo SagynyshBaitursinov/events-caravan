@@ -1,1 +1,1 @@
-io.saga.caravan.autoconfigure.dynamodb.CaravanDynamoDbAutoConfiguration
+dev.baitursinov.caravan.autoconfigure.dynamodb.CaravanDynamoDbAutoConfiguration

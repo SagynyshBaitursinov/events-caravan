@@ -8,7 +8,7 @@
     <description>Spring Boot starter for DynamoDB-backed event and snapshot stores</description>
 
     <parent>
-        <groupId>io.saga</groupId>
+        <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-starters</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
@@ -16,13 +16,13 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.saga</groupId>
+            <groupId>dev.baitursinov</groupId>
             <artifactId>events-caravan-dynamodb</artifactId>
             <version>${revision}</version>
         </dependency>
 
         <dependency>
-            <groupId>io.saga</groupId>
+            <groupId>dev.baitursinov</groupId>
             <artifactId>events-caravan-spring-boot-starter</artifactId>
             <version>${revision}</version>
         </dependency>

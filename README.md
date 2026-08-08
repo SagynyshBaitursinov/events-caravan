@@ -91,7 +91,7 @@ be [registered](#ii-register-your-events).
 
 ### Event sourcing and storage
 
-![Event sourcing and storage diagram](img/event-sourcing.png)
+![Event sourcing and storage diagram](diagrams/event-sourcing.png)
 
 1. `EventSourcedEntity` derives its current state from all the events that happened to it.
    See [usage](#iii-define-an-event-sourced-entity)
@@ -112,7 +112,7 @@ be [registered](#ii-register-your-events).
 
 ### Producing and propagating events
 
-![Producing and propagating events diagram](img/producing-and-propagating-events.png)
+![Producing and propagating events diagram](diagrams/producing-and-propagating-events.png)
 
 1. Domain methods on an `EventSourcedEntity` record new `Events`; and when entities are saved in
    `EventSourcedRepository` all newly recorded events are appended to `EventStore`.
@@ -133,7 +133,7 @@ be [registered](#ii-register-your-events).
 
 ### Event consumption
 
-![Event consumption diagram](img/event-consumption.png)
+![Event consumption diagram](diagrams/event-consumption.png)
 
 1. Event consumption mechanism can be implemented in various ways, but the reference implementation bases itself on
    queue-polling mechanism provided in corresponding module.
@@ -157,7 +157,7 @@ be [registered](#ii-register-your-events).
 
 ### Optimistic concurrency control
 
-![Optimistic concurrency control diagram](img/optimistic-concurrency-control.png)
+![Optimistic concurrency control diagram](diagrams/optimistic-concurrency-control.png)
 
 1. Only uniqueness constraint and primary key index maintained by the underlying database is
    `(entityReference, sequenceNumber)`.
@@ -171,7 +171,7 @@ be [registered](#ii-register-your-events).
 
 ### CQRS (Command Query Responsibility Segregation)
 
-![CQRS diagram](img/cqrs.png)
+![CQRS diagram](diagrams/cqrs.png)
 
 The event-store structure of events-caravan provides answer to exactly one query: the events of one entity suitable to
 create entity's projections. `EventSourcedRepository` provides possibility of re-creating an entity's single projection
@@ -228,7 +228,7 @@ processes.
 
 ### Sagas
 
-![Sagas diagram](img/sagas.png)
+![Sagas diagram](diagrams/sagas.png)
 
 For processes spanning multiple entities or services, prefer **choreography-based sagas**: each step is an
 `EventHandler`
@@ -259,19 +259,19 @@ Add the starters your service needs:
 
 <dependencies>
     <dependency>
-        <groupId>io.saga</groupId>
+        <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-spring-boot-starter</artifactId>
         <version>${events-caravan-version}</version>
     </dependency>
     <dependency>
-        <groupId>io.saga</groupId>
+        <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-dynamodb-spring-boot-starter</artifactId>
         <version>${events-caravan-version}</version>
     </dependency>
 
     <!-- only if this service consumes events -->
     <dependency>
-        <groupId>io.saga</groupId>
+        <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-sqs-spring-boot-starter</artifactId>
         <version>${events-caravan-version}</version>
     </dependency>
@@ -577,7 +577,7 @@ centralization, driven by [Compromise #1](#compromises):
   (see [Compromise #1](#compromises)).
 - **Choose Axon** when a global, replayable stream of all events is needed out of the box. For example rebuilding many
   projections from scratch across every entity, without building that yourself, or when Axon Server's built-in tracking
-  processors, deadline manager, and saga orchestration outweigh the cost of running and scaling a central server.
+  processors, deadline manager, and sagas orchestration outweigh the cost of running and scaling a central server.
 
 **In short:** Events-caravan trades Axon's built-in global event-store and orchestration machinery for horizontal
 scalability with fewer moving parts; pick whichever side of that trade fits your team's operational scale and appetite

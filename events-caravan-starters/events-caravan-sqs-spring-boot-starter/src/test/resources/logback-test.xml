@@ -6,7 +6,7 @@
         </encoder>
     </appender>
 
-    <logger name="io.saga.caravan" level="OFF"/>
+    <logger name="dev.baitursinov.caravan" level="OFF"/>
     <logger name="org.springframework.context.annotation.AnnotationConfigApplicationContext" level="OFF"
            />
 
