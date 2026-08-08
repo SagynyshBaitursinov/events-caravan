@@ -25,7 +25,7 @@ public class ExternalEventAppliersTest extends AbstractSpringBootTest {
 
     accountRepository.save(account);
 
-    var loadedAccount = accountRepository.findBy("1").orElseThrow();
+    var loadedAccount = accountRepository.findBy(accountId).orElseThrow();
     assertThat(loadedAccount.getBalance()).isEqualTo(100);
     assertThat(loadedAccount.version()).isEqualTo(2);
   }
