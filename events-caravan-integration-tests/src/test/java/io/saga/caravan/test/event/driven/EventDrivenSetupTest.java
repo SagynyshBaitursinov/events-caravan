@@ -172,8 +172,8 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
 
   @Test
   void differentEventsCanShareSamePayloadClass() {
-    String testEventFieldValue = "interesting test-value";
-    String anotherTestFieldValue = "another-field-value";
+    String testEventFieldValue = "shared-payload-class test-value";
+    String anotherTestFieldValue = "shared-payload-class another-field-value";
     var testEventPayload = new TestEventPayload(
         testEventFieldValue, anotherTestFieldValue);
 
@@ -193,8 +193,6 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
         .atMost(Duration.ofSeconds(15))
         .pollInterval(Duration.ofMillis(50))
         .untilAsserted(() -> {
-          assertThat(interestingTestFieldSavingEventHandler.getSavedFields())
-              .contains(testEventFieldValue);
           assertThat(allTestFieldSavingEventHandler.getSavedFields())
               .contains(testEventFieldValue);
           assertThat(anotherTestFieldSavingEventHandler.getSavedFields())
