@@ -41,7 +41,7 @@
 
         <spring.boot.version>4.1.0</spring.boot.version>
         <jackson.version>3.2.1</jackson.version>
-        <aws.sdk.version>2.48.4</aws.sdk.version>
+        <aws.sdk.version>2.51.0</aws.sdk.version>
         <slf4j.version>2.0.18</slf4j.version>
         <jspecify.version>1.0.1</jspecify.version>
 
@@ -49,11 +49,11 @@
         <junit-jupiter.version>6.1.2</junit-jupiter.version>
         <mockito.version>5.23.0</mockito.version>
         <awaitility.version>4.3.0</awaitility.version>
-        <logback.version>1.5.38</logback.version>
+        <logback.version>1.6.1</logback.version>
 
         <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>3.5.6</maven.surefire.plugin.version>
-        <maven.dependency.plugin.version>3.7.0</maven.dependency.plugin.version>
+        <maven.dependency.plugin.version>3.11.0</maven.dependency.plugin.version>
         <flatten.maven.plugin.version>1.8.0</flatten.maven.plugin.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
