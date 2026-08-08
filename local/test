@@ -5,9 +5,6 @@ set -e -o pipefail
 function main() {
   trap 'stop_local_env' INT TERM EXIT
   stop_local_env() {
-    echo "::group::floci logs"
-    docker compose --file ./local/docker-compose-environment.yaml logs --no-color floci || true
-    echo "::endgroup::"
     ./local/env-down
   }
 
