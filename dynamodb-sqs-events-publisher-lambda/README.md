@@ -1,8 +1,8 @@
 # dynamodb-sqs-events-publisher-lambda
 
-Lambda publishes events from the event-store DynamoDB Stream into SNS. This is a module of the library, which can be
-replaced by another solution, if it does not fit the infrastructure. The module holds the lambda code only
-(`index.mjs`). The infrastructure it runs is not provisioned here,
+Lambda publishes events from the event-store DynamoDB Stream into SNS. This is a side module of the library, which can
+be replaced by another solution, if it does not fit your infrastructure. The module holds the lambda code only
+(`index.mjs`). The infrastructure it should run on is not provided here,
 but [Infrastructure expectations](#infrastructure-expectations) below describe what the code assumes to be in place.
 
 ## What the lambda does
@@ -15,7 +15,7 @@ topic corresponding to its entity, where consumers can pick it up.
 For each invocation the lambda does the following:
 
 1. Take the `INSERT` records of the stream event and read their `NewImage`.
-2. Derives topicName based on APP_NAME and entityName.
+2. Derives topicName based on TOPIC_NAME_PREFIX and entityName.
 3. Build the SNS message body and its message attributes.
 4. Group the messages by target topic into `PublishBatch` requests of up to 10 entries.
 5. Publish the batches, at most `MAX_CONCURRENT_PUBLISHES` in flight at a time.
@@ -26,7 +26,7 @@ For each invocation the lambda does the following:
 
 | Name                       | Required | Purpose                                                                                                                          |
 |----------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------|
-| `APP_NAME`                 | yes      | Prefix of every topic name (`${APP_NAME}_${entityName}`). A missing value fails at cold start rather than per record.            |
+| `TOPIC_NAME_PREFIX`        | yes      | Prefix of every topic name (`${TOPIC_NAME_PREFIX}_${entityName}`). A missing value fails at cold start rather than per record.   |
 | `MAX_CONCURRENT_PUBLISHES` | no       | Caps how many `PublishBatch`/`Publish` calls are in flight at once per invocation. Defaults to `10`. Must be a positive integer. |
 | `AWS_ENDPOINT_URL`         | no       | Overrides the AWS endpoint, for local simulators. Read natively by the AWS SDK — the lambda contains no code for it.             |
 
@@ -55,7 +55,7 @@ below). Records of any other type are skipped anyway.
 The target topic ARN is derived per record:
 
 ```
-arn:{partition}:sns:{region}:{accountId}:{APP_NAME}_{entityName}
+arn:{partition}:sns:{region}:{accountId}:{TOPIC_NAME_PREFIX}_{entityName}
 ```
 
 with partition, region and account id taken from `context.invokedFunctionArn`.
@@ -71,7 +71,9 @@ The message body mirrors `io.saga.caravan.event.Event`:
   "eventName": "NumberAdded",
   "timestamp": "2026-07-26T10:15:30.123Z",
   "sequenceNumber": 17,
-  "payload": { "example-domain-field" : "example-domain-value" }
+  "payload": {
+    "example-domain-field": "example-domain-value"
+  }
 }
 ```
 
@@ -92,9 +94,9 @@ nothing applications could rely on.
 
 The lambda does no byte counting. SNS enforces its size limit itself, and the lambda reacts to its errors instead of
 predicting them: when a batch is rejected as too large (`BatchRequestTooLongException`), its entries are republished 1
-by 1 with plain `Publish`
-calls, in parallel. These fallback calls share the same limiter as `PublishBatch`, so they cannot push total in-flight
-SNS calls past `MAX_CONCURRENT_PUBLISHES` either. An individual entry that still fails then is reported as failed.
+by 1 with plain `Publish` calls, in parallel. These fallback calls share the same limiter as `PublishBatch`, so they
+cannot push total in-flight SNS calls past `MAX_CONCURRENT_PUBLISHES` either. An individual entry that still fails then
+is reported as failed.
 
 ## Delivery semantics
 
@@ -119,8 +121,8 @@ lowest reported identifier anyway — and the retry mechanism does the rest.
   reported as unpublished.
 - **Any publish failure** — throttling, 5xx, missing topic, message too large: the earliest stream sequence number that
   has failed is reported as unpublished.
-- **Misconfiguration** (missing `APP_NAME`, or an invalid `MAX_CONCURRENT_PUBLISHES`): the only things that throw, at
-  cold start. That is a deployment bug, and crashing the invocation is the correct signal.
+- **Misconfiguration** (missing `TOPIC_NAME_PREFIX`, or an invalid `MAX_CONCURRENT_PUBLISHES`): the only things that
+  throw, at cold start. That is a deployment bug, and crashing the invocation is the correct signal.
 
 A record that can never be published — a message over the SNS size limit, a topic that does not exist — is redelivered
 until the mapping's `MaximumRetryAttempts` is exhausted, then handed to the `OnFailure` destination. Until then, it
@@ -131,10 +133,10 @@ blocks its stream shard, which is why a finite `MaximumRetryAttempts` is require
 This module ships no infrastructure code. Whoever deploys the lambda provides:
 
 1. **The events table** with a stream, `StreamViewType=NEW_IMAGE`.
-2. **One SNS topic per entity type**, named `${APP_NAME}_${entityName}`, created **before** the first event of that
-   entity type is produced. Publishing to a missing topic fails and, after the retries run out, lands in the failure
-   destination.
-3. **The lambda** on the `nodejs24.x` runtime, handler `index.handler`, with the `APP_NAME`
+2. **One SNS topic per entity type**, named `${TOPIC_NAME_PREFIX}_${entityName}`, created **before** the first event of
+   that entity type is produced. Publishing to a missing topic fails and, after the retries run out, lands in the
+   failure destination.
+3. **The lambda** on the `nodejs24.x` runtime, handler `index.handler`, with the `TOPIC_NAME_PREFIX`
    environment variable. Its `--timeout` must cover publishing a whole invocation taking into account --batch-size,
    MAX_CONCURRENT_PUBLISHES, AWS SDK timeouts and internal retries. A lambda timeout hit mid-invocation fails the whole
    batch and has it redelivered, so keep it generous;
@@ -152,7 +154,7 @@ This module ships no infrastructure code. Whoever deploys the lambda provides:
       trades latency for fewer invocations at low traffic (leave it at 0 when latency matters — under load the stream
       hands over accumulated records in bulk regardless); `ParallelizationFactor` adds concurrency per shard, which
       multiplied by `MAX_CONCURRENT_PUBLISHES` makes the max number of simultaneous SNS calls in a stream shard.
-5. **IAM** for the lambda role: `sns:Publish` on `${APP_NAME}_*` topics; `dynamodb:GetRecords`,
+5. **IAM** for the lambda role: `sns:Publish` on `${TOPIC_NAME_PREFIX}_*` topics; `dynamodb:GetRecords`,
    `dynamodb:GetShardIterator`, `dynamodb:DescribeStream`, `dynamodb:ListStreams` on the stream;
    `sqs:SendMessage` on the failure queue; CloudWatch Logs; `kms:Decrypt` and `kms:GenerateDataKey*`, if topics use SSE
    with a customer-managed key.
@@ -171,8 +173,8 @@ has a shelf life:
   keys. The events themselves are still safe in the immutable event store, but stream entries identifying which Events
   were not to delivered to SNS disappear.
 
-How those entries are handled is up to the surrounding infrastructure and to what its consumers need; the library does
-not prescribe an exact mechanism. Recommendation is that failures should be handled or  
+How those entries are handled is up to the surrounding infrastructure; the library does not prescribe an exact
+mechanism. Recommendation is that failures should be handled or  
 corresponding events references should be saved within 24h, before stream entries disappear.
 
 ## Local development
@@ -191,3 +193,7 @@ from `index.mjs` by `/zip`) and the event source mapping, with `AWS_ENDPOINT_URL
 - **No logging library** — `console` plus the runtime's structured logging already produce JSON logs with levels, so a
   dependency would only add cold start time.
 - **No infrastructure management** — topics, queues, mappings and policies are provisioned outside this module.
+
+## License
+
+[Apache License 2.0](../LICENSE)

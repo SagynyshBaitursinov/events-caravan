@@ -234,7 +234,7 @@ create_events_publisher_lambda() {
 
   local local_lambda_env_vars='{
     "Variables": {
-      "APP_NAME": "'"$APP_NAME"'",
+      "TOPIC_NAME_PREFIX": "'"$APP_NAME"'",
       "MAX_CONCURRENT_PUBLISHES": "10",
       "AWS_ENDPOINT_URL": "http://floci:4566"
     }

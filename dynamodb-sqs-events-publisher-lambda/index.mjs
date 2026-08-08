@@ -1,10 +1,10 @@
 import {Agent as HttpsAgent} from 'node:https';
 import {BatchRequestTooLongException, PublishBatchCommand, PublishCommand, SNSClient} from '@aws-sdk/client-sns';
 
-const {APP_NAME, MAX_CONCURRENT_PUBLISHES = '10'} = process.env;
+const {TOPIC_NAME_PREFIX, MAX_CONCURRENT_PUBLISHES = '10'} = process.env;
 
-if (!APP_NAME) {
-    throw new Error('APP_NAME environment variable is required to derive topic names');
+if (!TOPIC_NAME_PREFIX) {
+    throw new Error('TOPIC_NAME_PREFIX environment variable is required to derive topic names');
 }
 
 const MAX_ENTRIES_PER_BATCH = 10;
@@ -48,7 +48,7 @@ let topicArnPrefix;
 
 function deriveTopicArnPrefix(invokedFunctionArn) {
     const [, partition, , region, accountId] = invokedFunctionArn.split(':');
-    return `arn:${partition}:sns:${region}:${accountId}:${APP_NAME}_`;
+    return `arn:${partition}:sns:${region}:${accountId}:${TOPIC_NAME_PREFIX}_`;
 }
 
 function deriveEntityReference(shardedEntityReference) {
@@ -107,7 +107,10 @@ function prepareEntries(records) {
 
     for (const record of records) {
         if (record.eventName !== 'INSERT') continue;
-        if (!record.dynamodb?.NewImage) return {entries, earliestUnpreparedSequenceNumber: record.dynamodb?.SequenceNumber};
+        if (!record.dynamodb?.NewImage) return {
+            entries,
+            earliestUnpreparedSequenceNumber: record.dynamodb?.SequenceNumber
+        };
 
         try {
             entries.push(prepareEntry(record));
