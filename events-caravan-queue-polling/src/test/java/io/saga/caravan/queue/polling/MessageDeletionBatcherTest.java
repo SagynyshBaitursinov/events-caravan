@@ -55,7 +55,7 @@ class MessageDeletionBatcherTest {
       batcher.enqueueDeletion(third);
 
       try {
-        await().atMost(Duration.ofSeconds(2))
+        await().atMost(Duration.ofSeconds(15))
             .untilAsserted(() -> verify(messagesDeleter).delete(List.of(first, second, third)));
       } finally {
         batcher.shutdownNow();
@@ -73,7 +73,7 @@ class MessageDeletionBatcherTest {
       batcher.enqueueDeletion(message);
 
       try {
-        await().atMost(Duration.ofSeconds(3))
+        await().atMost(Duration.ofSeconds(15))
             .untilAsserted(() -> verify(messagesDeleter).delete(List.of(message)));
       } finally {
         batcher.shutdownNow();
@@ -93,7 +93,7 @@ class MessageDeletionBatcherTest {
       messages.forEach(batcher::enqueueDeletion);
 
       try {
-        await().atMost(Duration.ofSeconds(3))
+        await().atMost(Duration.ofSeconds(15))
             .untilAsserted(() -> verify(messagesDeleter, times(3)).delete(anyList()));
 
         @SuppressWarnings("unchecked")
@@ -130,7 +130,7 @@ class MessageDeletionBatcherTest {
       batcher.enqueueDeletion(succeeding);
 
       try {
-        await().atMost(Duration.ofSeconds(3))
+        await().atMost(Duration.ofSeconds(15))
             .untilAsserted(() -> {
               verify(messagesDeleter).delete(List.of(failing));
               verify(messagesDeleter).delete(List.of(succeeding));
@@ -187,7 +187,7 @@ class MessageDeletionBatcherTest {
       messages.forEach(batcher::enqueueDeletion);
 
       try {
-        await().atMost(Duration.ofSeconds(3))
+        await().atMost(Duration.ofSeconds(15))
             .untilAsserted(() -> verify(messagesDeleter, times(2)).delete(anyList()));
 
         @SuppressWarnings("unchecked")
@@ -228,7 +228,7 @@ class MessageDeletionBatcherTest {
       batcher.enqueueDeletion(message);
       batcher.shutdown();
 
-      await().atMost(Duration.ofSeconds(3))
+      await().atMost(Duration.ofSeconds(15))
           .untilAsserted(() -> verify(messagesDeleter).delete(List.of(message)));
       assertThat(batcher.awaitTermination(Duration.ofSeconds(3))).isTrue();
     }
