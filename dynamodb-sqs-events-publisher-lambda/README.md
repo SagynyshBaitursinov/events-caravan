@@ -68,7 +68,7 @@ The message body mirrors `io.saga.caravan.event.Event`:
     "entityName": "calculator",
     "entityId": "42"
   },
-  "eventName": "NumberAdded",
+  "eventName": "number-added",
   "timestamp": "2026-07-26T10:15:30.123Z",
   "sequenceNumber": 17,
   "payload": {
@@ -137,15 +137,15 @@ This module ships no infrastructure code. Whoever deploys the lambda provides:
    that entity type is produced. Publishing to a missing topic fails and, after the retries run out, lands in the
    failure destination.
 3. **The lambda** on the `nodejs24.x` runtime, handler `index.handler`, with the `TOPIC_NAME_PREFIX`
-   environment variable. Its `--timeout` must cover publishing a whole invocation taking into account --batch-size,
-   MAX_CONCURRENT_PUBLISHES, AWS SDK timeouts and internal retries. A lambda timeout hit mid-invocation fails the whole
+   environment variable. Its `--timeout` must cover publishing a whole invocation taking into account `--batch-size`,
+   `MAX_CONCURRENT_PUBLISHES`, AWS SDK timeouts and internal retries. A lambda timeout hit mid-invocation fails the whole
    batch and has it redelivered, so keep it generous;
 4. **The event source mapping** from the table's stream to the lambda:
     - `--function-response-types ReportBatchItemFailures` — **required**.
     - `--filter-criteria '{"Filters": [{"Pattern": "{\"eventName\": [\"INSERT\"]}"}]}'` — recommended, so non-insert
       records never cost an invocation.
     - A finite `MaximumRetryAttempts` — **required**, or a poisonous record blocks its shard until the record ages out
-      of the stream (24 h). It also bounds how long a transient SNS outage may last before records divert to the failure
+      of the stream (24h). It also bounds how long a transient SNS outage may last before records divert to the failure
       destination, since retries back off over minutes — so do not set it too low either.
     - An `OnFailure` destination (an SQS queue is the usual choice) — **required**, see
       [the next section](#handling-the-failure-destination).
@@ -169,13 +169,13 @@ has a shelf life:
 - **Within the stream's 24h retention** it is fully resolvable: `GetShardIterator`
   (`AT_SEQUENCE_NUMBER` at the range's start) and `GetRecords` on the events table's stream read the exact failed
   records back, `NewImage` included, ready to republish.
-- **After 24 h** the stream records expire and the pointer dangles — stream sequence numbers cannot be mapped to table
-  keys. The events themselves are still safe in the immutable event store, but stream entries identifying which Events
-  were not to delivered to SNS disappear.
+- **After 24h** the stream records expire and the pointer dangles — stream sequence numbers cannot be mapped to table
+  keys. The events themselves will still be safe in the DynamoDB, but stream entries identifying which Events were not
+  delivered will disappear.
 
 How those entries are handled is up to the surrounding infrastructure; the library does not prescribe an exact
-mechanism. Recommendation is that failures should be handled or  
-corresponding events references should be saved within 24h, before stream entries disappear.
+mechanism. Recommendation is that failures should be handled or corresponding events references should be saved within
+24h, before stream entries disappear.
 
 ## Local development
 

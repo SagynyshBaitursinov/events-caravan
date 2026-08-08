@@ -29,7 +29,7 @@ implementation [reflecting the library's philosophy](#why-the-reference-implemen
 7. **Produced data is durable.** An event written to the store survives anything short of losing the store itself;
    Events must be delivered and processed by consumers at least once.
 8. **Be ready for failure.** Software and hardware may break mid-process. Make every process recoverable. After a
-   failures a retry must happen and finish the job without corrupting the system.
+   failure a retry should happen and finish the job without corrupting the system.
 9. **Simple is secure.** Utilize as few dependencies as possible.
 10. **Modules should be replaceable.** Every integration point (`EventStore`, `EventProducer`,
     `SnapshotStore`, (de)serializers, the polling transport, the events publisher) is an interface, implementations of
@@ -103,8 +103,8 @@ be [registered](#ii-register-your-events).
    to an entityName.
 3. `entityName` and `eventName` are provided as String type `SNS MessageAttributes`, which can be utilized for filtering
    when subscribing SQS queues to SNS topics.
-4. Application layer utilizes `HandlerBasedEventConsumer`, which provides possibility to consumer interested events
-   registering `EventHandler` implementations. See [usage](#vi-set-up-event-handlers).
+4. Application layer utilizes `HandlerBasedEventConsumer`, which provides possibility to consume events registering
+   `EventHandler` implementations. See [usage](#vi-set-up-event-handlers).
 5. `EventHandlers` are needed to react on interested events or execute a new command.
 6. The Event consumption mechanism and EventHandlers are not restricted to events produced by the current application,
    or only to events recorded and produced from `EventSourcedEntity`.
@@ -132,30 +132,32 @@ be [registered](#ii-register-your-events).
 ### CQRS (Command Query Responsibility Segregation)
 
 The event-store structure of events-caravan provides answer to exactly one query: the events of one entity suitable to
-create entity's projection (s). `EventSourcedRepository` provides possibility of re-creating an entity's single
+create entity's projection(s). `EventSourcedRepository` provides possibility of re-creating an entity's single
 projection using `@ApplyEvent` annotation. This projection is to be utilized for responding to commands and writing new
 events further mutating the entity's state. Thus, this projection is called write-model
 
 However, for more complex queries other projections of the entity called query-models must be utilized. The query models
-may and should have different lifecycle, separate indexes, separate RDMS than of the write-model. For example a
+may and should have different lifecycle, separate indexes, separate RDBMS than of the write-model. For example a
 PostgreSQL database table that contains only specific fields of entities, which currently have a specific status; or
-utilizing search engines such as Elasticsearch. Therefor, the events-caravan library leaves complete freedom for
+utilizing search engines such as Elasticsearch. Therefore, the events-caravan library leaves complete freedom for
 defining how those query models to be constructed and maintained. The library provides and recommends `EventHandlers`
 for populating and maintaining the query models **asynchronously** from command-handling writer processes.
 
 ### Compromises
 
 1. The biggest compromise of the framework compared to another popular event-sourcing framework, Axon, is that
-   Events-caravan does not maintain a global sequence of events across all entities. Therefor there's no global iterable
-   stream of all events. Such a compromise is taken because otherwise a global ordering mechanism, or a single global
-   sequence number provider would be necessary. This central orchestrator would become a bottleneck of the system upon
-   writing, creating potential bottleneck for writer processes. This has the following drawbacks:
+   Events-caravan does not maintain a global sequence of events across all entities. Therefore, there's no global
+   iterable stream of all events. Such a compromise is taken because otherwise a global ordering mechanism, or a single
+   global sequence number provider would be necessary. This central orchestrator would become a bottleneck of the system
+   upon writing, creating potential bottleneck for writer processes. This has the following drawbacks:
     - There's no built-in event-store in case if events across many entities need to be replayed.
-    - Query-models for CQRS should cannot be refreshed by retriggering `EventHandlers` for all historic events.
+    - CQRS query-model reflections cannot be re-built from scratch by retriggering `EventHandlers` for all historic
+      events.
 
    If the mentioned features are important, in compensation for this compromise
-    - A sorted query-model holding all (or still relevant) entity references
-    - A separate globally-sorted event-log
+    - A sorted query-model holding all (or still relevant) entity references; and mechanism of re-publishing already
+      sorted events per entity.
+    - A separate globally-sorted event-log; and mechanism of re-publishing them.
 
    can be maintained. Both should be populated asynchronously and stay eventually consistent with the events-caravan's
    event-store as per the project's philosophy. `EventHandlers` can be utilized for achieving this.
@@ -207,15 +209,18 @@ Add the starters your service needs:
     <dependency>
         <groupId>io.saga</groupId>
         <artifactId>events-caravan-spring-boot-starter</artifactId>
+        <version>${events-caravan-version}</version>
     </dependency>
     <dependency>
         <groupId>io.saga</groupId>
         <artifactId>events-caravan-dynamodb-spring-boot-starter</artifactId>
+        <version>${events-caravan-version}</version>
     </dependency>
     <!-- only if this service consumes events -->
     <dependency>
         <groupId>io.saga</groupId>
         <artifactId>events-caravan-sqs-spring-boot-starter</artifactId>
+        <version>${events-caravan-version}</version>
     </dependency>
 </dependencies>
 ```
@@ -377,7 +382,7 @@ public class CalculatorSnapshotTaker extends SnapshotTaker<Calculator, Calculato
 
 Handlers are matched by payload type, then filtered by `isOfInterest` (typically on the `EventType`):
 
-Handlers a registered automatically by Spring boot starters.
+Handlers are registered automatically by Spring boot starters.
 
 ```java
 
@@ -482,9 +487,8 @@ centralization, driven by [Compromise #1](#compromises):
   equivalent adapters; and comfortable maintaining their own sorted query-model or global event log if they eventually
   need one (see [Compromise #1](#compromises)).
 - **Choose Axon** when a global, replayable stream of all events is needed out of the box. For example rebuilding many
-  projections from scratch across every entity, without building that yourself, or when Axon Server's built-in
-  tracking processors, deadline manager, and saga orchestration outweigh the cost of running and scaling a central
-  server.
+  projections from scratch across every entity, without building that yourself, or when Axon Server's built-in tracking
+  processors, deadline manager, and saga orchestration outweigh the cost of running and scaling a central server.
 
 **In short:** Events-caravan trades Axon's built-in global event-store and orchestration machinery for horizontal
 scalability with fewer moving parts; pick whichever side of that trade fits your team's operational scale and appetite
