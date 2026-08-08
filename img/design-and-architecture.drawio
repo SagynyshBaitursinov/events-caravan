@@ -1,0 +1,335 @@
+<mxfile host="app.diagrams.net" pages="6">
+  <diagram id="event-sourcing-and-storage" name="Event sourcing and storage">
+    <mxGraphModel dx="1136" dy="644" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" background="light-dark(#FFFFFF,#121212)" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ev1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="seq 1 · number-added" vertex="1">
+          <mxGeometry height="40" width="180" x="40" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ev2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="seq 2 · number-added" vertex="1">
+          <mxGeometry height="40" width="180" x="40" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="ev3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="seq 3 · number-subtracted" vertex="1">
+          <mxGeometry height="40" width="180" x="40" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="dots" parent="1" style="text;html=1;align=center;fontSize=18;" value="…" vertex="1">
+          <mxGeometry height="30" width="180" x="40" y="238" as="geometry" />
+        </mxCell>
+        <mxCell id="evn" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="seq n" vertex="1">
+          <mxGeometry height="40" width="180" x="40" y="276" as="geometry" />
+        </mxCell>
+        <mxCell id="ent" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;EventSourcedEntity&lt;/b&gt;&lt;br&gt;in-memory state&lt;br&gt;(write-model)" vertex="1">
+          <mxGeometry height="100" width="172" x="338" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="re1" edge="1" parent="1" source="ev1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#82b366;" target="ent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re2" edge="1" parent="1" source="ev3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#82b366;labelBackgroundColor=#ffffff;" target="ent" value="@ApplyEvent&lt;br&gt;applied in order">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="re3" edge="1" parent="1" source="evn" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#82b366;" target="ent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="snap" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;Snapshot&lt;/b&gt;&lt;br&gt;state at seq 10050" vertex="1">
+          <mxGeometry height="60" width="180" x="40" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="rsnap" edge="1" parent="1" source="snap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#d6b656;labelBackgroundColor=#ffffff;" target="ent" value="optional shortcut: restore state,&lt;br&gt;then apply only later events">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="table" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=none;strokeColor=#666666;spacingTop=6;fontSize=13;" value="&lt;b&gt;DynamoDB events table&lt;/b&gt;&lt;div&gt;&amp;nbsp;Partition Key = &lt;i&gt;entityName#entityId#shardIndex&lt;/i&gt;&amp;nbsp;&lt;/div&gt;&lt;div&gt;Sort Key = &lt;i&gt;sequenceNumber&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="430" width="460" x="652" y="49" as="geometry" />
+        </mxCell>
+        <mxCell id="p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;calculator#42#0&lt;/b&gt;&lt;br&gt;seq 1 … 10000 · sorted by sequenceNumber" vertex="1">
+          <mxGeometry height="80" width="400" x="682" y="119" as="geometry" />
+        </mxCell>
+        <mxCell id="p1c" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;calculator#42#1&lt;/b&gt;&lt;br&gt;seq 10001 … 20000 · sorted by sequenceNumber" vertex="1">
+          <mxGeometry height="80" width="400" x="682" y="229" as="geometry" />
+        </mxCell>
+        <mxCell id="p2c" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;calculator#42#2&lt;/b&gt;&lt;br&gt;seq 20001 … · current shard, still growing" vertex="1">
+          <mxGeometry height="80" width="400" x="682" y="339" as="geometry" />
+        </mxCell>
+        <mxCell id="shardnote" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;align=left;spacing=8;" value="shardIndex increments every partition-shard-size events, so no partition grows unbounded; partitions may live on different storage nodes — the store scales horizontally." vertex="1">
+          <mxGeometry height="70" width="460" x="652" y="499" as="geometry" />
+        </mxCell>
+        <mxCell id="load" edge="1" parent="1" source="table" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#666666;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="ent" value="loaded and applied&lt;div&gt;&amp;nbsp;page by page&lt;br&gt;(query-max-page-size)&lt;/div&gt;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="producing-and-propagating" name="Producing and propagating events">
+    <mxGraphModel dx="1136" dy="644" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="app" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Application&lt;/b&gt;&lt;br&gt;domain method&lt;br&gt;recordEvent(…)" vertex="1">
+          <mxGeometry height="80" width="180" x="12" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="repo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;EventSourcedRepository&lt;/b&gt;&lt;br&gt;save(entity)" vertex="1">
+          <mxGeometry height="80" width="210" x="290" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;EventStore (DynamoDB)&lt;/b&gt;&lt;br&gt;INSERT immutable event item" vertex="1">
+          <mxGeometry height="80" width="220" x="657" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="pubnote" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;align=left;spacing=8;" value="&lt;b&gt;Insert = publish&lt;/b&gt;&lt;br&gt;One write destination: no dual-write, no 2PC, no transactional outbox." vertex="1">
+          <mxGeometry height="100" width="250" x="902" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="producer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;EventProducer&lt;/b&gt;.produce(...)" vertex="1">
+          <mxGeometry height="60" width="210" x="287" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="stream" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;dashed=1;" value="&lt;b&gt;DynamoDB Stream&lt;/b&gt;&lt;br&gt;per-shard CDC feed (NEW_IMAGE)" vertex="1">
+          <mxGeometry height="60" width="220" x="659" y="287" as="geometry" />
+        </mxCell>
+        <mxCell id="lambda" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="&lt;b&gt;Publisher Lambda&lt;/b&gt; (Node.js)&lt;br&gt;no business logic, scales with stream shards" vertex="1">
+          <mxGeometry height="70" width="220" x="134" y="388" as="geometry" />
+        </mxCell>
+        <mxCell id="sns" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="&lt;b&gt;SNS topic per entityName&lt;/b&gt;&lt;br&gt;{prefix}_calculator" vertex="1">
+          <mxGeometry height="70" width="250" x="548" y="388" as="geometry" />
+        </mxCell>
+        <mxCell id="queues" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;" value="consumer-owned &lt;b&gt;SQS queues&lt;/b&gt;&lt;br&gt;(see Event consumption)" vertex="1">
+          <mxGeometry height="60" width="210" x="925" y="393" as="geometry" />
+        </mxCell>
+        <mxCell id="f1" edge="1" parent="1" source="app" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="repo" value="records events">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2" edge="1" parent="1" source="repo" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="store" value="append new events&lt;br&gt;(atomic ≤ 100 · prefer 1)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3" edge="1" parent="1" source="producer" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#000000;exitX=1;exitY=0.5;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="498" y="245" />
+              <mxPoint x="689.24" y="245.64" />
+              <mxPoint x="689.24" y="199.4" />
+            </Array>
+            <mxPoint x="689.24" y="199.44" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f4" edge="1" parent="1" source="store" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;exitX=0.509;exitY=1.002;entryX=0.5;entryY=0;exitDx=0;exitDy=0;exitPerimeter=0;entryDx=0;entryDy=0;" target="stream" value="">
+          <mxGeometry relative="1" x="-0.0015" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f5" edge="1" parent="1" source="stream" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="lambda" value="reads asynchronously">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="246.12" y="317.04" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f6" edge="1" parent="1" source="lambda" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="sns" value="PublishBatch&lt;br&gt;at-least-once">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f7" edge="1" parent="1" source="sns" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="queues" value="fan-out">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="event-consumption" name="Event consumption">
+    <mxGraphModel dx="1180" dy="669" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="q" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="&lt;b&gt;SQS queue&lt;/b&gt; my-app_calculator&lt;br&gt;owned by the consumer application" vertex="1">
+          <mxGeometry height="60" width="230" x="46" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="poll" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Queue polling&lt;/b&gt;&lt;br&gt;virtual threads, long-poll,&lt;br&gt;adaptive poller scaling" vertex="1">
+          <mxGeometry height="80" width="220" x="411" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="cons" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;HandlerBasedEventConsumer&lt;/b&gt;&lt;br&gt;deserialize + dispatch" vertex="1">
+          <mxGeometry height="60" width="220" x="411" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="h1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;EventHandler&lt;/b&gt; A" vertex="1">
+          <mxGeometry height="50" width="180" x="778" y="204" as="geometry" />
+        </mxCell>
+        <mxCell id="h2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;EventHandler&lt;/b&gt; B" vertex="1">
+          <mxGeometry height="50" width="180" x="780" y="299" as="geometry" />
+        </mxCell>
+        <mxCell id="ok" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="✔ all handlers succeeded&lt;br&gt;message deleted (batched acks)" vertex="1">
+          <mxGeometry height="60" width="220" x="241" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="err" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="✘ a handler threw&lt;br&gt;not acknowledged → redelivered" vertex="1">
+          <mxGeometry height="60" width="220" x="521" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="dlq" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" value="&lt;b&gt;Dead-letter queue&lt;/b&gt;&lt;br&gt;after redrive maxReceiveCount" vertex="1">
+          <mxGeometry height="60" width="220" x="521" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="idemnote" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;align=left;spacing=8;" value="&lt;b&gt;Consumers own idempotency&lt;/b&gt;&lt;br&gt;Delivery is at-least-once and unordered: handlers must be idempotent and tolerate out-of-order arrival." vertex="1">
+          <mxGeometry height="110" width="260" x="698" y="63" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" edge="1" parent="1" source="q" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="poll" value="long-poll receive">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" edge="1" parent="1" source="poll" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" target="cons">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s4" edge="1" parent="1" source="cons" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="h1" value="all matching handlers&lt;br&gt;are invoked">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s5" edge="1" parent="1" source="cons" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" target="h2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s6" edge="1" parent="1" source="cons" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#82b366;exitX=0.25;exitY=1;entryX=0.5;entryY=0;" target="ok">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s7" edge="1" parent="1" source="cons" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#b85450;exitX=0.75;exitY=1;entryX=0.5;entryY=0;" target="err">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s8" edge="1" parent="1" source="err" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#b85450;labelBackgroundColor=#ffffff;" target="dlq" value="permanently failing">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="optimistic-concurrency" name="Optimistic concurrency control">
+    <mxGraphModel dx="1136" dy="644" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="wa" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Writer A&lt;/b&gt;" vertex="1">
+          <mxGeometry height="50" width="180" x="80" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="wb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Writer B&lt;/b&gt;" vertex="1">
+          <mxGeometry height="50" width="180" x="660" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;Event store&lt;/b&gt;&lt;br&gt;calculator#42 · last event seq = 5&lt;br&gt;&lt;b&gt;unique&lt;/b&gt; (entityReference, sequenceNumber)" vertex="1">
+          <mxGeometry height="90" width="256" x="341" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="la" edge="1" parent="1" source="wa" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;dashed=1;strokeColor=#999999;labelBackgroundColor=#ffffff;exitX=0.25;exitY=1;entryX=0;entryY=0.25;endFill=0;startArrow=classic;startFill=1;" target="store" value="① load &amp;amp; replay (≤ seq 5)">
+          <mxGeometry relative="1" x="0.6019" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="125.04" y="209.33" />
+              <mxPoint x="336.59" y="209.33" />
+              <mxPoint x="336.59" y="252.52" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lb" edge="1" parent="1" source="wb" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;dashed=1;strokeColor=#999999;labelBackgroundColor=#ffffff;exitX=0.75;exitY=1;entryX=1;entryY=0.25;startArrow=block;startFill=1;endFill=0;" target="store" value="① load &amp;amp; replay (≤ seq 5)">
+          <mxGeometry relative="1" x="0.5786" y="-1" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="795.04" y="210.81" />
+              <mxPoint x="602.52" y="210.81" />
+              <mxPoint x="602.52" y="252.52" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ia" edge="1" parent="1" source="wa" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#82b366;fontColor=#82b366;labelBackgroundColor=#ffffff;exitX=0.75;exitY=1;entryX=0;entryY=0.75;" target="store" value="② INSERT seq 6 → ✔ accepted">
+          <mxGeometry relative="1" x="-0.0786" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ib" edge="1" parent="1" source="wb" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#b85450;fontColor=#b85450;labelBackgroundColor=#ffffff;exitX=0.25;exitY=1;entryX=1;entryY=0.75;" target="store" value="② INSERT seq 6 → ✘&lt;br&gt;DuplicateEventProductionException">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="cqrs" name="CQRS">
+    <mxGraphModel dx="1227" dy="696" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="wm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Write-model&lt;/b&gt;&lt;br&gt;single entity projection rebuilt&lt;br&gt;via @ApplyEvent on load" vertex="1">
+          <mxGeometry height="90" width="240" x="40" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;Event store&lt;/b&gt;&lt;br&gt;answers exactly one query:&lt;br&gt;the events of one entity" vertex="1">
+          <mxGeometry height="90" width="240" x="40" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="prop" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" value="propagation pipeline&lt;br&gt;(stream → Lambda → SNS → SQS)" vertex="1">
+          <mxGeometry height="80" width="210" x="339" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="handlers" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;EventHandlers&lt;/b&gt;&lt;br&gt;asynchronous&lt;br&gt;projection updaters" vertex="1">
+          <mxGeometry height="80" width="200" x="619" y="345" as="geometry" />
+        </mxCell>
+        <mxCell id="pg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="&lt;b&gt;Query-model&lt;/b&gt;: PostgreSQL table&lt;br&gt;chosen fields of entities in status X" vertex="1">
+          <mxGeometry height="70" width="230" x="920" y="249" as="geometry" />
+        </mxCell>
+        <mxCell id="query" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;Complex queries&lt;/b&gt;" vertex="1">
+          <mxGeometry height="50" width="230" x="920" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="freenote" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;align=left;spacing=8;" value="Query-models have their own lifecycle, indexes and storage — separate from the write-model. The library does not prescribe how they are built; it recommends EventHandlers to keep them up to date asynchronously." vertex="1">
+          <mxGeometry height="120" width="330" x="390" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" edge="1" parent="1" source="wm" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;exitX=0.25;exitY=1;entryX=0.25;entryY=0;" target="store" value="new events appended">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" edge="1" parent="1" source="store" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#666666;labelBackgroundColor=#ffffff;exitX=0.75;exitY=0;entryX=0.75;entryY=1;" target="wm" value="load &amp;amp; replay">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" edge="1" parent="1" source="store" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" target="prop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" edge="1" parent="1" source="prop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;" target="handlers">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" edge="1" parent="1" source="handlers" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;strokeColor=#9673a6;labelBackgroundColor=#ffffff;" target="pg" value="update asynchronously&lt;br&gt;(eventually consistent)">
+          <mxGeometry relative="1" x="-0.2552" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c8" edge="1" parent="1" source="query" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="pg" value="served by">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="sagas" name="Sagas">
+    <mxGraphModel dx="1227" dy="696" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="e1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;coffee-ordered&lt;/b&gt;&lt;br&gt;event on CoffeeOrder entity" vertex="1">
+          <mxGeometry height="70" width="200" x="40" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="h1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;CoffeeBrewer&lt;/b&gt;&lt;br&gt;an EventHandler" vertex="1">
+          <mxGeometry height="70" width="190" x="310" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;CoffeeBrewed&lt;/b&gt;&lt;br&gt;event on CoffeeBrew entity" vertex="1">
+          <mxGeometry height="70" width="200" x="570" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="h2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;ShippingHandler&lt;/b&gt;&lt;br&gt;an EventHandler" vertex="1">
+          <mxGeometry height="70" width="190" x="905" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;order-shipped&lt;/b&gt;&lt;br&gt;event on CoffeeOrder entity" vertex="1">
+          <mxGeometry height="70" width="200" x="900" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="f1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="&lt;b&gt;no-coffee-beans-found&lt;/b&gt;&lt;br&gt;event on CoffeeBrew entity" vertex="1">
+          <mxGeometry height="70" width="200" x="252" y="356" as="geometry" />
+        </mxCell>
+        <mxCell id="h3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="&lt;b&gt;CancellationHandler&lt;/b&gt;&lt;br&gt;an EventHandler" vertex="1">
+          <mxGeometry height="70" width="190" x="545" y="356" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="&lt;b&gt;order-cancelled&lt;/b&gt;&lt;br&gt;compensating event on CoffeeOrder entity" vertex="1">
+          <mxGeometry height="70" width="200" x="900" y="356" as="geometry" />
+        </mxCell>
+        <mxCell id="g1" edge="1" parent="1" source="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="h1" value="delivered">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g2" edge="1" parent="1" source="h1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="e2" value="records">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g3" edge="1" parent="1" source="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;" target="h2" value="delivered">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g4" edge="1" parent="1" source="h2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="e3" value="records">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g5" edge="1" parent="1" source="h1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#b85450;fontColor=#b85450;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="f1" value="on NoCoffeeBeensException">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g6" edge="1" parent="1" source="f1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#b85450;fontColor=#b85450;labelBackgroundColor=#ffffff;" target="h3" value="delivered">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="g7" edge="1" parent="1" source="h3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#b85450;fontColor=#b85450;labelBackgroundColor=#ffffff;" target="e4" value="records (compensation)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
