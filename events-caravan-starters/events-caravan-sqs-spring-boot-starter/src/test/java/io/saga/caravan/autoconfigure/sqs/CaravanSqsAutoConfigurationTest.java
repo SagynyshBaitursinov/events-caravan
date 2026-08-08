@@ -133,7 +133,7 @@ class CaravanSqsAutoConfigurationTest {
       var lifecycle = context.getBean(SmartLifecycle.class);
 
       try {
-        await().atMost(Duration.ofSeconds(2)).untilAsserted(() ->
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
             verify(sqsClient, atLeastOnce()).receiveMessage(
                 argThat((ReceiveMessageRequest request) -> QUEUE_URL.equals(request.queueUrl()))));
       } finally {

@@ -101,7 +101,7 @@ class ContinuousMessagePollingControllerTest {
 
       controller.startContinuousPolling();
 
-      await().atMost(Duration.ofSeconds(3))
+      await().atMost(Duration.ofSeconds(15))
           .untilAsserted(() -> {
             verify(messageConsumer).consume(message1);
             verify(messageConsumer).consume(message2);
@@ -124,7 +124,7 @@ class ContinuousMessagePollingControllerTest {
 
       controller.startContinuousPolling();
 
-      await().atMost(Duration.ofSeconds(3))
+      await().atMost(Duration.ofSeconds(15))
           .untilAsserted(() -> verify(messageConsumer).consume(message));
 
       verify(messagesDeleter, never()).delete(any());

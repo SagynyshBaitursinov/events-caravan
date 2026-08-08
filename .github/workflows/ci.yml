@@ -17,5 +17,8 @@ jobs:
           java-version: "25"
           cache: maven
 
+      - name: Grant Docker socket access to floci
+        run: sudo chmod 666 /var/run/docker.sock
+
       - name: Run local test suite
         run: ./local/test
