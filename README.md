@@ -4,6 +4,7 @@
 ![Java](https://img.shields.io/badge/Java-25-ED8B00)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.x-6DB33F)
 ![Reference impl](https://img.shields.io/badge/reference_impl-DynamoDB_·_SNS%2FSQS-FF9900)
+[![Maven Central](https://img.shields.io/maven-central/v/dev.baitursinov/events-caravan.svg)](https://central.sonatype.com/artifact/dev.baitursinov/events-caravan)
 
 Lightweight Event-sourcing and Event-driven architecture framework designed for scalability & performance, while
 guaranteeing eventual consistency. The core is technology-agnostic and every integration point is an interface that can
