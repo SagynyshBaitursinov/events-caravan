@@ -54,7 +54,7 @@
 
         <spring.boot.version>4.1.0</spring.boot.version>
         <jackson.version>3.2.1</jackson.version>
-        <aws.sdk.version>2.51.0</aws.sdk.version>
+        <aws.sdk.version>2.51.1</aws.sdk.version>
         <slf4j.version>2.0.18</slf4j.version>
         <jspecify.version>1.0.1</jspecify.version>
 
