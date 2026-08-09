@@ -21,7 +21,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 /**
  * Continuously polls a queue and processes each message, scaling the number of concurrent
  * pollers and in-flight messages within the limits of {@link QueuePollingProperties}.
- * Applications construct one instance per queue via {@link #builder()}, supplying a
+ * Applications construct one instance per queue via {@code builder()}, supplying a
  * {@link MessagesPoller}, {@link MessageConsumer} and {@link MessagesDeleter} for the queue's
  * transport, then call {@link #startContinuousPolling()} to begin and
  * {@link #requestStopOfContinuousPolling()} followed by
