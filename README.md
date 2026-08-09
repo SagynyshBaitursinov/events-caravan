@@ -8,7 +8,7 @@
 Lightweight Event-sourcing and Event-driven architecture framework designed for scalability & performance, while
 guaranteeing eventual consistency. The core is technology-agnostic and every integration point is an interface that can
 be implemented utilizing any database and message broker fitting the library's philosophy and contracts. Adapters for
-[AWS (DynamoDB, SNS/SQS)](#i-modules-and-dependencies) are shipped as a reference
+[AWS DynamoDB, SNS/SQS](#i-modules-and-dependencies) are shipped as a reference
 implementation [reflecting the library's philosophy](#why-the-reference-implementation-is-aws-why-it-suits-the-projects-philosophy-and-what-could-substitute-it).
 
 ## Contents
@@ -245,8 +245,8 @@ orchestrators, in line with the philosophy. If a process genuinely needs central
 |---------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | events-caravan                              | Core, technology-agnostic: entities, repositories, event registry, interfaces, Jackson serialization, event consumption and handlers  |
 | events-caravan-dynamodb                     | `EventStore` + `EventProducer` + `SnapshotStore` implementations on DynamoDB, with partition sharding for long entity histories       |
-| events-caravan-sqs                          | SQS polling/deletion primitives                                                                                                       |
 | events-caravan-queue-polling                | Transport-agnostic continuous polling mechanism (virtual threads, adaptive poller scaling, batched deletes, graceful shutdown)        |
+| events-caravan-sqs                          | SQS polling/deletion primitives                                                                                                       |
 | events-caravan-spring-boot-starter          | Auto-configuration of the core components                                                                                             |
 | events-caravan-dynamodb-spring-boot-starter | Auto-configuration of the DynamoDB event and snapshot stores                                                                          |
 | events-caravan-sqs-spring-boot-starter      | Auto-configuration of per-entity SQS queue polling                                                                                    |
