@@ -36,6 +36,7 @@ implementation [reflecting the library's philosophy](#why-the-reference-implemen
 - [When to use Events-caravan over Axon](#when-to-use-events-caravan-over-axon)
 - [Q&A](#qa)
 - [Further reading](#further-reading)
+- [Contributing](#contributing)
 - [License](#license)
 
 ## Philosophy in principles
@@ -598,6 +599,14 @@ for infrastructure.
 - [Tyler Treat's "You Cannot Have Exactly-Once Delivery"](https://bravenewgeek.com/you-cannot-have-exactly-once-delivery/)
 - [Gregor Hohpe's "Your Coffee Shop Doesn't Use Two-Phase Commit"](https://www.enterpriseintegrationpatterns.com/docs/IEEE_Software_Design_2PC.pdf)
 - Kleppmann's *Designing Data-Intensive Applications*.
+
+## Contributing
+
+Events Caravan is created and maintained by [Sagynysh Baitursinov](https://github.com/SagynyshBaitursinov).
+Bug reports, feature proposals, and pull requests are welcome — see the
+[contributing guide](CONTRIBUTING.md) for the development setup and workflow, and the
+[code of conduct](CODE_OF_CONDUCT.md) for community standards. Security vulnerabilities should be reported
+privately as described in the [security policy](SECURITY.md).
 
 ## License
 
