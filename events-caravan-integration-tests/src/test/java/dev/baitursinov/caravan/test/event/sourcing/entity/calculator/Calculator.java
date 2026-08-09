@@ -4,14 +4,14 @@ import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.sourcing.EntityName;
 import dev.baitursinov.caravan.event.sourcing.EventSourcedEntity;
 import dev.baitursinov.caravan.event.sourcing.applying.ApplyEvent;
+import dev.baitursinov.caravan.test.value.NumberCarryingPayload;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 
-import static dev.baitursinov.caravan.test.event.sourcing.entity.calculator.CalculatorEventsConfiguration.CALCULATOR;
-import static dev.baitursinov.caravan.test.event.sourcing.entity.calculator.CalculatorEventsConfiguration.NUMBER_ADDED;
-import static dev.baitursinov.caravan.test.event.sourcing.entity.calculator.CalculatorEventsConfiguration.NUMBER_SUBTRACTED;
+import static dev.baitursinov.caravan.test.event.registration.CalculatorEventsConfiguration.CALCULATOR;
+import static dev.baitursinov.caravan.test.event.registration.CalculatorEventsConfiguration.NUMBER_ADDED;
+import static dev.baitursinov.caravan.test.event.registration.CalculatorEventsConfiguration.NUMBER_SUBTRACTED;
 
 @EntityName(CALCULATOR)
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
@@ -23,9 +23,8 @@ public class Calculator extends EventSourcedEntity {
     return new Calculator(id);
   }
 
-  @Setter
   @Getter
-  long currentNumber = 0;
+  protected long currentNumber = 0;
 
   public void addNumber(long number) {
     recordEvent(

@@ -1,14 +1,13 @@
-package dev.baitursinov.caravan.test.event.sourcing;
+package dev.baitursinov.caravan.test;
 
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
 import dev.baitursinov.caravan.event.sourcing.EventSourcedRepositoryException;
-import dev.baitursinov.caravan.test.AbstractSpringBootTest;
 import dev.baitursinov.caravan.test.event.handler.NumberCarryingEventsHandler;
 import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.Calculator;
 import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.CalculatorRepository;
-import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.NumberCarryingPayload;
+import dev.baitursinov.caravan.test.value.NumberCarryingPayload;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 

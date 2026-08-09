@@ -1,4 +1,4 @@
-# Events Caravan 🐪 🐫 🐪
+# Events Caravan
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ![Java](https://img.shields.io/badge/Java-25-ED8B00)
@@ -14,7 +14,7 @@ implementation [reflecting the library's philosophy](#why-the-reference-implemen
 
 ## Contents
 
-- [Philosophy principles](#philosophy-in-principles)
+- [Philosophy in principles](#philosophy-in-principles)
 - [Design and Architecture](#design-and-architecture)
     - [Event structure](#event-structure)
     - [Event sourcing and storage](#event-sourcing-and-storage)
@@ -34,7 +34,7 @@ implementation [reflecting the library's philosophy](#why-the-reference-implemen
     - [VII. Configure via application properties](#vii-configure-via-application-properties)
     - [VIII. Infrastructure](#viii-infrastructure)
 - [Why the reference implementation is AWS](#why-the-reference-implementation-is-aws-why-it-suits-the-projects-philosophy-and-what-could-substitute-it)
-- [When to use Events-caravan over Axon](#when-to-use-events-caravan-over-axon)
+- [When to choose Events-caravan over Axon](#when-to-choose-events-caravan-over-axon)
 - [Q&A](#qa)
 - [Further reading](#further-reading)
 - [Contributing](#contributing)
@@ -42,29 +42,27 @@ implementation [reflecting the library's philosophy](#why-the-reference-implemen
 
 ## Philosophy in principles
 
-1. **Horizontal scalability.** Break free from limits of a single machine (or a single cluster) when designing
-   application, choosing database, or message broker. Anything that must be "the one" instance eventually becomes the
-   ceiling. Partition the data, but avoid big and hot partitions.
+1. **Horizontal scalability.** Anything that must be "the one" instance eventually becomes the ceiling. Partition the
+   data, avoid hot partitions, shard.
 2. **Rely only on simple and cheap technology features.** Prefer
    [smart endpoints and dumb pipes](https://martinfowler.com/articles/microservices.html#SmartEndpointsAndDumbPipes):
-   no central orchestrator for business or technical processes, no broker that has to understand your domain. Make it
-   easy for utilized technology to scale.
+   no central orchestrator for business or technical processes, no broker that has to understand your domain. This makes
+   it easy for the utilized technology to scale.
 3. **Have one write destination for every operation result,** between databases and message brokers, so there is no
    problem coordinating writes between multiple destinations and necessity to span transactions across them.
 4. **Be satisfied with Eventual Consistency** beyond the single entity, in the sense of
    [Werner Vogels' "Eventually Consistent"](https://dl.acm.org/doi/10.1145/1466443.1466448). The entity (aggregate root)
    is the only unit of strong consistency, as in
    [Pat Helland's "Life beyond Distributed Transactions"](https://queue.acm.org/detail.cfm?id=3025012).
-5. **Stay available.** Do not hold locks. Build processes modifying one entity at a time, asynchronous to each other.
-   Fail fast, but on smaller units of consistency.
+5. **Stay available.** Build processes modifying one entity at a time, asynchronous to each other. Do not hold locks.
 6. **Make compromises made for scalability visible for devs.** Where a guarantee is traded away (ordering, exactly-once
    delivery, strong consistency, small consistency units), developers are told explicitly and are given the tools to
    compensate.
-7. **Produced data is durable.** An event written to the store survives anything short of losing the store itself;
+7. **Produced data must be durable.** An event written to the store survives anything short of losing the store itself;
    Events must be delivered and processed by consumers at least once.
-8. **Be ready for failure.** Software and hardware may break mid-process. Make every process recoverable. After a
-   failure a retry should happen and finish the job without corrupting the system.
-9. **Simple is secure.** Utilize as few dependencies as possible.
+8. **Be ready for a failure.** Software and hardware may break mid-process. Make every process recoverable. After a
+   failure a retry should happen and finish the job without leaving the system in inconsistent state.
+9. **Simple is secure.** Utilize few dependencies. Design simple solutions.
 10. **Modules should be substitutable.** Every integration point (`EventStore`, `EventProducer`,
     `SnapshotStore`, (de)serializers, the polling transport, the events publisher) is an interface, implementations of
     which could vary.
@@ -106,10 +104,11 @@ be [registered](#ii-register-your-events).
    freedom to store each partition in different machines for scaling horizontally freely.
 8. For entities with long histories [Snapshotting](#v-set-up-optional-snapshot-takers) can be utilized to avoid loading
    and re-applying all historic events from the beginning.
-9. Entities with long histories can make a partition where its events are stored too heavy, making it a scaling
-   bottleneck. To avoid that an `EntityReference` is sharded consistently while events' sequenceNumbers increase. In the
-   reference implementation module of DynamoDB partition-key is `entityName#entityId#shardIndex` where one shardIndex
-   increments every N events defined by `partition-shard-size` property. Shard indexes are incremental, and sort-key is
+9. Entities with long histories can make a partition where its events are stored too large, turning it into a scaling
+   bottleneck. To avoid that an `EntityReference` partitions is sharded consistently while events' sequenceNumbers
+   increase. In the reference implementation module of DynamoDB partition-key is `entityName#entityId#shardIndex` where
+   one shardIndex increments every N events defined by `partition-shard-size` property. Shard indexes are incremental,
+   and sort-key is
    `sequenceNumber`, so all events are sorted in each sharded partition.
 
 ### Producing and propagating events
@@ -282,18 +281,18 @@ Add the starters your service needs:
 
 > [!NOTE]
 > - If default Jackson based (de)serializers are to be used, the library's spring-boot-starter does not bring in the
->   `JsonMapper` bean it requires. Your application should configure and provide it. The default Jackson-based
->   serialization activates when Jackson 3 is on the classpath and a `JsonMapper` bean exists.
+    > `JsonMapper` bean it requires. Your application should configure and provide it. The default Jackson-based
+    > serialization activates when Jackson 3 is on the classpath and a `JsonMapper` bean exists.
 >
 > - Alternatively, provide your own `EventSerializer`, `EventPayloadSerializer`, `EventDeserializer`,
->   `EventPayloadDeserializer`, `SnapshotSerializer` and `SnapshotDeserializer` beans to use a different serialization
->    mechanism.
+    > `EventPayloadDeserializer`, `SnapshotSerializer` and `SnapshotDeserializer` beans to use a different serialization
+    > mechanism.
 >
 > - `DynamoDbClient` / `SqsClient` beans are expected in the context for their corresponding modules to work.
 >
 > - Every autoconfigured component is `@ConditionalOnMissingBean`, supply your own bean to override them. Any
->   `EventProducer` bean is transparently wrapped into `ValidatingEventProducer` so all produced events are validated
->   against the `EntityEventsRegistry`.
+    > `EventProducer` bean is transparently wrapped into `ValidatingEventProducer` so all produced events are validated
+    > against the `EntityEventsRegistry`.
 
 ### II. Register your events
 
@@ -315,10 +314,10 @@ public class CalculatorEventsConfiguration {
 
 > [!NOTE]
 > - A registered entity does not have to be produced locally: you can register events produced by another application to
->   react to them in your application.
+    > react to them in your application.
 >
 > - Event types are identified by explicit **names**, not Java class names, so payload classes can be renamed and moved
->   freely without breaking stored history.
+    > freely without breaking stored history.
 >
 > - The registry is built once at startup. Application validates every event produced or applied against the registry.
 >
@@ -366,11 +365,11 @@ public class Calculator extends EventSourcedEntity {
 
 > [!NOTE]
 > - Apply methods can also live outside the entity class (see `@ApplyEvent` and `@EventApplier`), keeping domain classes
->   free of replay mechanics.
->   
+    > free of replay mechanics.
+>
 >   It's recommended to place @EventApplier classes in the same package in order to utilize
->   package-private fields/methods in order to mutate entity state while applying events.
->   This helps Calculator not to expose public methods just for applying events without real domain behavior.
+    > package-private fields/methods in order to mutate entity state while applying events.
+    > This helps Calculator not to expose public methods just for applying events without real domain behavior.
 
 ### IV. Set up an event sourced repository
 
@@ -457,8 +456,8 @@ public class CalculatorSnapshotTaker extends SnapshotTaker<Calculator, Calculato
 > - Spring Boot starter wires it into the `EventSourcingRepositoryContext` automatically.
 >
 > - Note that SnapshotTaker in the example is located in the same package as Calculator, and uses package-private
->   fields of the Calculator to create a snapshot and recreate the entity from snapshot.
->   This helps Calculator not to expose public methods just for snapshotting without real domain behavior.
+    > fields of the Calculator to create a snapshot and recreate the entity from snapshot.
+    > This helps Calculator not to expose public methods just for snapshotting without real domain behavior.
 
 ### VI. Set up Event handlers
 
@@ -554,29 +553,28 @@ publishing events. The Lambda is documented in the [Lambda's README](dynamodb-sq
 
 None of this is AWS-specific in substance, only in the concrete API used, and
 per [Principle #10](#philosophy-in-principles) every integration point is an interface open for substitution
-(`EventStore`,
-`EventProducer`, `SnapshotStore`, event consumption, the publisher).
+(`EventStore`, `EventProducer`, `SnapshotStore`, event consumption, the publisher).
 
 #### Technologies with the properties could substitute the reference implementation:
 
-- Any partitioned database with a native, ordered per-partition change feed can substitute DynamoDB: for example
+- A partitioned database with a native, ordered per-partition change feed can substitute DynamoDB: for example
   Cassandra/ScyllaDB with CDC, sharded MongoDB with change streams, or a sharded PostgreSQL setup paired with
   logical-replication/CDC tooling such as Debezium.
-- Any broker letting consumers own and scale their own subscriptions without a central process understanding the domain
+- A broker letting consumers own and scale their own subscriptions without a central process understanding the domain
   can substitute SNS/SQS: for example Kafka, Redpanda, Pulsar, or Google Pub/Sub.
-- The publisher can be substituted by any stream-reader process (a plain consumer service, a Kafka Connect connector, a
-  Debezium connector), as long as it preserves at-least-once delivery and keeps the insert as the sole publish trigger.
+- The publisher can be substituted by a stream-reader process as long as it preserves at-least-once delivery and keeps
+  the insert as the sole publish trigger.
 
-## When to use Events-caravan over Axon
+## When to choose Events-caravan over Axon
 
 Events-caravan and Axon solve the same problem, which is event sourcing and CQRS, but with opposite approach on
 centralization, driven by [Compromise #1](#compromises):
 
 - **Choose Events-caravan** when horizontal scalability without a central component is the priority: there is no global
-  events sequence. Library's footprint is a handful of interfaces over your own database and broker, which suits teams
-  already operating DynamoDB/SNS/SQS-shaped infrastructure, or willing to implement the equivalent adapters; and
-  comfortable maintaining their own sorted query-model or global event-log, if they actually need one
-  (see [Compromise #1](#compromises)).
+  events sequence and duty to maintain it. Library's footprint is a handful of interfaces over your own database and
+  broker, which suits teams already operating DynamoDB/SNS/SQS-shaped infrastructure, or willing to implement the
+  equivalent adapters; and comfortable maintaining their own sorted query-model or global event-log, if they actually
+  need one (see [Compromise #1](#compromises)).
 - **Choose Axon** when a global, replayable stream of all events is needed out of the box. For example rebuilding many
   projections from scratch across every entity, without building that yourself, or when Axon Server's built-in tracking
   processors, deadline manager, and sagas orchestration outweigh the cost of running and scaling a central server.
@@ -588,9 +586,9 @@ for infrastructure.
 ## Q&A
 
 - **Q:** Is AI utilized when building the library?
-    - **A:** Yes, for coding and documentation, brainstorming about architecture. However, its output was carefully
-      read, analyzed, integrated with thought. I find it important to stay on top of the code changes, learn from them
-      and apply human judgment.
+    - **A:** Yes, for coding and documentation, brainstorming about architecture. However, its outputs, especially
+      concerning the important components, were carefully read, analyzed, integrated with thought. I find it important
+      to stay on top of the code changes, learn from them and apply human judgment.
 
 ## Further reading
 
@@ -603,11 +601,14 @@ for infrastructure.
 
 ## Contributing
 
-Events Caravan is created and maintained by [Sagynysh Baitursinov](https://github.com/SagynyshBaitursinov).
-Bug reports, feature proposals, and pull requests are welcome — see the
+Events Caravan is created and maintained by [Sagynysh Baitursinov](https://github.com/SagynyshBaitursinov). Bug reports,
+feature proposals, and pull requests are welcome — see the
 [contributing guide](CONTRIBUTING.md) for the development setup and workflow, and the
-[code of conduct](CODE_OF_CONDUCT.md) for community standards. Security vulnerabilities should be reported
-privately as described in the [security policy](SECURITY.md).
+[code of conduct](CODE_OF_CONDUCT.md) for community standards. Security vulnerabilities should be reported privately as
+described in the [security policy](SECURITY.md).
+
+Check out [TODOs](TODOs.md) for the planned improvements of the library. Some of those could be implemented in
+coordination with the author.
 
 ## License
 

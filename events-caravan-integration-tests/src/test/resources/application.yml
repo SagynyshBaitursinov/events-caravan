@@ -23,6 +23,7 @@ caravan:
       subscribed-entities:
         - calculator
         - test-entity
+        - number-addition-request
       graceful-shutdown-seconds: 0
       concurrency: 20
       max-poll-size: 10

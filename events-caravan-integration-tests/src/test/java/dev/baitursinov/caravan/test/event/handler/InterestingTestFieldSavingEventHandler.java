@@ -3,15 +3,15 @@ package dev.baitursinov.caravan.test.event.handler;
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.EventType;
 import dev.baitursinov.caravan.event.consumer.handler.EventHandler;
-import dev.baitursinov.caravan.test.event.driven.TestFieldContainingEventPayload;
+import dev.baitursinov.caravan.test.value.TestFieldContainingEventPayload;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
 import java.util.Set;
 
-import static dev.baitursinov.caravan.test.event.driven.TestEntityEventsConfiguration.TEST_ENTITY;
-import static dev.baitursinov.caravan.test.event.driven.TestEntityEventsConfiguration.TEST_EVENT;
+import static dev.baitursinov.caravan.test.event.registration.TestEntityEventsConfiguration.TEST_ENTITY;
+import static dev.baitursinov.caravan.test.event.registration.TestEntityEventsConfiguration.TEST_EVENT;
 
 @Component
 @Getter

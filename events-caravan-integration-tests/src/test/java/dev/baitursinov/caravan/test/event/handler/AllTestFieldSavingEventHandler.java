@@ -2,7 +2,7 @@ package dev.baitursinov.caravan.test.event.handler;
 
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.consumer.handler.EventHandler;
-import dev.baitursinov.caravan.test.event.driven.TestFieldContainingEventPayload;
+import dev.baitursinov.caravan.test.value.TestFieldContainingEventPayload;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 

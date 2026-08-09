@@ -19,11 +19,13 @@ TOPIC_NAMES=(
   "${APP_NAME}_test-entity"
   "${APP_NAME}_calculator"
   "${APP_NAME}_snapshotting-calculator"
+  "${APP_NAME}_number-addition-request"
 )
 
 INCOMING_QUEUE_NAMES=(
   "${APP_NAME}_test-entity"
   "${APP_NAME}_calculator"
+  "${APP_NAME}_number-addition-request"
 )
 
 DEAD_LETTER_QUEUE_SUFFIX="_dlq"

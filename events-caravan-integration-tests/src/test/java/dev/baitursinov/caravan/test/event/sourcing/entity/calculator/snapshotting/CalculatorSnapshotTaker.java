@@ -1,4 +1,4 @@
-package dev.baitursinov.caravan.test.event.sourcing.snapshotting;
+package dev.baitursinov.caravan.test.event.sourcing.entity.calculator.snapshotting;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotTaker;

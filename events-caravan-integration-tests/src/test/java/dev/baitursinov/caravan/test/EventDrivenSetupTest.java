@@ -1,4 +1,4 @@
-package dev.baitursinov.caravan.test.event.driven;
+package dev.baitursinov.caravan.test;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
@@ -6,11 +6,12 @@ import dev.baitursinov.caravan.event.consumer.EventConsumer;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
 import dev.baitursinov.caravan.event.producer.EventProducer;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
-import dev.baitursinov.caravan.test.AbstractSpringBootTest;
 import dev.baitursinov.caravan.test.event.handler.AllTestFieldSavingEventHandler;
 import dev.baitursinov.caravan.test.event.handler.AnotherTestFieldSavingEventHandler;
 import dev.baitursinov.caravan.test.event.handler.InterestingTestFieldSavingEventHandler;
 import dev.baitursinov.caravan.test.event.handler.UnsureTestFieldSavingEventHandler;
+import dev.baitursinov.caravan.test.value.AnotherTestEventPayloadRepresentation;
+import dev.baitursinov.caravan.test.value.TestEventPayload;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -18,9 +19,9 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
-import static dev.baitursinov.caravan.test.event.driven.TestEntityEventsConfiguration.ANOTHER_TEST_EVENT;
-import static dev.baitursinov.caravan.test.event.driven.TestEntityEventsConfiguration.TEST_ENTITY;
-import static dev.baitursinov.caravan.test.event.driven.TestEntityEventsConfiguration.TEST_EVENT;
+import static dev.baitursinov.caravan.test.event.registration.TestEntityEventsConfiguration.ANOTHER_TEST_EVENT;
+import static dev.baitursinov.caravan.test.event.registration.TestEntityEventsConfiguration.TEST_ENTITY;
+import static dev.baitursinov.caravan.test.event.registration.TestEntityEventsConfiguration.TEST_EVENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;

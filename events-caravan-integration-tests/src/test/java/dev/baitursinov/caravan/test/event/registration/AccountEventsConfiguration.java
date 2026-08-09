@@ -1,7 +1,7 @@
-package dev.baitursinov.caravan.test.event.sourcing.entity.account;
+package dev.baitursinov.caravan.test.event.registration;
 
 import dev.baitursinov.caravan.event.EntityEventsRegistration;
-import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.NumberCarryingPayload;
+import dev.baitursinov.caravan.test.value.NumberCarryingPayload;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

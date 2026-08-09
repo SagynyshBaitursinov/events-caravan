@@ -1,6 +1,7 @@
-package dev.baitursinov.caravan.test.event.driven;
+package dev.baitursinov.caravan.test.event.registration;
 
 import dev.baitursinov.caravan.event.EntityEventsRegistration;
+import dev.baitursinov.caravan.test.value.TestEventPayload;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

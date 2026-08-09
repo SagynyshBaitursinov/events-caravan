@@ -1,6 +1,5 @@
-package dev.baitursinov.caravan.test.event.sourcing;
+package dev.baitursinov.caravan.test;
 
-import dev.baitursinov.caravan.test.AbstractSpringBootTest;
 import dev.baitursinov.caravan.test.event.handler.NumberCarryingEventsHandler;
 import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.Calculator;
 import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.CalculatorRepository;

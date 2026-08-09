@@ -1,6 +1,5 @@
-package dev.baitursinov.caravan.test.event.sourcing;
+package dev.baitursinov.caravan.test;
 
-import dev.baitursinov.caravan.test.AbstractSpringBootTest;
 import dev.baitursinov.caravan.test.event.sourcing.entity.account.Account;
 import dev.baitursinov.caravan.test.event.sourcing.entity.account.AccountRepository;
 import org.junit.jupiter.api.Test;

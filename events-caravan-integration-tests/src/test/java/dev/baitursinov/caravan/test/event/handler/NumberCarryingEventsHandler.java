@@ -2,7 +2,7 @@ package dev.baitursinov.caravan.test.event.handler;
 
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.consumer.handler.EventHandler;
-import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.NumberCarryingPayload;
+import dev.baitursinov.caravan.test.value.NumberCarryingPayload;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 

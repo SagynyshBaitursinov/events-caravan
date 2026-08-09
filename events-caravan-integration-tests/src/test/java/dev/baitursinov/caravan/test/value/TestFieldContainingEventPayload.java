@@ -1,4 +1,4 @@
-package dev.baitursinov.caravan.test.event.driven;
+package dev.baitursinov.caravan.test.value;
 
 public interface TestFieldContainingEventPayload {
 
