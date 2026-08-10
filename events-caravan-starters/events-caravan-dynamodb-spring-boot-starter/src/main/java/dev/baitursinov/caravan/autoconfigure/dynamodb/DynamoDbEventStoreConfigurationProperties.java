@@ -16,11 +16,11 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *                           an entity's events; defaults to {@code false} (eventually consistent
  *                           reads), which is cheaper and sufficient for most use cases
  */
-@ConfigurationProperties(DynamoDbEventStoreProperties.PREFIX)
-public record DynamoDbEventStoreProperties(String tableName,
-                                           @DefaultValue("1000") int queryMaxPageSize,
-                                           @DefaultValue("10000") long partitionShardSize,
-                                           @DefaultValue("false") boolean consistentRead) {
+@ConfigurationProperties(DynamoDbEventStoreConfigurationProperties.PREFIX)
+public record DynamoDbEventStoreConfigurationProperties(String tableName,
+                                                        @DefaultValue("1000") int queryMaxPageSize,
+                                                        @DefaultValue("10000") long partitionShardSize,
+                                                        @DefaultValue("false") boolean consistentRead) {
 
-  public static final String PREFIX = "caravan.event.store.dynamo-db";
+  public static final String PREFIX = "caravan.event.sourcing.event-store.dynamo-db";
 }

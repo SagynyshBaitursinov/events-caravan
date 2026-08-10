@@ -16,6 +16,8 @@ import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.serialization.EventSerializer;
 import dev.baitursinov.caravan.event.sourcing.EventSourcingRepositoryContext;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWriter;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWritingEventHandler;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotStore;
@@ -45,7 +47,8 @@ class CaravanAutoConfigurationTest {
       CaravanEventRegistryAutoConfiguration.class,
       CaravanEventDrivenComponentsAutoConfiguration.class,
       CaravanJacksonSerializationAutoConfiguration.class,
-      CaravanEventSourcingAutoConfiguration.class);
+      CaravanEventSourcingAutoConfiguration.class,
+      CaravanEntityStreamAutoConfiguration.class);
 
   ApplicationContextRunner contextRunner = new ApplicationContextRunner()
       .withConfiguration(autoConfigurations)
@@ -378,6 +381,37 @@ class CaravanAutoConfigurationTest {
             assertThat(context).getBean(EventConsumer.class).isSameAs(ownEventConsumer);
             assertThat(context).getBean(EventMessageConsumer.class).isSameAs(ownEventMessageConsumer);
           });
+    }
+  }
+
+  @Nested
+  class EntityStream {
+
+    @Test
+    void doesNotConfigureStreamWritingHandlerWithoutAnEntityStreamWriter() {
+      contextRunner.run(context ->
+          assertThat(context).doesNotHaveBean(EntityStreamWritingEventHandler.class));
+    }
+
+    @Test
+    void configuresStreamWritingHandlerWhenAnEntityStreamWriterIsPresent() {
+      var entityStreamWriter = mock(EntityStreamWriter.class);
+
+      contextRunner
+          .withBean(EntityStreamWriter.class, () -> entityStreamWriter)
+          .run(context -> assertThat(context).hasSingleBean(EntityStreamWritingEventHandler.class));
+    }
+
+    @Test
+    void applicationCanSupplyOwnStreamWritingHandler() {
+      var entityStreamWriter = mock(EntityStreamWriter.class);
+      var ownHandler = new EntityStreamWritingEventHandler(mock(EntityStreamWriter.class));
+
+      contextRunner
+          .withBean(EntityStreamWriter.class, () -> entityStreamWriter)
+          .withBean(EntityStreamWritingEventHandler.class, () -> ownHandler)
+          .run(context ->
+              assertThat(context).getBean(EntityStreamWritingEventHandler.class).isSameAs(ownHandler));
     }
   }
 }

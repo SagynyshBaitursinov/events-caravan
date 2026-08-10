@@ -66,8 +66,7 @@ class DynamoDbBasedEventStoreTest {
     eventStore = new DynamoDbBasedEventStore(
         dynamoDbClient,
         "events-table", 100, PARTITION_SHARD_SIZE, false, eventPayloadSerializer,
-        eventPayloadDeserializer
-    );
+        eventPayloadDeserializer);
 
     clearInvocations(dynamoDbClient);
   }

@@ -8,16 +8,21 @@ spring:
 caravan:
   event:
     sourcing:
+      event-store:
+        dynamo-db:
+          table-name: ${app.name}_events
+          query-max-page-size: 5
+          partition-shard-size: 10
+          consistent-read: false
       snapshot-store:
         dynamo-db:
           table-name: ${app.name}_snapshots
           consistent-read: false
-    store:
-      dynamo-db:
-        table-name: ${app.name}_events
-        query-max-page-size: 5
-        partition-shard-size: 10
-        consistent-read: false
+      entity-stream:
+        dynamo-db:
+          table-name: ${app.name}_entity-stream
+          time-bucket: MONTHLY
+          shard-count: 4
     messaging:
       queue-name-prefix: ${app.name}
       subscribed-entities:

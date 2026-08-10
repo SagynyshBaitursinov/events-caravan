@@ -9,12 +9,15 @@ import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedEventStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedSnapshotStore;
+import dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.DynamoDbBasedEntityStreamWriter;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWriter;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -24,8 +27,9 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
     before = {CaravanEventSourcingAutoConfiguration.class, CaravanEventDrivenComponentsAutoConfiguration.class},
     after = CaravanJacksonSerializationAutoConfiguration.class)
 @EnableConfigurationProperties({
-    DynamoDbEventStoreProperties.class,
-    DynamoDbSnapshotStoreProperties.class
+    DynamoDbEventStoreConfigurationProperties.class,
+    DynamoDbSnapshotStoreConfigurationProperties.class,
+    DynamoDbEntityStreamConfigurationProperties.class
 })
 public class CaravanDynamoDbAutoConfiguration {
 
@@ -35,7 +39,7 @@ public class CaravanDynamoDbAutoConfiguration {
       DynamoDbClient dynamoDbClient,
       EventPayloadSerializer eventPayloadSerializer,
       EventPayloadDeserializer eventPayloadDeserializer,
-      DynamoDbEventStoreProperties properties) {
+      DynamoDbEventStoreConfigurationProperties properties) {
 
     log.info(
         "Configuring DynamoDbBasedEventStore on tableName={} "
@@ -45,9 +49,12 @@ public class CaravanDynamoDbAutoConfiguration {
 
     return new DynamoDbBasedEventStore(
         dynamoDbClient,
-        properties.tableName(), properties.queryMaxPageSize(), properties.partitionShardSize(), properties.consistentRead(), eventPayloadSerializer,
-        eventPayloadDeserializer
-    );
+        properties.tableName(),
+        properties.queryMaxPageSize(),
+        properties.partitionShardSize(),
+        properties.consistentRead(),
+        eventPayloadSerializer,
+        eventPayloadDeserializer);
   }
 
   @Bean
@@ -56,15 +63,34 @@ public class CaravanDynamoDbAutoConfiguration {
       DynamoDbClient dynamoDbClient,
       SnapshotSerializer snapshotSerializer,
       SnapshotDeserializer snapshotDeserializer,
-      DynamoDbSnapshotStoreProperties properties) {
+      DynamoDbSnapshotStoreConfigurationProperties properties) {
 
     log.info("Configuring DynamoDbBasedSnapshotStore on tableName={} (consistentRead={})",
         properties.tableName(), properties.consistentRead());
 
     return new DynamoDbBasedSnapshotStore(
         dynamoDbClient,
-        properties.tableName(), properties.consistentRead(), snapshotSerializer,
-        snapshotDeserializer
-    );
+        properties.tableName(),
+        properties.consistentRead(),
+        snapshotSerializer,
+        snapshotDeserializer);
+  }
+
+  @Bean
+  @ConditionalOnProperty(prefix = DynamoDbEntityStreamConfigurationProperties.PREFIX, name = "table-name")
+  @ConditionalOnMissingBean(EntityStreamWriter.class)
+  public DynamoDbBasedEntityStreamWriter dynamoDbBasedEntityStream(
+      DynamoDbClient dynamoDbClient,
+      DynamoDbEntityStreamConfigurationProperties properties) {
+
+    log.info(
+        "Configuring DynamoDbBasedEntityStream on tableName={} (timeBucket={}, shardCount={})",
+        properties.tableName(), properties.timeBucket(), properties.shardCount());
+
+    return new DynamoDbBasedEntityStreamWriter(
+        dynamoDbClient,
+        properties.tableName(),
+        properties.timeBucket(),
+        properties.shardCount());
   }
 }

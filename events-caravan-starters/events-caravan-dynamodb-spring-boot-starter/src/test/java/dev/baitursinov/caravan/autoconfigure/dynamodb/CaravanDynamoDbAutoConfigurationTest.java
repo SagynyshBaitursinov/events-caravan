@@ -6,6 +6,9 @@ import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedEventStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedSnapshotStore;
+import dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.DynamoDbBasedEntityStreamWriter;
+import dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.TimeBucket;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWriter;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotStore;
@@ -44,9 +47,9 @@ class CaravanDynamoDbAutoConfigurationTest {
       .withConfiguration(autoConfigurations)
       .withUserConfiguration(ApplicationConfiguration.class)
       .withPropertyValues(
-          "caravan.event.store.dynamo-db.table-name=test-app_events",
-          "caravan.event.store.dynamo-db.query-max-page-size=50",
-          "caravan.event.store.dynamo-db.partition-shard-size=100",
+          "caravan.event.sourcing.event-store.dynamo-db.table-name=test-app_events",
+          "caravan.event.sourcing.event-store.dynamo-db.query-max-page-size=50",
+          "caravan.event.sourcing.event-store.dynamo-db.partition-shard-size=100",
           "caravan.event.sourcing.snapshot-store.dynamo-db.table-name=test-app_snapshots");
 
   @Configuration(proxyBeanMethods = false)
@@ -90,7 +93,7 @@ class CaravanDynamoDbAutoConfigurationTest {
   void bindsEventStoreProperties() {
     contextRunner
         .run(context ->
-            assertThat(context).getBean(DynamoDbEventStoreProperties.class)
+            assertThat(context).getBean(DynamoDbEventStoreConfigurationProperties.class)
                 .satisfies(properties -> {
                   assertThat(properties.tableName()).isEqualTo("test-app_events");
                   assertThat(properties.queryMaxPageSize()).isEqualTo(50);
@@ -104,10 +107,10 @@ class CaravanDynamoDbAutoConfigurationTest {
         .withConfiguration(autoConfigurations)
         .withUserConfiguration(ApplicationConfiguration.class)
         .withPropertyValues(
-            "caravan.event.store.dynamo-db.table-name=test-app_events",
+            "caravan.event.sourcing.event-store.dynamo-db.table-name=test-app_events",
             "caravan.event.sourcing.snapshot-store.dynamo-db.table-name=test-app_snapshots")
         .run(context ->
-            assertThat(context).getBean(DynamoDbEventStoreProperties.class)
+            assertThat(context).getBean(DynamoDbEventStoreConfigurationProperties.class)
                 .satisfies(properties -> {
                   assertThat(properties.partitionShardSize()).isEqualTo(10_000);
                   assertThat(properties.queryMaxPageSize()).isEqualTo(1_000);
@@ -132,14 +135,14 @@ class CaravanDynamoDbAutoConfigurationTest {
   @Test
   void failsWhenPartitionShardSizeIsNotPositive() {
     contextRunner
-        .withPropertyValues("caravan.event.store.dynamo-db.partition-shard-size=0")
+        .withPropertyValues("caravan.event.sourcing.event-store.dynamo-db.partition-shard-size=0")
         .run(context -> assertThat(context).hasFailed());
   }
 
   @Test
   void failsWhenQueryMaxPageSizeIsNotPositive() {
     contextRunner
-        .withPropertyValues("caravan.event.store.dynamo-db.query-max-page-size=0")
+        .withPropertyValues("caravan.event.sourcing.event-store.dynamo-db.query-max-page-size=0")
         .run(context -> assertThat(context).hasFailed());
   }
 
@@ -149,7 +152,7 @@ class CaravanDynamoDbAutoConfigurationTest {
         .withConfiguration(autoConfigurations)
         .withUserConfiguration(ApplicationConfigurationWithMissingTable.class)
         .withPropertyValues(
-            "caravan.event.store.dynamo-db.table-name=test-app_events",
+            "caravan.event.sourcing.event-store.dynamo-db.table-name=test-app_events",
             "caravan.event.sourcing.snapshot-store.dynamo-db.table-name=test-app_snapshots")
         .run(context -> assertThat(context).hasFailed());
   }
@@ -160,7 +163,7 @@ class CaravanDynamoDbAutoConfigurationTest {
         .withConfiguration(autoConfigurations)
         .withUserConfiguration(ApplicationConfigurationWithInactiveTable.class)
         .withPropertyValues(
-            "caravan.event.store.dynamo-db.table-name=test-app_events",
+            "caravan.event.sourcing.event-store.dynamo-db.table-name=test-app_events",
             "caravan.event.sourcing.snapshot-store.dynamo-db.table-name=test-app_snapshots")
         .run(context -> assertThat(context).hasFailed());
   }
@@ -220,5 +223,64 @@ class CaravanDynamoDbAutoConfigurationTest {
           assertThat(context).doesNotHaveBean(DynamoDbBasedEventStore.class);
           assertThat(context).hasSingleBean(DynamoDbBasedSnapshotStore.class);
         });
+  }
+
+  @Test
+  void doesNotConfigureEntityStreamByDefault() {
+    contextRunner.run(context -> assertThat(context).doesNotHaveBean(DynamoDbBasedEntityStreamWriter.class));
+  }
+
+  @Test
+  void configuresEntityStreamWhenTableNameConfigured() {
+    contextRunner
+        .withPropertyValues("caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream")
+        .run(context -> assertThat(context).hasSingleBean(DynamoDbBasedEntityStreamWriter.class));
+  }
+
+  @Test
+  void bindsEntityStreamPropertiesWithDefaults() {
+    contextRunner
+        .withPropertyValues("caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream")
+        .run(context ->
+            assertThat(context).getBean(DynamoDbEntityStreamConfigurationProperties.class)
+                .satisfies(properties -> {
+                  assertThat(properties.tableName()).isEqualTo("test-app_entity-stream");
+                  assertThat(properties.shardCount()).isEqualTo(16);
+                  assertThat(properties.timeBucket()).isEqualTo(TimeBucket.MONTHLY);
+                }));
+  }
+
+  @Test
+  void bindsEntityStreamPropertiesExplicitly() {
+    contextRunner
+        .withPropertyValues(
+            "caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream",
+            "caravan.event.sourcing.entity-stream.dynamo-db.shard-count=4",
+            "caravan.event.sourcing.entity-stream.dynamo-db.time-bucket=DAILY")
+        .run(context ->
+            assertThat(context).getBean(DynamoDbEntityStreamConfigurationProperties.class)
+                .satisfies(properties -> {
+                  assertThat(properties.shardCount()).isEqualTo(4);
+                  assertThat(properties.timeBucket()).isEqualTo(TimeBucket.DAILY);
+                }));
+  }
+
+  @Test
+  void applicationMaySupplyOwnEntityStreamWriter() {
+    var ownEntityStreamWriter = mock(EntityStreamWriter.class);
+
+    contextRunner
+        .withPropertyValues("caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream")
+        .withBean(EntityStreamWriter.class, () -> ownEntityStreamWriter)
+        .run(context -> assertThat(context).doesNotHaveBean(DynamoDbBasedEntityStreamWriter.class));
+  }
+
+  @Test
+  void failsWhenShardCountIsNotPositive() {
+    contextRunner
+        .withPropertyValues(
+            "caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream",
+            "caravan.event.sourcing.entity-stream.dynamo-db.shard-count=0")
+        .run(context -> assertThat(context).hasFailed());
   }
 }
