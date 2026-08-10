@@ -35,5 +35,8 @@ build/
 .vscode/
 
 /dynamodb-sqs-events-publisher-lambda/lambda.zip
+
+wip/
+
 ### flatten-maven-plugin ###
 .flattened-pom.xml

@@ -7,8 +7,8 @@
 [![Maven Central](https://img.shields.io/maven-central/v/dev.baitursinov/events-caravan.svg)](https://central.sonatype.com/artifact/dev.baitursinov/events-caravan)
 
 Lightweight Event-sourcing and Event-driven architecture framework designed for scalability & performance, while
-guaranteeing eventual consistency. The core is technology-agnostic and every integration point is an interface that can
-be implemented utilizing any database and message broker fitting the library's philosophy and contracts. Adapters for
+enabling eventual consistency. The core is technology-agnostic and every integration point is an interface that can be
+implemented utilizing any database and message broker fitting the library's philosophy and contracts. Adapters for
 [AWS DynamoDB, SNS/SQS](#i-modules-and-dependencies) are shipped as a reference
 implementation [reflecting the library's philosophy](#why-the-reference-implementation-is-aws-why-it-suits-the-projects-philosophy-and-what-could-substitute-it).
 
@@ -36,8 +36,9 @@ implementation [reflecting the library's philosophy](#why-the-reference-implemen
 - [Why the reference implementation is AWS](#why-the-reference-implementation-is-aws-why-it-suits-the-projects-philosophy-and-what-could-substitute-it)
 - [When to choose Events-caravan over Axon](#when-to-choose-events-caravan-over-axon)
 - [Q&A](#qa)
-- [Further reading](#further-reading)
+- [Yet to be built](#yet-to-be-built)
 - [Contributing](#contributing)
+- [Further reading](#further-reading)
 - [License](#license)
 
 ## Philosophy in principles
@@ -66,6 +67,9 @@ implementation [reflecting the library's philosophy](#why-the-reference-implemen
 10. **Modules should be substitutable.** Every integration point (`EventStore`, `EventProducer`,
     `SnapshotStore`, (de)serializers, the polling transport, the events publisher) is an interface, implementations of
     which could vary.
+11. **Developer experience is important.** Events-caravan provides simple interfaces, no DSL, which help devs to stay
+    focused on building domain behavior; framework has no complex mechanisms that require configuring, and it fails fast
+    when misconfigured.
 
 ## Design and Architecture
 
@@ -118,9 +122,10 @@ be [registered](#ii-register-your-events).
 1. Domain methods on an `EventSourcedEntity` record new `Events`; and when entities are saved in
    `EventSourcedRepository` all newly recorded events are appended to `EventStore`.
    See [usage](#iv-set-up-an-event-sourced-repository)
-2. It's possible to produce multiple events atomically (up to 100 in DynamoDB) when saving an `EventSourcedEntity`, but
-   it's recommended to limit to one event per operation. That saves the database from potential duty having to span a
-   transaction across multiple partitions and writer nodes, which is a more complex and costly operation.
+2. It's possible to produce multiple events atomically (up to 100 with AWS DynamoDB) when saving an
+   `EventSourcedEntity`, but it's recommended to limit to one event per operation. That saves the database from
+   potential duty having to span a transaction across multiple partitions and writer nodes, which is a more complex and
+   costly operation.
 3. Events that do not belong to an `EventSourcedEntity` can be produced using `EventProducer.produce` interface
    directly.
 4. Every produced event is an immutable document inserted into database. Inserting an event *is* publishing it. The
@@ -193,21 +198,20 @@ processes.
 > Per [Principle #6](#philosophy-in-principles), every guarantee traded away for scalability is listed here
 > explicitly, together with how to compensate for it.
 
-1. The biggest compromise of the framework compared to another popular event-sourcing framework, Axon, is that
-   Events-caravan does not maintain a global sequence of events across all entities. Therefore, there's no global
-   iterable stream of all events. Such a compromise is taken because otherwise a global ordering mechanism, or a single
-   global sequence number provider would be necessary. This central orchestrator would become a bottleneck of the system
-   upon writing, preventing writer processes from scaling.
+1. The most important compromise of Events-caravan compared to another popular event-sourcing
+   framework, [Axon](#when-to-choose-events-caravan-over-axon), is that Events-caravan does not maintain a global
+   sequence of events across all entities. Therefore, there's no global iterable stream of events. Such a compromise is
+   taken because otherwise a global ordering mechanism would be necessary; This central orchestrator would become a
+   bottleneck of the system upon writing, preventing writer processes from scaling. Events-caravan avoids this by
+   partitioning at the entity level, enabling more elastic horizontal scaling.
 
-   Events-caravan's approach has the following drawbacks:
-    - There's no built-in event-store in case if events across many entities need to be replayed.
-    - CQRS query-model reflections cannot be re-built from scratch by retriggering `EventHandlers` for all historic
-      events.
+   This approach has the following drawbacks:
+    - CQRS query-model reflections cannot be re-built by retriggering `EventHandlers` for all historic events.
+    - There's no built-in event-store in case if events across many entities need to be republished.
 
    If the mentioned features are important, in compensation for this compromise
-    - A sorted query-model holding all (or still relevant) entity references; and mechanism of re-publishing already
-      sorted events per entity.
-    - A separate globally-sorted event-log; and mechanism of re-publishing them.
+    - A stream of entity references; and mechanism of re-publishing already sorted events per entity.
+    - A separate globally-sorted event-log;
 
    can be maintained. Both should be populated asynchronously and stay eventually consistent with the events-caravan's
    event-store as per the project's philosophy. `EventHandlers` can be utilized for achieving this.
@@ -223,7 +227,8 @@ processes.
 
 4. Optimistic locking triggers late, and may waste hardware resources if clashes happen too often. DynamoDB's
    `consistent-read` could be used, which can be enabled in the library properties. But due to its price use it only in
-   cases if frequent parallel access to same entities are anticipated.
+   cases if frequent parallel access to same entities are anticipated. On top of that custom pessimistic locking and
+   retry mechanisms can be applied on the entities that expect frequent clashes.
 
 5. With the reference technology adapters, events must fit DynamoDB item (400 KB) and SNS message (256 KB) limits.
 
@@ -231,7 +236,8 @@ processes.
 
 ![Sagas diagram](diagrams/sagas.png)
 
-For processes spanning multiple entities or services, prefer **choreography-based sagas**: each step is an
+For processes spanning multiple entities or services,
+prefer [choreography-based sagas](https://microservices.io/patterns/data/saga.html): each step is an
 `EventHandler`
 that records the next event, and if process fails due to domain rules, compensation is just another event reverting
 previous operations. This needs no machinery beyond what the library provides and keeps the pipeline free of
@@ -316,8 +322,8 @@ public class CalculatorEventsConfiguration {
 > - A registered entity does not have to be produced locally: you can register events produced by another application to
     > react to them in your application.
 >
-> - Event types are identified by explicit **names**, not Java class names, so payload classes can be renamed and moved
-    > freely without breaking stored history.
+> - Entity and Event names are identified by explicit **Strings**, not Java class names, so payload classes can be
+    renamed and moved freely without breaking stored history.
 >
 > - The registry is built once at startup. Application validates every event produced or applied against the registry.
 >
@@ -363,13 +369,13 @@ public class Calculator extends EventSourcedEntity {
 }
 ```
 
-> [!NOTE]
+> [!TIP]
 > - Apply methods can also live outside the entity class (see `@ApplyEvent` and `@EventApplier`), keeping domain classes
     > free of replay mechanics.
 >
->   It's recommended to place @EventApplier classes in the same package in order to utilize
-    > package-private fields/methods in order to mutate entity state while applying events.
-    > This helps Calculator not to expose public methods just for applying events without real domain behavior.
+>   It's recommended to place external @EventApplier classes in the same package as Entity in order to utilize
+    > package-private fields/methods in order to mutate Entity's state while applying events.
+    > This helps Entity not to expose public methods just for applying events without real domain behavior.
 
 ### IV. Set up an event sourced repository
 
@@ -519,7 +525,7 @@ caravan:
 
 > [!NOTE]
 > - All values except the table names, `queue-name-prefix` and `subscribed-entities` properties are shown at their
-    defaults and can be omitted.
+    > defaults and can be omitted.
 
 ### VIII. Infrastructure
 
@@ -535,7 +541,11 @@ publishing events. The Lambda is documented in the [Lambda's README](dynamodb-sq
 
 ## Why the reference implementation is AWS, why it suits the project's philosophy and what could substitute it
 
-#### DynamoDB and SNS/SQS were chosen because each maps directly onto a philosophy principle, not for AWS-specific convenience:
+#### DynamoDB and SNS/SQS were chosen because each maps directly onto a philosophy principle
+
+Services that are utilized by events-caravan are serverless, and horizontal scaling is provided by AWS itself. This is
+the primary reason why these technologies were chosen. Events-caravan utilizes them without constraining the underlying
+infrastructure from scaling.
 
 - **DynamoDB** partitions natively by primary key, has no single leader node applications write through, and scales
   throughput per partition rather than globally, directly
@@ -590,14 +600,16 @@ for infrastructure.
       concerning the important components, were carefully read, analyzed, integrated with thought. I find it important
       to stay on top of the code changes, learn from them and apply human judgment.
 
-## Further reading
+## Yet to be built:
 
-- [Fowler on Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html)
-- [CQRS](https://martinfowler.com/bliki/CQRS.html)
-- [Dynamo paper](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf)
-- [Tyler Treat's "You Cannot Have Exactly-Once Delivery"](https://bravenewgeek.com/you-cannot-have-exactly-once-delivery/)
-- [Gregor Hohpe's "Your Coffee Shop Doesn't Use Two-Phase Commit"](https://www.enterpriseintegrationpatterns.com/docs/IEEE_Software_Design_2PC.pdf)
-- Kleppmann's *Designing Data-Intensive Applications*.
+1. Introduce an optional sharded stream of all entities as a response Compromise#1 in README.md.
+2. Introduce Event versioning and upcasting mechanism.
+3. Support Multi region scalability.
+4. Provide possibility of taking snapshots async from EventSourcedRepository.save ();
+5. Support events flow traceability, metrics.
+6. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
+   the event details from the event-store.
+7. Support to have @ApplyEvent parameter as unwrapped payload (without Event<?>).
 
 ## Contributing
 
@@ -607,8 +619,14 @@ feature proposals, and pull requests are welcome — see the
 [code of conduct](CODE_OF_CONDUCT.md) for community standards. Security vulnerabilities should be reported privately as
 described in the [security policy](SECURITY.md).
 
-Check out [TODOs](TODOs.md) for the planned improvements of the library. Some of those could be implemented in
-coordination with the author.
+## Further reading
+
+- [Fowler on Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html)
+- [CQRS](https://martinfowler.com/bliki/CQRS.html)
+- [Dynamo paper](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf)
+- [Tyler Treat's "You Cannot Have Exactly-Once Delivery"](https://bravenewgeek.com/you-cannot-have-exactly-once-delivery/)
+- [Gregor Hohpe's "Your Coffee Shop Doesn't Use Two-Phase Commit"](https://www.enterpriseintegrationpatterns.com/docs/IEEE_Software_Design_2PC.pdf)
+- Kleppmann's *Designing Data-Intensive Applications*.
 
 ## License
 
