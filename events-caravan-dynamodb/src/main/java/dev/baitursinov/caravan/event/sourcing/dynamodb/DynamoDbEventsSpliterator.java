@@ -19,10 +19,12 @@ import java.util.function.LongFunction;
 /**
  * Iterates over single entity's events across its sharded partitions in ascending sequence-number
  * order. Events for an entity are spread across partition keys suffixed by
- * {@code sequenceNumber/partitionShardSize}, so once a shard's own DynamoDB pagination is
- * exhausted, the highest sequence number observed in that shard is compared against the shard's
- * upper bound: an exact match means the shard was filled to capacity and a subsequent shard may
- * exist, anything less means this is the entity's last partition.
+ * {@code sequenceNumber/partitionShardSize}, so after each page the highest sequence number
+ * observed in the shard is compared against the shard's upper bound: an exact match means the
+ * shard was filled to capacity and iteration jumps straight to the next shard (skipping any
+ * remaining DynamoDB pagination, which would only return an empty page); otherwise the shard's
+ * own pagination is followed until exhausted, and a shard ending below its upper bound is the
+ * entity's last partition.
  */
 public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
 
@@ -138,19 +140,24 @@ public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
           .build();
     }
 
+    if (lastSequenceNumberSeenInShard == shardUpperBound(currentShardIndex)) {
+      proceedToNextShard();
+      return shardQueryBuilderFactory.apply(currentShardIndex).build();
+    }
+
     if (withinShardLastEvaluatedKey != null) {
       return shardQueryBuilderFactory.apply(currentShardIndex)
           .exclusiveStartKey(withinShardLastEvaluatedKey)
           .build();
     }
 
-    if (lastSequenceNumberSeenInShard != shardUpperBound(currentShardIndex)) {
-      return null;
-    }
+    return null;
+  }
 
+  private void proceedToNextShard() {
     currentShardIndex++;
     lastSequenceNumberSeenInShard = -1;
-    return shardQueryBuilderFactory.apply(currentShardIndex).build();
+    withinShardLastEvaluatedKey = null;
   }
 
   private long shardUpperBound(long shardIndex) {

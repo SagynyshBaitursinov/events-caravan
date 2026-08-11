@@ -181,6 +181,47 @@ class DynamoDbEventsSpliteratorTest {
   }
 
   @Test
+  void pageEndingExactlyAtShardUpperBoundJumpsToNextShardWithoutFollowingLastEvaluatedKey() {
+    long partitionShardSize = 2;
+    DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
+
+    when(dynamoDbClient.query(any(QueryRequest.class))).thenAnswer(invocation -> {
+      QueryRequest request = invocation.getArgument(0);
+      String pkValue = request.expressionAttributeValues().get(":pkVal").s();
+
+      if (pkValue.endsWith("#0")) {
+        if (request.hasExclusiveStartKey()) {
+          return QueryResponse.builder().items(List.of()).build();
+        }
+        return QueryResponse.builder()
+            .items(List.of(item(1), item(2)))
+            .lastEvaluatedKey(Map.of(SK, AttributeValue.fromN("2")))
+            .build();
+      }
+      if (pkValue.endsWith("#1")) {
+        return QueryResponse.builder().items(
+            List.of(item(3))).build();
+      }
+      throw new AssertionError("Unexpected shard queried: " + pkValue);
+    });
+
+    var spliterator = freshSpliterator(dynamoDbClient, partitionShardSize, 0);
+
+    List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
+        .map(Event::sequenceNumber)
+        .toList();
+
+    assertThat(sequenceNumbers).containsExactly(1L, 2L, 3L);
+
+    var queryRequestsCaptor = ArgumentCaptor.forClass(QueryRequest.class);
+    verify(dynamoDbClient, times(2)).query(queryRequestsCaptor.capture());
+
+    var secondRequest = queryRequestsCaptor.getAllValues().get(1);
+    assertThat(secondRequest.expressionAttributeValues().get(":pkVal").s()).endsWith("#1");
+    assertThat(secondRequest.hasExclusiveStartKey()).isFalse();
+  }
+
+  @Test
   void suppliedFirstShardExclusiveStartKeyIsSentOnTheFirstRequestOnly() {
     long partitionShardSize = 5;
     DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
