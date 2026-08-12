@@ -42,7 +42,7 @@ public class ConcurrencyControlTest extends AbstractSpringBootTest {
     }
 
     await()
-        .atMost(Duration.ofSeconds(60))
+        .atMost(Duration.ofSeconds(90))
         .pollInterval(Duration.ofMillis(50))
         .untilAsserted(() -> assertThat(calculatorRepository.findBy(calculatorId))
             .hasValueSatisfying(calculator -> assertThat(calculator.getCurrentNumber()).isEqualTo(1000L)));

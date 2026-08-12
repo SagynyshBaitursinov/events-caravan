@@ -41,12 +41,12 @@
         <module>events-caravan-queue-polling</module>
         <module>events-caravan-dynamodb</module>
         <module>events-caravan-sqs</module>
-        <module>events-caravan-starters</module>
+        <module>events-caravan-spring-boot-starters</module>
         <module>events-caravan-integration-tests</module>
     </modules>
 
     <properties>
-        <revision>1.1.0</revision>
+        <revision>1.1.1-SNAPSHOT</revision>
 
         <java.version>25</java.version>
         <lombok.version>1.18.46</lombok.version>

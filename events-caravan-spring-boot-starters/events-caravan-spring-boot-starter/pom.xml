@@ -3,13 +3,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>events-caravan-dynamodb-spring-boot-starter</artifactId>
-    <name>events-caravan-dynamodb-spring-boot-starter</name>
-    <description>Spring Boot starter for DynamoDB-backed event and snapshot stores</description>
+    <artifactId>events-caravan-spring-boot-starter</artifactId>
+    <name>events-caravan-spring-boot-starter</name>
+    <description>Spring Boot starter for events-caravan core</description>
 
     <parent>
         <groupId>dev.baitursinov</groupId>
-        <artifactId>events-caravan-starters</artifactId>
+        <artifactId>events-caravan-spring-boot-starters</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
@@ -17,14 +17,15 @@
     <dependencies>
         <dependency>
             <groupId>dev.baitursinov</groupId>
-            <artifactId>events-caravan-dynamodb</artifactId>
+            <artifactId>events-caravan</artifactId>
             <version>${revision}</version>
         </dependency>
 
         <dependency>
-            <groupId>dev.baitursinov</groupId>
-            <artifactId>events-caravan-spring-boot-starter</artifactId>
-            <version>${revision}</version>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 </project>

@@ -35,8 +35,6 @@ MAX_RECEIVE_COUNT=3
 EVENTS_PUBLISHER_FAILURE_QUEUE_NAME="${EVENTS_PUBLISHER_LAMBDA_NAME}${DEAD_LETTER_QUEUE_SUFFIX}"
 EVENTS_PUBLISHER_MAXIMUM_RETRY_ATTEMPTS=3
 
-LAMBDA_RUNTIME_IMAGE="public.ecr.aws/lambda/nodejs:24"
-
 source ./dynamodb-sqs-events-publisher-lambda/zip
 
 start_floci() {
@@ -44,12 +42,6 @@ start_floci() {
   docker compose --file ./local/docker-compose-environment.yaml up --detach
 
   wait_for_floci
-}
-
-pull_lambda_runtime_image() {
-  echo "Pulling Lambda runtime image: $LAMBDA_RUNTIME_IMAGE..."
-  docker pull "$LAMBDA_RUNTIME_IMAGE" > /dev/null
-  echo "  ✓ Pulled image: $LAMBDA_RUNTIME_IMAGE"
 }
 
 wait_for_floci() {
@@ -387,7 +379,7 @@ subscribe_events_publisher_lambda_to_dynamodb() {
 
 main() {
   start_floci
-  pull_lambda_runtime_image
+  #pull_lambda_runtime_image
   create_sns_topics
   create_incoming_sqs_queues_and_subscriptions
   create_events_dynamodb_table

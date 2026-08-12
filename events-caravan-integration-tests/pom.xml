@@ -29,7 +29,6 @@
             <version>${revision}</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>dev.baitursinov</groupId>
             <artifactId>events-caravan-sqs-spring-boot-starter</artifactId>
