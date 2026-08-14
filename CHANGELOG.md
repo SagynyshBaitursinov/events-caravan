@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.1](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.1.0...events-caravan-v1.1.1) (2026-08-14)
+
+
+### Dependencies
+
+* 1.1.1-Snapshot ([2a52220](https://github.com/SagynyshBaitursinov/events-caravan/commit/2a522202ef9cbaa24698ea749b568bbce70b09ed))
+* renameing events-caravan to events-caravan-core to be explicit ([a4263aa](https://github.com/SagynyshBaitursinov/events-caravan/commit/a4263aaf4b52331b13f9b06b9044337f41076082))
+
 ## [1.1.0](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.0.1...events-caravan-v1.1.0) (2026-08-11)
 
 
