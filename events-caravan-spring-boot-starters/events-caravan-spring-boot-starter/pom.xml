@@ -17,7 +17,7 @@
     <dependencies>
         <dependency>
             <groupId>dev.baitursinov</groupId>
-            <artifactId>events-caravan</artifactId>
+            <artifactId>events-caravan-core</artifactId>
             <version>${revision}</version>
         </dependency>
 

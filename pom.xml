@@ -37,7 +37,7 @@
     </scm>
 
     <modules>
-        <module>events-caravan</module>
+        <module>events-caravan-core</module>
         <module>events-caravan-queue-polling</module>
         <module>events-caravan-dynamodb</module>
         <module>events-caravan-sqs</module>

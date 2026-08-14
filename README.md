@@ -4,7 +4,7 @@
 ![Java](https://img.shields.io/badge/Java-25-ED8B00)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.x-6DB33F)
 ![Reference impl](https://img.shields.io/badge/reference_impl-DynamoDB_·_SNS%2FSQS-FF9900)
-[![Maven Central](https://img.shields.io/maven-central/v/dev.baitursinov/events-caravan.svg)](https://central.sonatype.com/artifact/dev.baitursinov/events-caravan)
+[![Maven Central](https://img.shields.io/maven-central/v/dev.baitursinov/events-caravan-core.svg)](https://central.sonatype.com/artifact/dev.baitursinov/events-caravan-core)
 
 Event-sourcing framework designed for scalability & performance, while relying on eventual consistency. The core is
 technology-agnostic and every integration point is an interface that can be implemented for any database and message
@@ -223,7 +223,8 @@ query-models **asynchronously** from command-handling writer processes.
 2. Events delivery to consumers is at-least _(not exactly)_ once and unordered. Consumers own idempotency and, if
    needed, ordering. Every event message carries a gapless `sequenceNumber` starting at 1 per `entityReference`, which
    might be helpful for deduplication and reordering by an application. Ultimate deduplication and reordering is
-   recommended to be taken care of by an underlying domain logic.
+   recommended to be taken care of by an underlying domain layer. e.g. Do not brew _coffee#7_, if the _coffee#7_ is
+   already in status _delivered_.
 
 3. Since due to the project's philosophy the only unit of consistency is a single Entity, if there's a necessity to
    maintain consistency across multiple Entities, applications must respond to this. The answer to this challenge is
@@ -244,8 +245,8 @@ For processes spanning multiple entities or services,
 prefer [choreography-based sagas](https://microservices.io/patterns/data/saga.html): each step is an `EventHandler`
 that records the next event, and if process fails due to domain logic, compensation is just another event reverting
 previous operations. This needs no machinery beyond what the events-caravan provides and keeps the pipeline free of
-orchestrators, in line with the philosophy. If a domain-process genuinely needs central state, model the process itself
-as an `EventSourcedEntity`. Its events history then documents the workflow.
+orchestrators, in line with the philosophy. If a domain-process genuinely needs a central state, model the process
+itself as an `EventSourcedEntity`. Its events history then documents the workflow.
 
 ## User guide
 
@@ -253,7 +254,7 @@ as an `EventSourcedEntity`. Its events history then documents the workflow.
 
 | Module                                      | Purpose                                                                                                                                                |
 |---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| events-caravan                              | Core, technology-agnostic: entities, repositories, event registry, interfaces, Jackson serialization, event consumption and handlers, entity stream    |
+| events-caravan-core                         | Core, technology-agnostic: entities, repositories, event registry, interfaces, Jackson serialization, event consumption and handlers, entity stream    |
 | events-caravan-dynamodb                     | `EventStore` + `EventProducer` + `SnapshotStore` + `EntityStreamWriter` implementations on DynamoDB, with partition sharding for long entity histories |
 | events-caravan-queue-polling                | Transport-agnostic continuous polling mechanism (virtual threads, adaptive poller scaling, batched deletes, graceful shutdown)                         |
 | events-caravan-sqs                          | SQS polling/deletion primitives                                                                                                                        |
@@ -640,17 +641,27 @@ for infrastructure.
       top of code changes; to be AI's driver, but also learn from it and apply its suggestions only with human judgment.
 
 - **Q:** How to design Aggregates (DDD)?
-    - **A:** EventSourcedEntity as single unit of consistency can serve as an Aggregate root. Its state may contain
-      other entities or value objects; and it may maintain business invariants within itself.
+    - **A:** EventSourcedEntity as single unit of consistency, which can serve as an Aggregate root. Its state may
+      contain other domain entities or value objects; and it may maintain business invariants within itself.
+
+- **Q:** Why isn't an Inbox for events-messages to technically deduplicate them based on EventReference to achieve
+  idempotence?
+    - **A:** having an "Inbox" table means that application needs to populate it after processing each message. If it's
+      done in a separate transaction, appearance of the Inbox entry after a domain-write is not guaranteed. If saving
+      the entry is done in the transaction scope as the domain entity writes, it'll contradict the philosophy of the
+      framework: the transaction would have to span two tables (or partitions, if went with single DynamoDB table),
+      potentially across several machines. Which has its costs when it comes to scalability, and in fact it's just a
+      more costly operation in AWS.
 
 ## Yet to be built:
 
-1. Break parameters of sharding for Entity-Stream per entityName, since different entities might have different
-   frequency of creation.
-2. Introduce a mechanism of iterating over [Entity-Stream](#vii-set-up-an-optional-entity-stream) and re-building CQRS.
-3. Support events flow traceability, metrics.
+1. Parametrize [Entity-Stream](#vii-set-up-an-optional-entity-stream) per entityName, since different entities might
+   have different frequency of event production.
+2. Introduce a mechanism of iterating over [Entity-Stream](#vii-set-up-an-optional-entity-stream) and re-building CQRS
+   query-models.
+3. Introduce events flow traceability, metrics.
 4. Introduce Event versioning and upcasting mechanism.
-5. Support Multi region scalability.
+5. Introduce Multi region scalability.
 6. Provide possibility of taking snapshots async from `EventSourcedRepository.save(...)`;
 7. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
    the event details from the event-store.
@@ -658,7 +669,7 @@ for infrastructure.
 
 ## Contributing
 
-Events Caravan is created and currently maintained by [Sagynysh Baitursinov](https://github.com/SagynyshBaitursinov).
+Events-caravan is created and currently maintained by [Sagynysh Baitursinov](https://github.com/SagynyshBaitursinov).
 Bug reports, feature proposals, and pull requests are welcome — see the
 [contributing guide](CONTRIBUTING.md) for the development setup and workflow, and the
 [code of conduct](CODE_OF_CONDUCT.md) for community standards. Security vulnerabilities should be reported privately as
