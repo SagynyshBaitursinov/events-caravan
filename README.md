@@ -494,31 +494,65 @@ public class NumberAddedHandler implements EventHandler<NumberCarryingPayload> {
 ### VII. Set up an optional Entity-stream
 
 Per [Compromise #1](#compromises), Events-caravan keeps no global, cross-entity stream of events. Events are sorted in
-scope of each entity only. So in case if all entities or events must be iterated over (f.e. CQRS query-models need to be
+scope of each entity only. So in case if all entities or events must be iterated over (e.g. CQRS query-models need to be
 rebuilt), an optional functionality Entity-stream compensates for absence of global sequence of events.
 
 With the DynamoDB starter, setting `caravan.event.sourcing.entity-stream.dynamo-db.table-name` property autoconfigures a
 `DynamoDbBasedEntityStreamWriter`, and its caller `EntityStreamWritingEventHandler`
 (see [Configure via application properties](#viii-configure-via-application-properties)).
 
-The `DynamoDbBasedEntityStreamWriter` partitions entity references by their (1) `entityName`, (2) first event
-timestamp's `time-bucket` granularity, and (3) within each bucket into N shards (`shard-count`) by a hash _(FNV-1a
-64-bit)_ of `entityId`. This way the Entity-stream's storage is enabled to scale horizontally.
+Which entities are written into the stream, and at which granularity, is declared per `entityName` via an
+`EntityStreamRegistration` bean:
+
+```java
+
+@Configuration
+public class CalculatorEventsConfiguration {
+
+  @Bean
+  public EntityStreamRegistration calculatorEntityStreamRegistration() {
+    return new EntityStreamRegistration("calculator", TimeBucket.MONTHLY, 4);
+  }
+}
+```
+
+`EntityStreamWritingEventHandler` partitions entity references by their:
+
+1. `entityName`
+2. first event timestamp's `timeBucket` granularity
+3. within each bucket into N shards (`shardCount`) by a hash _(FNV-1a 64-bit)_ of `entityId`
+
+then passes the derived time bucket and shard locations along with the entity reference to the configured
+`EntityStreamWriter`. This way the Entity-stream's storage is enabled to scale horizontally without hot partitions.
+
+> [!IMPORTANT]
+>- `EntityStreamRegistration`'s `timeBucket` and `shardCount` must stay fixed per entityName` once the Entity-stream 
+   > table has entities of it in it. Re-creating the stream for already written data changing their sharding parameters
+   > may be an expensive operation.
+>
+>- If `EntityStreamRegistration` is not set up, entities won't be populated for the `entityName`. Setting it up later
+   > will start populating only the new entities into the stream.
 
 > [!NOTE]
->- This functionality is entirely optional; without an `EntityStreamWriter` and `EntityStreamWritingEventHandler` bean,
-   > the Entity-stream is not populated. However, the functionality must be enabled in advance, as there's no way
-   > of populating the Entity-stream for Entities having been created in the past.
+>- This functionality is entirely optional; without an `EntityStreamWriter` bean, the Entity-stream is not populated.
+   > However, the functionality must be enabled in advance, as there's no way of populating the Entity-stream for
+   > Entities having been created in the past.
 >
->- `time-bucket` and `shard-count` must stay fixed once the table has entities in it, as they define how stream
-   > is sharded. Thus, it's important to set values to have fine enough partitions in anticipation of the load.
+>- Entities whose `entityName` has no `EntityStreamRegistration` are not written into the Entity-stream, so different
+   > entities can be onboarded onto the Entity-stream independently, at whatever granularity suits their event
+   > production frequency.
 >
->- On the other hand, setting the values too generously (small time-buckets and high shard-count) will lead to more
-   partitions, which would be empty or underfilled, when Entity creation is not frequent enough. Consequently, iterating
-   over the Entity-stream will be more costly due to some DB queries will result in no or few entries.
+>- `timeBucket` and `shardCount` must stay fixed per `entityName` once the table has entities of it in it, as
+   > they define how the stream is sharded. Thus, it's important to set values to have fine enough partitions in
+   > anticipation of the load.
 >
->- Wiring of components is automatic once a bean exists: `EntityStreamWritingEventHandler` is registered by the
-   > Spring boot starter and calls it for every entity's first event (`sequenceNumber == 1`).
+>- On the other hand, setting the values too generously (small time-buckets and high shard count) will lead to more
+   > partitions, which would be empty or underfilled, when Entity creation is not frequent enough. Consequently,
+   > iterating over the Entity-stream will be more costly due to some DB queries will result in no or few entries.
+>
+>- Wiring of components is automatic once beans exist: `EntityStreamRegistration` beans are collected into an
+   > `EntityStreamRegistry`, and `EntityStreamWritingEventHandler` is registered by the Spring boot starter and calls
+   > it for every registered entity's first event (`sequenceNumber == 1`).
 
 ### VIII. Configure via application properties
 
@@ -539,8 +573,6 @@ caravan:
       entity-stream:
         dynamo-db:
           table-name: my-app_entity-stream   # absent by default: entity stream is off unless this is set
-          time-bucket: MONTHLY               # MINUTELY | HOURLY | DAILY | MONTHLY
-          shard-count: 16                    # shards each (entityName, time bucket) is split into
     messaging: # only with the SQS starter
       queue-name-prefix: my-app       # queues are named {prefix}_{entityName}
       subscribed-entities:
@@ -562,9 +594,8 @@ caravan:
    > defaults and can be omitted. `entity-stream.dynamo-db.table-name` has no default: it is what turns the optional
    > [Entity-stream](#vii-set-up-an-optional-entity-stream) on.
 >
->- `event-store.dynamo-db.partition-shard-size`, `entity-stream.dynamo-db.time-bucket` and
-   > `entity-stream.dynamo-db.shard-count` properties are baked into how items are keyed and must be fixed once tables
-   > are populated.
+>- `event-store.dynamo-db.partition-shard-size` is baked into how items are keyed and must be fixed once the events
+   > table is populated.
 
 ### IX. Infrastructure
 
@@ -655,17 +686,15 @@ for infrastructure.
 
 ## Yet to be built:
 
-1. Parametrize [Entity-Stream](#vii-set-up-an-optional-entity-stream) per entityName, since different entities might
-   have different frequency of event production.
-2. Introduce a mechanism of iterating over [Entity-Stream](#vii-set-up-an-optional-entity-stream) and re-building CQRS
+1. Introduce a mechanism of iterating over [Entity-Stream](#vii-set-up-an-optional-entity-stream) and re-building CQRS
    query-models.
-3. Introduce events flow traceability, metrics.
-4. Introduce Event versioning and upcasting mechanism.
-5. Introduce Multi region scalability.
-6. Provide possibility of taking snapshots async from `EventSourcedRepository.save(...)`;
-7. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
+2. Introduce events flow traceability, metrics.
+3. Introduce Event versioning and upcasting mechanism.
+4. Introduce Multi region scalability.
+5. Provide possibility of taking snapshots async from `EventSourcedRepository.save(...)`;
+6. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
    the event details from the event-store.
-8. Support to have `@ApplyEvent` parameter as unwrapped payload (without `Event<T>`).
+7. Support to have `@ApplyEvent` parameter as unwrapped payload (without `Event<T>`).
 
 ## Contributing
 

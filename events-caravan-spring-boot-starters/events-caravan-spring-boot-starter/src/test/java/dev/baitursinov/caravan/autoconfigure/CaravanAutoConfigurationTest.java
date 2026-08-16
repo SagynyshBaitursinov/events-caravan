@@ -16,8 +16,11 @@ import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.serialization.EventSerializer;
 import dev.baitursinov.caravan.event.sourcing.EventSourcingRepositoryContext;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistration;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistry;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWriter;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWritingEventHandler;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.TimeBucket;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotStore;
@@ -403,9 +406,24 @@ class CaravanAutoConfigurationTest {
     }
 
     @Test
+    void buildsEntityStreamRegistryFromRegistrationBeans() {
+      var entityStreamWriter = mock(EntityStreamWriter.class);
+
+      contextRunner
+          .withBean(EntityStreamWriter.class, () -> entityStreamWriter)
+          .withBean(EntityStreamRegistration.class,
+              () -> new EntityStreamRegistration("calculator", TimeBucket.MONTHLY, 4))
+          .run(context ->
+              assertThat(context).getBean(EntityStreamRegistry.class)
+                  .satisfies(registry ->
+                      assertThat(registry.registrationFor("calculator")).isPresent()));
+    }
+
+    @Test
     void applicationCanSupplyOwnStreamWritingHandler() {
       var entityStreamWriter = mock(EntityStreamWriter.class);
-      var ownHandler = new EntityStreamWritingEventHandler(mock(EntityStreamWriter.class));
+      var ownHandler = new EntityStreamWritingEventHandler(
+          mock(EntityStreamWriter.class), EntityStreamRegistry.createFor(List.of()));
 
       contextRunner
           .withBean(EntityStreamWriter.class, () -> entityStreamWriter)

@@ -17,10 +17,6 @@ public final class EntityStreamKeyUtils {
   private static final DateTimeFormatter TIMESTAMP_FORMATTER =
       new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
 
-  static int shardIndexOf(String entityId, int shardCount) {
-    return Math.floorMod(Fnv1a64.hash(entityId), shardCount);
-  }
-
   static String toPartitionKeyValue(String entityName, String timeBucket, int shardIndex) {
     return entityName + SEPARATOR + timeBucket + SEPARATOR + shardIndex;
   }

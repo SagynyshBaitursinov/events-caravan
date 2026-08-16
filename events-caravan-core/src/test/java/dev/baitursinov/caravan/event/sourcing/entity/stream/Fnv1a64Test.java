@@ -1,4 +1,4 @@
-package dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream;
+package dev.baitursinov.caravan.event.sourcing.entity.stream;
 
 import org.junit.jupiter.api.Test;
 

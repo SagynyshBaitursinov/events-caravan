@@ -43,15 +43,14 @@ class DynamoDbBasedEntityStreamWriterTest {
                 .table(TableDescription.builder().tableStatus(TableStatus.ACTIVE).build())
                 .build());
 
-    entityStream = new DynamoDbBasedEntityStreamWriter(
-        dynamoDbClient, "entity-stream-table", TimeBucket.MONTHLY, 16);
+    entityStream = new DynamoDbBasedEntityStreamWriter(dynamoDbClient, "entity-stream-table");
 
     clearInvocations(dynamoDbClient);
   }
 
   @Test
   void writingPutsItemUnconditionallyKeyedByNameBucketAndShard() {
-    entityStream.write(new EntityStreamEntry(ENTITY_REFERENCE, FIRST_EVENT_TIMESTAMP));
+    entityStream.write(new EntityStreamEntry(ENTITY_REFERENCE, FIRST_EVENT_TIMESTAMP), "2026-08", 3);
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient).putItem(captor.capture());
@@ -60,17 +59,15 @@ class DynamoDbBasedEntityStreamWriterTest {
     assertThat(issuedPut.tableName()).isEqualTo("entity-stream-table");
     assertThat(issuedPut.conditionExpression()).isNull();
 
-    int expectedShardIndex = EntityStreamKeyUtils.shardIndexOf("reference-1", 16);
-    assertThat(issuedPut.item().get("PK").s())
-        .isEqualTo("Entity#2026-08#" + expectedShardIndex);
+    assertThat(issuedPut.item().get("PK").s()).isEqualTo("Entity#2026-08#3");
     assertThat(issuedPut.item().get("SK").s())
         .isEqualTo("2026-08-10T14:03:22.123Z#reference-1");
   }
 
   @Test
-  void writingTheSameEntryTwiceProducesTheSameItem() {
-    entityStream.write(new EntityStreamEntry(ENTITY_REFERENCE, FIRST_EVENT_TIMESTAMP));
-    entityStream.write(new EntityStreamEntry(ENTITY_REFERENCE, FIRST_EVENT_TIMESTAMP));
+  void writingTheSameEntryAndLocationTwiceProducesTheSameItem() {
+    entityStream.write(new EntityStreamEntry(ENTITY_REFERENCE, FIRST_EVENT_TIMESTAMP), "2026-08", 3);
+    entityStream.write(new EntityStreamEntry(ENTITY_REFERENCE, FIRST_EVENT_TIMESTAMP), "2026-08", 3);
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient, times(2)).putItem(captor.capture());
@@ -83,21 +80,13 @@ class DynamoDbBasedEntityStreamWriterTest {
     var entryWithSeparator =
         new EntityStreamEntry(new EntityReference("Entity#Name", "1"), FIRST_EVENT_TIMESTAMP);
 
-    assertThatThrownBy(() -> entityStream.write(entryWithSeparator))
+    assertThatThrownBy(() -> entityStream.write(entryWithSeparator, "2026-08", 3))
         .isExactlyInstanceOf(DynamoDbStoreException.class);
   }
 
   @Test
   void requiresTableName() {
-    assertThatThrownBy(() ->
-        new DynamoDbBasedEntityStreamWriter(dynamoDbClient, " ", TimeBucket.MONTHLY, 16))
-        .isExactlyInstanceOf(DynamoDbSetupException.class);
-  }
-
-  @Test
-  void requiresPositiveShardCount() {
-    assertThatThrownBy(() ->
-        new DynamoDbBasedEntityStreamWriter(dynamoDbClient, "entity-stream-table", TimeBucket.MONTHLY, 0))
+    assertThatThrownBy(() -> new DynamoDbBasedEntityStreamWriter(dynamoDbClient, " "))
         .isExactlyInstanceOf(DynamoDbSetupException.class);
   }
 
@@ -106,8 +95,7 @@ class DynamoDbBasedEntityStreamWriterTest {
     when(dynamoDbClient.describeTable(any(DescribeTableRequest.class)))
         .thenThrow(ResourceNotFoundException.builder().build());
 
-    assertThatThrownBy(() ->
-        new DynamoDbBasedEntityStreamWriter(dynamoDbClient, "missing-table", TimeBucket.MONTHLY, 16))
+    assertThatThrownBy(() -> new DynamoDbBasedEntityStreamWriter(dynamoDbClient, "missing-table"))
         .isExactlyInstanceOf(DynamoDbSetupException.class);
   }
 }

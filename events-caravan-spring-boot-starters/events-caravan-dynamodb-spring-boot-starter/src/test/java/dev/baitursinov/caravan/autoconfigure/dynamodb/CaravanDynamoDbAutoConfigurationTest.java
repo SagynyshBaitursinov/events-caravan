@@ -7,7 +7,6 @@ import dev.baitursinov.caravan.event.sourcing.EventStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedEventStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedSnapshotStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.DynamoDbBasedEntityStreamWriter;
-import dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.TimeBucket;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWriter;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotSerializer;
@@ -238,31 +237,13 @@ class CaravanDynamoDbAutoConfigurationTest {
   }
 
   @Test
-  void bindsEntityStreamPropertiesWithDefaults() {
+  void bindsEntityStreamProperties() {
     contextRunner
         .withPropertyValues("caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream")
         .run(context ->
             assertThat(context).getBean(DynamoDbEntityStreamConfigurationProperties.class)
-                .satisfies(properties -> {
-                  assertThat(properties.tableName()).isEqualTo("test-app_entity-stream");
-                  assertThat(properties.shardCount()).isEqualTo(16);
-                  assertThat(properties.timeBucket()).isEqualTo(TimeBucket.MONTHLY);
-                }));
-  }
-
-  @Test
-  void bindsEntityStreamPropertiesExplicitly() {
-    contextRunner
-        .withPropertyValues(
-            "caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream",
-            "caravan.event.sourcing.entity-stream.dynamo-db.shard-count=4",
-            "caravan.event.sourcing.entity-stream.dynamo-db.time-bucket=DAILY")
-        .run(context ->
-            assertThat(context).getBean(DynamoDbEntityStreamConfigurationProperties.class)
-                .satisfies(properties -> {
-                  assertThat(properties.shardCount()).isEqualTo(4);
-                  assertThat(properties.timeBucket()).isEqualTo(TimeBucket.DAILY);
-                }));
+                .satisfies(properties ->
+                    assertThat(properties.tableName()).isEqualTo("test-app_entity-stream")));
   }
 
   @Test
@@ -273,14 +254,5 @@ class CaravanDynamoDbAutoConfigurationTest {
         .withPropertyValues("caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream")
         .withBean(EntityStreamWriter.class, () -> ownEntityStreamWriter)
         .run(context -> assertThat(context).doesNotHaveBean(DynamoDbBasedEntityStreamWriter.class));
-  }
-
-  @Test
-  void failsWhenShardCountIsNotPositive() {
-    contextRunner
-        .withPropertyValues(
-            "caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream",
-            "caravan.event.sourcing.entity-stream.dynamo-db.shard-count=0")
-        .run(context -> assertThat(context).hasFailed());
   }
 }

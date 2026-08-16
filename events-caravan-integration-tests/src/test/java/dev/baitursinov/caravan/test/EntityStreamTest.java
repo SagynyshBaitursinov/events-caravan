@@ -44,21 +44,21 @@ class EntityStreamTest extends AbstractSpringBootTest {
     var entityReference = new EntityReference("calculator", entityId);
     var firstEventTimestamp = ZonedDateTime.parse("2026-08-10T14:03:22.123Z");
 
-    entityStreamWriter.write(new EntityStreamEntry(entityReference, firstEventTimestamp));
+    entityStreamWriter.write(new EntityStreamEntry(entityReference, firstEventTimestamp), "2026-08", 2);
 
     var item = onlyWrittenStreamItemFor(entityId);
-    assertThat(item.get("PK").s()).matches("calculator#2026-08#\\d+");
+    assertThat(item.get("PK").s()).isEqualTo("calculator#2026-08#2");
     assertThat(item.get("SK").s())
         .isEqualTo("2026-08-10T14:03:22.123Z#" + entityId);
   }
 
   @Test
-  void writingTheSameEntityTwiceStaysIdempotent() {
+  void writingTheSameEntityAndLocationTwiceStaysIdempotent() {
     var entry = new EntityStreamEntry(
         new EntityReference("calculator", UUID.randomUUID().toString()), ZonedDateTime.now());
 
-    entityStreamWriter.write(entry);
-    entityStreamWriter.write(entry);
+    entityStreamWriter.write(entry, "2026-08", 2);
+    entityStreamWriter.write(entry, "2026-08", 2);
 
     assertThat(writtenStreamItemsFor(entry.entityReference().entityId())).hasSize(1);
   }

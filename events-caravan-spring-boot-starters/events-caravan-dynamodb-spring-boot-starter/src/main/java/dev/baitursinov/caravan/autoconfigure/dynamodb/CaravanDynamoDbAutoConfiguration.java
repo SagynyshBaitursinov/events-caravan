@@ -83,14 +83,8 @@ public class CaravanDynamoDbAutoConfiguration {
       DynamoDbClient dynamoDbClient,
       DynamoDbEntityStreamConfigurationProperties properties) {
 
-    log.info(
-        "Configuring DynamoDbBasedEntityStream on tableName={} (timeBucket={}, shardCount={})",
-        properties.tableName(), properties.timeBucket(), properties.shardCount());
+    log.info("Configuring DynamoDbBasedEntityStream on tableName={}", properties.tableName());
 
-    return new DynamoDbBasedEntityStreamWriter(
-        dynamoDbClient,
-        properties.tableName(),
-        properties.timeBucket(),
-        properties.shardCount());
+    return new DynamoDbBasedEntityStreamWriter(dynamoDbClient, properties.tableName());
   }
 }

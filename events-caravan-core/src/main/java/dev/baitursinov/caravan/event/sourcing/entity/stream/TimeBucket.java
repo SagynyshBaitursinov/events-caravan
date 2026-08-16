@@ -1,4 +1,4 @@
-package dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream;
+package dev.baitursinov.caravan.event.sourcing.entity.stream;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -12,10 +12,12 @@ import java.time.format.DateTimeFormatter;
  */
 public enum TimeBucket {
 
+  SECONDLY(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")),
   MINUTELY(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")),
   HOURLY(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH")),
   DAILY(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
-  MONTHLY(DateTimeFormatter.ofPattern("yyyy-MM"));
+  MONTHLY(DateTimeFormatter.ofPattern("yyyy-MM")),
+  YEARLY(DateTimeFormatter.ofPattern("yyyy"));
 
   private final DateTimeFormatter formatter;
 
@@ -23,7 +25,7 @@ public enum TimeBucket {
     this.formatter = formatter;
   }
 
-  public String bucketOf(ZonedDateTime timestamp) {
+  public String locationOf(ZonedDateTime timestamp) {
     return formatter.format(timestamp);
   }
 }

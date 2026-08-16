@@ -21,8 +21,6 @@ caravan:
       entity-stream:
         dynamo-db:
           table-name: ${app.name}_entity-stream
-          time-bucket: MONTHLY
-          shard-count: 4
     messaging:
       queue-name-prefix: ${app.name}
       subscribed-entities:

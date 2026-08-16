@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import java.time.ZonedDateTime;
 
 import static dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.EntityStreamKeyUtils.requireFreeOfSeparator;
-import static dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.EntityStreamKeyUtils.shardIndexOf;
 import static dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.EntityStreamKeyUtils.toPartitionKeyValue;
 import static dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.EntityStreamKeyUtils.toSortKeyValue;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,14 +14,6 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class EntityStreamKeyUtilsTest {
-
-  @Test
-  void shardIndexIsWithinBoundsAndDeterministic() {
-    int shardIndex = shardIndexOf("entity-1", 16);
-
-    assertThat(shardIndex).isBetween(0, 15);
-    assertThat(shardIndexOf("entity-1", 16)).isEqualTo(shardIndex);
-  }
 
   @Test
   void partitionKeyValueJoinsNameBucketAndShard() {
