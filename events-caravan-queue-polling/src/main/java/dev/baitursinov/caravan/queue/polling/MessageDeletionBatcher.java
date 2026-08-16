@@ -19,6 +19,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 @Slf4j
 class MessageDeletionBatcher {
 
+  private static final Duration WAITING_SLICE_MAX = Duration.ofMillis(100);
+
   private final String queueName;
   private final MessagesDeleter messagesDeleter;
   private final BlockingQueue<Message> pendingDeletions;
@@ -40,8 +42,10 @@ class MessageDeletionBatcher {
     this.inParallelDeletions = new Semaphore(messageBatchDeletionProperties.concurrency());
     this.deletionExecutorService = createNewDeletionExecutorService();
     this.pollingExecutorService = createNewPollingExecutorService();
+  }
 
-    this.pollingExecutorService.execute(this::pollContinuously);
+  void start() {
+    pollingExecutorService.execute(this::pollContinuously);
   }
 
   private ExecutorService createNewDeletionExecutorService() {
@@ -107,9 +111,7 @@ class MessageDeletionBatcher {
       Instant deadline = Instant.now().plusSeconds(
           messageBatchDeletionProperties.periodSeconds());
       do {
-        Instant now = Instant.now();
-        Message nextMessage = pollPendingDeletion(
-            deadline.isAfter(now) ? Duration.between(now, deadline) : Duration.ZERO);
+        Message nextMessage = pollPendingDeletion(remainingUntil(deadline));
         if (nextMessage == null) {
           return batch;
         }
@@ -122,9 +124,31 @@ class MessageDeletionBatcher {
   }
 
   private @Nullable Message pollPendingDeletion(Duration waitDuration) throws InterruptedException {
-    return shutdownRequested || !waitDuration.isPositive()
-        ? pendingDeletions.poll()
-        : pendingDeletions.poll(waitDuration.toMillis(), MILLISECONDS);
+    if (shutdownRequested || !waitDuration.isPositive()) {
+      return pendingDeletions.poll();
+    }
+
+    return pollPendingDeletionInWaitingSlices(waitDuration);
+  }
+
+  private @Nullable Message pollPendingDeletionInWaitingSlices(Duration waitDuration) throws InterruptedException {
+    Instant deadline = Instant.now().plus(waitDuration);
+    while (true) {
+      Duration remaining = remainingUntil(deadline);
+      if (remaining.isZero()) {
+        return null;
+      }
+      Duration waitingSlice = remaining.compareTo(WAITING_SLICE_MAX) < 0 ? remaining : WAITING_SLICE_MAX;
+      Message message = pendingDeletions.poll(waitingSlice.toMillis(), MILLISECONDS);
+      if (message != null || shutdownRequested) {
+        return message;
+      }
+    }
+  }
+
+  private Duration remainingUntil(Instant deadline) {
+    Instant now = Instant.now();
+    return deadline.isAfter(now) ? Duration.between(now, deadline) : Duration.ZERO;
   }
 
   boolean isShutdown() {

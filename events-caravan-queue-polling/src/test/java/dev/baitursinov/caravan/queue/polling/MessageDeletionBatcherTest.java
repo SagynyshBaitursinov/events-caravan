@@ -46,6 +46,7 @@ class MessageDeletionBatcherTest {
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
           propertiesOf(3, 30, 1));
+      batcher.start();
 
       Message first = message("1");
       Message second = message("2");
@@ -68,6 +69,7 @@ class MessageDeletionBatcherTest {
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
           propertiesOf(10, 1, 1));
+      batcher.start();
 
       Message message = message("1");
       batcher.enqueueDeletion(message);
@@ -86,6 +88,7 @@ class MessageDeletionBatcherTest {
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
           propertiesOf(2, 1, 1));
+      batcher.start();
 
       List<Message> messages = IntStream.rangeClosed(1, 5)
           .mapToObj(i -> message(String.valueOf(i)))
@@ -123,6 +126,7 @@ class MessageDeletionBatcherTest {
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
           propertiesOf(1, 1, 1));
+      batcher.start();
 
       Message failing = message("1");
       Message succeeding = message("2");
@@ -160,6 +164,7 @@ class MessageDeletionBatcherTest {
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
           propertiesOf(1, 30, 2));
+      batcher.start();
 
       batcher.enqueueDeletion(message("1"));
       batcher.enqueueDeletion(message("2"));
@@ -180,6 +185,7 @@ class MessageDeletionBatcherTest {
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 30,
           propertiesOf(10, 5, 4));
+      batcher.start();
 
       List<Message> messages = IntStream.rangeClosed(1, 20)
           .mapToObj(i -> message(String.valueOf(i)))
@@ -211,6 +217,7 @@ class MessageDeletionBatcherTest {
       var batcher = new MessageDeletionBatcher(
           "queue", mock(MessagesDeleter.class), 10,
           propertiesOf(10, 30, 1));
+      batcher.start();
 
       assertThat(batcher.isShutdown()).isFalse();
       batcher.shutdown();
@@ -223,6 +230,7 @@ class MessageDeletionBatcherTest {
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
           propertiesOf(10, 30, 1));
+      batcher.start();
 
       Message message = message("1");
       batcher.enqueueDeletion(message);
@@ -239,6 +247,7 @@ class MessageDeletionBatcherTest {
       var batcher = new MessageDeletionBatcher(
           "queue", messagesDeleter, 10,
           propertiesOf(10, 30, 1));
+      batcher.start();
 
       batcher.shutdownNow();
 

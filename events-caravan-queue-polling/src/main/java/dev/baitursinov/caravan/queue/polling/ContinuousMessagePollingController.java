@@ -122,6 +122,8 @@ public class ContinuousMessagePollingController {
 
     restartComponentsIfShutdown();
 
+    messageDeletionBatcher.start();
+
     log.info("Starting to continuously poll messages from queueName={}", queueName);
     primaryPoller = pollingExecutor
         .submit(

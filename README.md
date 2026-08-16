@@ -526,7 +526,7 @@ then passes the derived time bucket and shard locations along with the entity re
 `EntityStreamWriter`. This way the Entity-stream's storage is enabled to scale horizontally without hot partitions.
 
 > [!IMPORTANT]
->- `EntityStreamRegistration`'s `timeBucket` and `shardCount` must stay fixed per entityName` once the Entity-stream 
+>- `EntityStreamRegistration`'s `timeBucket` and `shardCount` must stay fixed per entityName` once the Entity-stream
    > table has entities of it in it. Re-creating the stream for already written data changing their sharding parameters
    > may be an expensive operation.
 >
@@ -590,12 +590,13 @@ caravan:
 ```
 
 > [!NOTE]
->- All values except the table names, `queue-name-prefix` and `subscribed-entities` properties are shown at their
-   > defaults and can be omitted. `entity-stream.dynamo-db.table-name` has no default: it is what turns the optional
-   > [Entity-stream](#vii-set-up-an-optional-entity-stream) on.
->
->- `event-store.dynamo-db.partition-shard-size` is baked into how items are keyed and must be fixed once the events
-   > table is populated.
+> All values except the table names, `queue-name-prefix` and `subscribed-entities` properties are shown at their
+> defaults and can be omitted. `entity-stream.dynamo-db.table-name` has no default: it is what turns the optional
+> [Entity-stream](#vii-set-up-an-optional-entity-stream) on.
+
+> [!IMPORTANT]
+>`event-store.dynamo-db.partition-shard-size` is baked into how items are keyed and must be fixed once the events
+> table is populated.
 
 ### IX. Infrastructure
 
@@ -636,6 +637,12 @@ infrastructure from scaling.
 None of this is AWS-specific in substance, only in the concrete API used, and
 per [Principle #10](#philosophy-in-principles) every integration point is an interface open for substitution
 (`EventStore`, `EventProducer`, `SnapshotStore`, event consumption, the publisher).
+
+> [!NOTE]
+> When operating applications on a high scale it might be worth switching to provisioned capacity of DynamoDB, 
+> with reserved instances. However, if very high-scale load is expected, it might be worthy to plan utilizing different
+> technologies not to pay AWS per request, but operate your own DB and Message broker. On the other hand that might 
+> increase operational cost of the system.
 
 #### Technologies with the properties could substitute the reference implementation:
 
@@ -690,11 +697,12 @@ for infrastructure.
    query-models.
 2. Introduce events flow traceability, metrics.
 3. Introduce Event versioning and upcasting mechanism.
-4. Introduce Multi region scalability.
-5. Provide possibility of taking snapshots async from `EventSourcedRepository.save(...)`;
-6. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
+4. Develop adapters for ScyllaDB + Debezium + Kafka protocol.
+5. Introduce Multi region scalability.
+6. Provide possibility of taking snapshots async from thread of `EventSourcedRepository.save(...)`;
+7. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
    the event details from the event-store.
-7. Support to have `@ApplyEvent` parameter as unwrapped payload (without `Event<T>`).
+8. Support to have `@ApplyEvent` parameter as unwrapped payload (without `Event<T>`).
 
 ## Contributing
 
