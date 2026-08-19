@@ -21,8 +21,7 @@ public record EventReference(EntityReference entityReference,
     }
 
     if (!hasText(eventName)) {
-      throw new IllegalArgumentException(
-          "sequenceNumber and eventName cannot be empty");
+      throw new IllegalArgumentException("eventName cannot be empty");
     }
   }
 
