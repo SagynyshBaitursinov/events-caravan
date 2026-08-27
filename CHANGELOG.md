@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.1.1...events-caravan-v1.2.0) (2026-08-27)
+
+
+### Features
+
+* **entity-stream:** parametrize entity-stream sharding per entityName ([8c7f7d9](https://github.com/SagynyshBaitursinov/events-caravan/commit/8c7f7d9441990e2a661ee7b247859627958f3167))
+
+
+### Bug Fixes
+
+* correcting exception message ([c4af7cb](https://github.com/SagynyshBaitursinov/events-caravan/commit/c4af7cbc0f66fcd849266ae5c88687ab2d67a35e))
+* **deps:** bump the maven-dependencies group with 5 updates ([#10](https://github.com/SagynyshBaitursinov/events-caravan/issues/10)) ([3b94fa9](https://github.com/SagynyshBaitursinov/events-caravan/commit/3b94fa9e478544951ddc04c4e1babdff2ae65167))
+* **deps:** bump the maven-dependencies group with 5 updates ([#13](https://github.com/SagynyshBaitursinov/events-caravan/issues/13)) ([f01fc2a](https://github.com/SagynyshBaitursinov/events-caravan/commit/f01fc2afdd738b5dc657bba5ff6b85eaa278a2f9))
+* **message-deletion:** Started long polling for messages to be deleted in smaller slices ([c8eed47](https://github.com/SagynyshBaitursinov/events-caravan/commit/c8eed47fcd10ef275ac8da9a5450114986bc650b))
+
 ## [1.1.1](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.1.0...events-caravan-v1.1.1) (2026-08-14)
 
 
