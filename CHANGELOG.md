@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.2.0...events-caravan-v1.2.1) (2026-08-30)
+
+
+### Bug Fixes
+
+* **deps:** bump the maven-dependencies group with 6 updates ([#14](https://github.com/SagynyshBaitursinov/events-caravan/issues/14)) ([a4d3f7b](https://github.com/SagynyshBaitursinov/events-caravan/commit/a4d3f7b4619bf1760ede78a584c0a054d9e3856e))
+
 ## [1.2.0](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.1.1...events-caravan-v1.2.0) (2026-08-27)
 
 
