@@ -3,10 +3,6 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>events-caravan-integration-tests</artifactId>
-    <name>events-caravan-integration-tests</name>
-    <description>End-to-end tests exercising the full event-sourcing stack against local AWS.</description>
-
     <parent>
         <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-parent</artifactId>
@@ -14,12 +10,19 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <artifactId>events-caravan-integration-tests</artifactId>
+
+    <name>events-caravan-integration-tests</name>
+    <description>End-to-end tests exercising the full event-sourcing stack against local AWS.</description>
+
     <properties>
         <maven.install.skip>true</maven.install.skip>
         <maven.deploy.skip>true</maven.deploy.skip>
         <maven.source.skip>true</maven.source.skip>
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <gpg.skip>true</gpg.skip>
+
+        <integration-tests.skip>true</integration-tests.skip>
     </properties>
 
     <dependencies>
@@ -50,4 +53,16 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>${integration-tests.skip}</skipTests>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

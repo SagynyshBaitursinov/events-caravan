@@ -3,7 +3,7 @@
 set -e -o pipefail
 
 function main() {
-  ./mvnw test
+  ./mvnw test -Dintegration-tests.skip=false
 }
 
 main

@@ -379,7 +379,6 @@ subscribe_events_publisher_lambda_to_dynamodb() {
 
 main() {
   start_floci
-  #pull_lambda_runtime_image
   create_sns_topics
   create_incoming_sqs_queues_and_subscriptions
   create_events_dynamodb_table

@@ -3,16 +3,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>events-caravan-sqs</artifactId>
-    <name>events-caravan-sqs</name>
-    <description>Event message consumption provided by AWS SQS</description>
-
     <parent>
         <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-parent</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <artifactId>events-caravan-sqs</artifactId>
+
+    <name>events-caravan-sqs</name>
+    <description>Event message consumption provided by AWS SQS</description>
 
     <dependencies>
         <dependency>

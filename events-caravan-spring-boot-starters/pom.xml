@@ -3,17 +3,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>events-caravan-spring-boot-starters</artifactId>
-    <name>events-caravan-spring-bootstarters</name>
-    <description>Aggregator and shared configuration for the events-caravan Spring Boot starter modules</description>
-    <packaging>pom</packaging>
-
     <parent>
         <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-parent</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <artifactId>events-caravan-spring-boot-starters</artifactId>
+    <packaging>pom</packaging>
+
+    <name>events-caravan-spring-boot-starters</name>
+    <description>Aggregator and shared configuration for the events-caravan Spring Boot starter modules</description>
 
     <modules>
         <module>events-caravan-spring-boot-starter</module>

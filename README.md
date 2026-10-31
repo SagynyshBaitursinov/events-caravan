@@ -50,7 +50,7 @@ a [reference implementation](#why-the-reference-implementation-is-on-aws-why-it-
    [smart endpoints and dumb pipes](https://martinfowler.com/articles/microservices.html#SmartEndpointsAndDumbPipes):
    no central orchestrator for business or technical processes, no broker that has to understand your domain. This makes
    it easy for the utilized technology to scale.
-3. **Have one write destination for each operation result,** between databases and message brokers, so there is no
+3. **Have one write destination for each operation result** between databases and message brokers, so there is no
    problem coordinating writes between multiple destinations and necessity to span transactions across them.
 4. **Be satisfied with Eventual Consistency** beyond the single entity, in the sense of
    [Werner Vogels' "Eventually Consistent"](https://dl.acm.org/doi/10.1145/1466443.1466448). The entity (aggregate root)
@@ -58,7 +58,7 @@ a [reference implementation](#why-the-reference-implementation-is-on-aws-why-it-
    [Pat Helland's "Life beyond Distributed Transactions"](https://queue.acm.org/detail.cfm?id=3025012).
 5. **Stay available.** Build processes modifying one entity at a time, asynchronous to each other. Do not hold locks.
 6. **Make compromises visible for devs.** Where a guarantee is traded away (ordering, exactly-once delivery, strong
-   consistency, small consistency units), developers are informed explicitly and are given the tools to compensate.
+   consistency across entities), developers are informed explicitly and are given the tools to compensate.
 7. **Produced data must be durable.** An event written to the store survives anything short of losing the store itself;
    Events must be delivered and processed by consumers at least once.
 8. **Be ready for a failure.** Software and hardware may break mid-process. Make every process recoverable. After a
@@ -675,8 +675,8 @@ for infrastructure.
 
 - **Q:** Is AI (LLM) utilized when developing Events-caravan?
     - **A:** Yes, for coding, documenting and brainstorming it was useful. However, its output, especially concerning
-      important software components, were carefully read and integrated after analysis. I found it important to stay on
-      top of code changes; to be AI's driver, but also learn from it and apply its suggestions only with human judgment.
+      important software components, was carefully read and integrated after analysis. I find staying on top of code
+      changes and making both strategic and tactical design decisions to be important for developers and software quality.
 
 - **Q:** How to design Aggregates (DDD)?
     - **A:** EventSourcedEntity as single unit of consistency, which can serve as an Aggregate root. Its state may
@@ -703,6 +703,10 @@ for infrastructure.
 7. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
    the event details from the event-store.
 8. Support to have `@ApplyEvent` parameter as unwrapped payload (without `Event<T>`).
+9. Add possibility to have `Void` payload of events and no Event parameter to `@ApplyEvent`.
+10. Introduce grouping of EventHandlers per queue groups.
+11. Loading events directly via a provided API could be interesting for apps.
+12. Consider possibility of adding Enums as Event names.
 
 ## Contributing
 

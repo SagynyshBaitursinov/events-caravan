@@ -8,11 +8,11 @@ import lombok.NoArgsConstructor;
 import static dev.baitursinov.caravan.test.event.registration.AccountEventsConfiguration.RECEIVED_MONEY;
 
 @NoArgsConstructor
-public final class AccountEventApplier {
+final class AccountEventApplier {
 
   @ApplyEvent(RECEIVED_MONEY)
-  public static void applyReceivedMoney(Account account,
-                                        Event<NumberCarryingPayload> numberCarryingPayloadEvent) {
+  static void applyReceivedMoney(Account account,
+                                         Event<NumberCarryingPayload> numberCarryingPayloadEvent) {
     account.balance += numberCarryingPayloadEvent.payload().number();
   }
 }

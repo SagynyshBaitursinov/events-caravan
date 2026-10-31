@@ -3,16 +3,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>events-caravan-dynamodb-spring-boot-starter</artifactId>
-    <name>events-caravan-dynamodb-spring-boot-starter</name>
-    <description>Spring Boot starter for DynamoDB-backed event and snapshot stores</description>
-
     <parent>
         <groupId>dev.baitursinov</groupId>
         <artifactId>events-caravan-spring-boot-starters</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
+
+    <artifactId>events-caravan-dynamodb-spring-boot-starter</artifactId>
+
+    <name>events-caravan-dynamodb-spring-boot-starter</name>
+    <description>Spring Boot starter for DynamoDB-backed event and snapshot stores</description>
 
     <dependencies>
         <dependency>
