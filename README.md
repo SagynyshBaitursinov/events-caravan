@@ -93,7 +93,7 @@ a [reference implementation](#why-the-reference-implementation-is-on-aws-why-it-
 `EventType` and its payload are defined by combination of `entityName` and `eventName`. Payload class has to
 be [registered](#ii-register-your-events).
 
-### Event sourcing and storage
+### Event sourcing and scalable storage
 
 ![Event sourcing and storage diagram](diagrams/event-sourcing.png)
 
@@ -104,13 +104,13 @@ be [registered](#ii-register-your-events).
 4. Each Event has its `eventName`, which identifies how it alters state of an entity when applied on it.
 5. Events are gaplessly sequenced per each entity starting from `sequenceNumber` 1.
 6. `EntityReference` defines a partition where its events are stored.
-7. As an entity is the only unit of strong consistency per projects philosophy, the underlying event store reserves its
+7. As an entity is the only unit of strong consistency per projects philosophy, the underlying event-store reserves its
    freedom to store each partition in different machines for scaling horizontally freely.
 8. For entities with long histories [Snapshotting](#v-set-up-optional-snapshot-takers) can be utilized to avoid loading
    and re-applying all historic events from the beginning.
-9. Entities with long histories can make a partition where its events are stored too large, turning it into a scaling
-   bottleneck. To avoid that an `EntityReference` partition is sharded consistently while events' sequenceNumbers
-   increase. In the reference implementation module of DynamoDB partition-key is `entityName#entityId#shardIndex` where
+9. Hot entities with long histories can make a partition where its events are stored too large, turning it into a 
+   scaling bottleneck. To avoid that an `EntityReference` partition is sharded while events' sequenceNumbers increase.
+   In the reference implementation module of DynamoDB partition-key is `entityName#entityId#shardIndex` where
    one `shardIndex` increments every N events defined by `partition-shard-size` property. Shard indexes are incremental,
    and sort-key is `sequenceNumber`, so all events are sorted in each sharded partition. Because `shardIndex` is derived
    from `sequenceNumber` and `partition-shard-size`, `partition-shard-size` parameter must stay fixed for the lifetime
@@ -376,6 +376,53 @@ public class Calculator extends EventSourcedEntity {
    > package-private fields/methods in order to mutate Entity's state while applying its events.
    > This helps Entity not to expose public getter/setter methods just for applying events without real domain behavior.
 
+```java
+
+@EntityName("calculator")
+@EventApplier(CalculatorEventApplier.class)
+public class Calculator extends EventSourcedEntity {
+
+  private final String id;
+
+  long currentNumber = 0; // package-private: mutated only by CalculatorEventApplier
+
+  public Calculator(String id) {
+    this.id = id;
+  }
+
+  public long currentNumber() {
+    return this.currentNumber;
+  }
+
+  public void addNumber(long number) {
+    recordEvent("number-added", new NumberCarryingPayload(number));
+  }
+
+  @Override
+  public String entityId() {
+    return id;
+  }
+}
+```
+
+```java
+// same package as Calculator
+final class CalculatorEventApplier {
+
+  @ApplyEvent("number-added")
+  static void applyAddNumber(Calculator calculator, Event<NumberCarryingPayload> event) {
+    calculator.currentNumber += event.payload().number();
+  }
+}
+```
+
+> [!NOTE]
+>- `@ApplyEvent` methods in an `@EventApplier` class must be `static` and take `(EntityClass entity, Event<PayloadClass> event)`
+   > parameters. This is validated at startup.
+>- `@EventApplier` accepts several classes, e.g. `@EventApplier({OrderPlacementApplier.class, OrderShippingApplier.class})`.
+>- Each event name may have only one apply method across the entity class and all its `@EventApplier` classes.
+   > Duplicates fail at startup.
+
 ### IV. Set up an Event-sourced-repository
 
 ```java
@@ -518,9 +565,9 @@ public class CalculatorEventsConfiguration {
 
 `EntityStreamWritingEventHandler` partitions entity references by their:
 
-1. `entityName`
-2. first event timestamp's `timeBucket` granularity
-3. within each bucket into N shards (`shardCount`) by a hash _(FNV-1a 64-bit)_ of `entityId`
+- `entityName`
+- first event timestamp's `timeBucket` granularity
+- N shards (`shardCount`) by a hash _(FNV-1a 64-bit)_ of `entityId` within each bucket
 
 then passes the derived time bucket and shard locations along with the entity reference to the configured
 `EntityStreamWriter`. This way the Entity-stream's storage is enabled to scale horizontally without hot partitions.
