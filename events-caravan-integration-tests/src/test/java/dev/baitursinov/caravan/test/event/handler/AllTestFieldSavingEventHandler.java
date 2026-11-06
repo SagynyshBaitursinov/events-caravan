@@ -6,14 +6,14 @@ import dev.baitursinov.caravan.test.value.TestFieldContainingEventPayload;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Getter
 public class AllTestFieldSavingEventHandler implements EventHandler<TestFieldContainingEventPayload> {
 
-  private final Set<String> savedFields = new HashSet<>();
+  private final Set<String> savedFields = ConcurrentHashMap.newKeySet();
 
   @Override
   public boolean isOfInterest(Event<TestFieldContainingEventPayload> event) {

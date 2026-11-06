@@ -75,8 +75,8 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
 
   @Test
   void shouldProduceAndConsumeEventByAllHandlers() {
-    String testEventFieldValue = "interesting test-value";
-    String anotherTestFieldValue = "another-field-value";
+    String testEventFieldValue = "interesting test-value " + UUID.randomUUID();
+    String anotherTestFieldValue = "another-field-value " + UUID.randomUUID();
     var testEventPayload = new TestEventPayload(
         testEventFieldValue, anotherTestFieldValue);
 
@@ -107,8 +107,8 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
 
   @Test
   void shouldNotConsumeNotInterestingEvent() {
-    String testEventFieldValue = "not-interesting test-value";
-    String anotherTestFieldValue = "another-field-value";
+    String testEventFieldValue = "not-interesting test-value " + UUID.randomUUID();
+    String anotherTestFieldValue = "another-field-value " + UUID.randomUUID();
     var testEventPayload = new TestEventPayload(
         testEventFieldValue,
         anotherTestFieldValue);
@@ -173,8 +173,8 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
 
   @Test
   void differentEventsCanShareSamePayloadClass() {
-    String testEventFieldValue = "shared-payload-class test-value";
-    String anotherTestFieldValue = "shared-payload-class another-field-value";
+    String testEventFieldValue = "shared-payload-class test-value " + UUID.randomUUID();
+    String anotherTestFieldValue = "shared-payload-class another-field-value " + UUID.randomUUID();
     var testEventPayload = new TestEventPayload(
         testEventFieldValue, anotherTestFieldValue);
 
@@ -203,8 +203,8 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
 
   @Test
   void shouldNotBeConsumedByUnsureHandler() {
-    String testEventFieldValue = "not-interesting test-value";
-    String anotherTestFieldValue = "another-field-value";
+    String testEventFieldValue = "not-interesting test-value " + UUID.randomUUID();
+    String anotherTestFieldValue = "another-field-value " + UUID.randomUUID();
     var testEventPayload = new TestEventPayload(
         testEventFieldValue,
         anotherTestFieldValue);

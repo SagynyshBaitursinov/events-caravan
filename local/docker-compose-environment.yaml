@@ -8,6 +8,7 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
       - FLOCI_HOSTNAME=floci
       - DOCKER_NETWORK=floci-net
+      - FLOCI_SERVICES_LAMBDA_POLL_INTERVAL_MS=100
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:

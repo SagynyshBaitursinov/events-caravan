@@ -7,8 +7,8 @@ import dev.baitursinov.caravan.test.value.TestFieldContainingEventPayload;
 import lombok.Getter;
 import org.springframework.stereotype.Component;
 
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static dev.baitursinov.caravan.test.event.registration.TestEntityEventsConfiguration.TEST_ENTITY;
 import static dev.baitursinov.caravan.test.event.registration.TestEntityEventsConfiguration.TEST_EVENT;
@@ -20,7 +20,7 @@ public class InterestingTestFieldSavingEventHandler implements EventHandler<Test
   public static final EventType INTERESTED_EVENT_TYPE = new EventType(TEST_ENTITY, TEST_EVENT);
   public static final String INTERESTING = "interesting";
 
-  private final Set<String> savedFields = new HashSet<>();
+  private final Set<String> savedFields = ConcurrentHashMap.newKeySet();
 
   @Override
   public boolean isOfInterest(Event<TestFieldContainingEventPayload> event) {
