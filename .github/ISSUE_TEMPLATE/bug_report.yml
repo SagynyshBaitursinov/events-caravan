@@ -45,6 +45,6 @@ body:
         Java: 25
         Spring Boot: 4.x
         Modules: events-caravan-dynamodb, events-caravan-sqs
-        Infrastructure: AWS / floci
+        Infrastructure: AWS / ministack
     validations:
       required: false

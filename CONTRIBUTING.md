@@ -21,7 +21,7 @@ Thank you for considering a contribution! Events Caravan is maintained by
 
 - **Java 25** (Temurin is what CI uses)
 - **Docker** — the integration test environment emulates AWS locally (DynamoDB, SNS, SQS, Lambda) via
-  [floci](https://hub.docker.com/r/floci/floci) and Docker Compose
+  [ministack](https://hub.docker.com/r/ministackorg/ministack) and Docker Compose
 - **AWS CLI** — used by the local environment scripts to provision the emulated infrastructure
 
 No AWS account is needed; everything runs locally against the emulator with dummy credentials.

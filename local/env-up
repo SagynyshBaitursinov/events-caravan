@@ -37,27 +37,27 @@ EVENTS_PUBLISHER_MAXIMUM_RETRY_ATTEMPTS=3
 
 source ./dynamodb-sqs-events-publisher-lambda/zip
 
-start_floci() {
-  echo "Starting floci..."
+start_ministack() {
+  echo "Starting ministack..."
   docker compose --file ./local/docker-compose-environment.yaml up --detach
 
-  wait_for_floci
+  wait_for_ministack
 }
 
-wait_for_floci() {
-  echo "Waiting for floci to be ready..."
+wait_for_ministack() {
+  echo "Waiting for ministack to be ready..."
   local max_attempts=30 attempt=0
 
   until aws sns list-topics --endpoint-url "$AWS_ENDPOINT" --region "$AWS_REGION" > /dev/null 2>&1; do
     attempt=$((attempt + 1))
     if [ "$attempt" -ge "$max_attempts" ]; then
-      echo "  ✗ Error: floci did not become ready after ${max_attempts}s"
+      echo "  ✗ Error: ministack did not become ready after ${max_attempts}s"
       exit 1
     fi
     sleep 1
   done
 
-  echo "  ✓ floci is ready"
+  echo "  ✓ ministack is ready"
 }
 
 create_sns_topics() {
@@ -271,7 +271,7 @@ create_events_publisher_lambda() {
     "Variables": {
       "TOPIC_NAME_PREFIX": "'"$APP_NAME"'",
       "MAX_CONCURRENT_PUBLISHES": "10",
-      "AWS_ENDPOINT_URL": "http://floci:4566"
+      "AWS_ENDPOINT_URL": "http://ministack:4566"
     }
   }'
 
@@ -378,7 +378,7 @@ subscribe_events_publisher_lambda_to_dynamodb() {
 }
 
 main() {
-  start_floci
+  start_ministack
   create_sns_topics
   create_incoming_sqs_queues_and_subscriptions
   create_events_dynamodb_table
