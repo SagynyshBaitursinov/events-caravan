@@ -6,11 +6,10 @@
 ![Reference impl](https://img.shields.io/badge/reference_impl-DynamoDB_·_SNS%2FSQS-FF9900)
 [![Maven Central](https://img.shields.io/maven-central/v/dev.baitursinov/events-caravan-core.svg)](https://central.sonatype.com/artifact/dev.baitursinov/events-caravan-core)
 
-Event-sourcing framework designed for scalability & performance, while relying on eventual consistency. The core is
-technology-agnostic and every integration point is an interface that can be implemented for any database and message
-broker fitting the framework's philosophy and contracts. Adapters for
-[AWS DynamoDB, SNS/SQS](#i-modules-and-dependencies) are shipped as
-a [reference implementation](#why-the-reference-implementation-is-on-aws-why-it-suits-the-projects-philosophy-and-what-could-substitute-it).
+Event-sourcing framework with no global events sequence, no locks and no coordinator, so it never prevents its 
+database's writer nodes from scaling horizontally. The core is technology-agnostic and every integration point 
+is an interface that can be implemented for any database and message broker fitting the framework's philosophy and contracts. 
+Adapters for [AWS DynamoDB, SNS/SQS](#i-modules-and-dependencies) are shipped as a [reference implementation](#why-the-reference-implementation-is-on-aws-why-it-suits-the-projects-philosophy-and-what-could-substitute-it).
 
 ## Contents
 
@@ -23,7 +22,6 @@ a [reference implementation](#why-the-reference-implementation-is-on-aws-why-it-
     - [Optimistic concurrency control](#optimistic-concurrency-control)
     - [CQRS](#cqrs-command-query-responsibility-segregation)
     - [Compromises](#compromises)
-    - [Sagas](#sagas)
 - [User guide](#user-guide)
     - [I. Modules and dependencies](#i-modules-and-dependencies)
     - [II. Register your Events](#ii-register-your-events)
@@ -44,30 +42,29 @@ a [reference implementation](#why-the-reference-implementation-is-on-aws-why-it-
 
 ## Philosophy in principles
 
-1. **Aim for horizontal scalability.** Anything that must be "the one" instance eventually becomes the ceiling.
-   Partition the data, avoid hot partitions, shard.
-2. **Rely only on simple and cheap technology features.** Prefer
+1. **Enable horizontal scaling.** Anything that must be "the one" instance eventually becomes the ceiling, so the
+   framework requires nothing global: no global events sequence, no locks, no requirement for a central process or transaction coordinator.
+2. **Be satisfied with Eventual Consistency.** The framework does not require its database to provide atomic transaction coordination 
+   beyond a single entity, or across database replicas.
+   Every read and write is keyed by one entity, which enables data to be finely partitioned and sharded without constraints.
+   See [Pat Helland's "Life beyond Distributed Transactions"](https://queue.acm.org/detail.cfm?id=3025012).
+3. **Rely only on simple and cheap technology features.** Prefer
    [smart endpoints and dumb pipes](https://martinfowler.com/articles/microservices.html#SmartEndpointsAndDumbPipes):
    no central orchestrator for business or technical processes, no broker that has to understand your domain. This makes
    it easy for the utilized technology to scale.
-3. **Have one write destination for each operation result** between databases and message brokers, so there is no
+4. **Have one write destination for each operation result** between databases and message brokers, so there is no
    problem coordinating writes between multiple destinations and necessity to span transactions across them.
-4. **Be satisfied with Eventual Consistency** beyond the single entity, in the sense of
-   [Werner Vogels' "Eventually Consistent"](https://dl.acm.org/doi/10.1145/1466443.1466448). The entity (aggregate root)
-   is the only unit of strong consistency, as in
-   [Pat Helland's "Life beyond Distributed Transactions"](https://queue.acm.org/detail.cfm?id=3025012).
-5. **Stay available.** Build processes modifying one entity at a time, asynchronous to each other. Do not hold locks.
-6. **Make compromises visible for devs.** Where a guarantee is traded away (ordering, exactly-once delivery, strong
-   consistency across entities), developers are informed explicitly and are given the tools to compensate.
-7. **Produced data must be durable.** An event written to the store survives anything short of losing the store itself;
+5. **Make compromises visible for devs.** Where a guarantee is traded away, developers are informed explicitly 
+   and are given the tools to compensate.
+6. **Produced data must be durable.** An event written to the store survives anything short of losing the store itself;
    Events must be delivered and processed by consumers at least once.
-8. **Be ready for a failure.** Software and hardware may break mid-process. Make every process recoverable. After a
+7. **Be ready for a failure.** Software and hardware may break mid-process. Make every process recoverable. After a
    failure a retry should happen and finish the job without leaving the system in inconsistent state.
-9. **Simple is secure.** Design simple solutions. Utilize few dependencies.
-10. **Modules should be substitutable.** Every integration point (`EventStore`, `EventProducer`,
-    `SnapshotStore`, (de)serializers, the polling transport, the events publisher) is an interface, implementations of
-    which could vary.
-11. **Developer experience is important.** Events-caravan provides simple interfaces, no DSL, which help devs to stay
+8. **Simple is secure.** Design simple solutions. Utilize few dependencies.
+9. **Modules should be substitutable.** Every integration point (`EventStore`, `EventProducer`,
+   `SnapshotStore`, (de)serializers, the polling transport, the events publisher) is an interface, implementations of
+   which could vary.
+10. **Developer experience is important.** Events-caravan provides simple interfaces, no DSL, which help devs to stay
     focused on building domain behavior; framework has no complex mechanisms that require configuring, and it fails fast
     when misconfigured.
 
@@ -93,7 +90,7 @@ a [reference implementation](#why-the-reference-implementation-is-on-aws-why-it-
 `EventType` and its payload are defined by combination of `entityName` and `eventName`. Payload class has to
 be [registered](#ii-register-your-events).
 
-### Event sourcing and scalable storage
+### Event sourcing and storage
 
 ![Event sourcing and storage diagram](diagrams/event-sourcing.png)
 
@@ -104,13 +101,13 @@ be [registered](#ii-register-your-events).
 4. Each Event has its `eventName`, which identifies how it alters state of an entity when applied on it.
 5. Events are gaplessly sequenced per each entity starting from `sequenceNumber` 1.
 6. `EntityReference` defines a partition where its events are stored.
-7. As an entity is the only unit of strong consistency per projects philosophy, the underlying event-store reserves its
-   freedom to store each partition in different machines for scaling horizontally freely.
+7. As the framework requires consistency only within a single entity, the underlying database is free to store 
+   a partition per entity and shard partitions into different machines.
 8. For entities with long histories [Snapshotting](#v-set-up-optional-snapshot-takers) can be utilized to avoid loading
    and re-applying all historic events from the beginning.
-9. Hot entities with long histories can make a partition where its events are stored too large, turning it into a 
-   scaling bottleneck. To avoid that an `EntityReference` partition is sharded while events' sequenceNumbers increase.
-   In the reference implementation module of DynamoDB partition-key is `entityName#entityId#shardIndex` where
+9. Hot entities with long histories can make a partition where its events are stored too large, turning it into a
+   scaling bottleneck. To avoid that an adapter can shard an `EntityReference` partition while events' sequenceNumbers
+   increase. In the DynamoDB adapter partition-key is `entityName#entityId#shardIndex` where
    one `shardIndex` increments every N events defined by `partition-shard-size` property. Shard indexes are incremental,
    and sort-key is `sequenceNumber`, so all events are sorted in each sharded partition. Because `shardIndex` is derived
    from `sequenceNumber` and `partition-shard-size`, `partition-shard-size` parameter must stay fixed for the lifetime
@@ -130,11 +127,10 @@ be [registered](#ii-register-your-events).
 3. Events that do not belong to an `EventSourcedEntity` can be produced using `EventProducer.produce(...)` interface
    directly.
 4. Every produced event is an immutable document inserted into database. Inserting an event *is* publishing it. The
-   database's inserts-stream (Change Data Capture mechanism) is read by an asynchronous Events-publisher and events are
+   database's inserts-stream (CDC mechanism) is read by an events-publisher and events are
    eventually propagated to consumers. This way there's no dual-write problem, no 2PC, and no need to maintain a
-   [transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html), which could become a
-   bottleneck or introduce technical complexities when scaling horizontally. On the other hand the database's
-   inserts-stream is sharded together with the database itself, each shard naturally maintaining a separate stream.
+   [transactional outbox table](https://microservices.io/patterns/data/transactional-outbox.html). The database's
+   inserts-stream can be sharded together with the database itself, each shard naturally maintaining a separate stream.
 5. In the reference implementation `DynamoDB Streams` are read by a `AWS Lambda` running on `Node.js`
    runtime publishing the event messages into an `SNS` topic per entityName.
 
@@ -154,12 +150,11 @@ be [registered](#ii-register-your-events).
 6. The Event consumption mechanism and EventHandlers are not restricted to events produced by the same application, or
    only to events recorded and produced within `EventSourcedEntity`.
 7. Only a successful consumption acknowledges an event message. If `EventHandler` throws an exception, the message is
-   not acknowledged, and may be redelivered.
+   not acknowledged, and may be redelivered by message broker.
 8. A handler that throws an Exception leaves its message in the queue for redelivery; configure the queue's redrive
    policy and dead-letter queue so a permanently failing message does not retry forever.
 9. All matching `EventHandlers` are tried and called upon each event message delivery.
-10. Handlers or processes triggered by them must be **idempotent** and tolerant of out-of-order arrival
-    (see [Compromise #2](#compromises)).
+10. Handlers or processes triggered by them must be **idempotent** and tolerant of out-of-order arrival (see [Compromise #2](#compromises)).
 11. Event consumption mechanism is entirely optional, if application does not need to consume events.
 12. The queue-polling mechanism scales vertically adapting to the load, performs partial polls in cases if message
     consumption is not uniform across messages, batches deletes, supports graceful shutdown.
@@ -189,36 +184,27 @@ state. Thus, this projection is called **write-model**.
 
 However, for more complex queries other projections of the entity called **query-models** must be utilized. The query
 models may and should have different structures, lifecycles, separate indexes, or even separate RDBMS than that of the
-write-model. (See [CQRS](https://martinfowler.com/bliki/CQRS.html)). For example a PostgreSQL database table that
-contains only specific fields of entities, which are in specific status at the given moment; or utilizing a search
-engine such as Elasticsearch. Therefore, the events-caravan leaves complete freedom for defining how those query models
-are to be constructed and maintained. The framework provides and recommends `EventHandlers` for maintaining the
-query-models **asynchronously** from command-handling writer processes.
+write-model. (See [CQRS](https://martinfowler.com/bliki/CQRS.html)). Therefore, the events-caravan leaves complete freedom
+for defining how those query models are to be constructed and maintained. The framework provides and recommends 
+`EventHandlers` for maintaining the query-models **asynchronously** from command-handling writer processes.
 
 ### Compromises
 
 > [!NOTE]
-> Per [Principle #6](#philosophy-in-principles), every guarantee traded away for scalability is listed here
+> Per [Principle #5](#philosophy-in-principles), every guarantee traded away for scalability is listed here
 > explicitly, together with how to compensate for it.
 
-1. The most important compromise of Events-caravan compared to another popular event-sourcing
-   framework, [Axon](#when-to-choose-events-caravan-over-axon), is that Events-caravan does not maintain a global
-   sequence of events across all entities. Therefore, there's no global iterable stream of events. Such a compromise is
-   taken because otherwise a global ordering mechanism would be necessary; This central orchestrator would become a
-   bottleneck of the system upon writing, preventing writer processes from scaling. Events-caravan avoids this by
-   partitioning at the entity level, enabling more elastic horizontal scaling.
+1. Compared to another popular event-sourcing framework, [Axon](#when-to-choose-events-caravan-over-axon), 
+   Events-caravan does not maintain a global sequence of events across all entities. Therefore, there's no global iterable 
+   stream of events. Such a compromise is taken because otherwise a global ordering mechanism and single writer node would be necessary; 
+   These would potentially become a bottleneck of the system on write path. Events-caravan avoids this by partitioning events at the entity level.
 
    This approach has the following drawbacks:
     - CQRS query-model reflections cannot be re-built by retriggering `EventHandlers` for all historic events.
     - There's no built-in event-store in case if events across many entities need to be republished.
 
-   If the mentioned features are important, there are compensations for the compromise:
-    - A stream of entity references; and mechanism of re-building CQRS query-models per entity.
-    - A separate globally-sorted event-log;
-
-   can be maintained. Both should be populated asynchronously and stay eventually consistent with the events-caravan's
-   event-store as per the project's philosophy. Events-caravan ships the first one out of the box:
-   see [VII. Set up an optional Entity-Stream](#vii-set-up-an-optional-entity-stream).
+   Events-caravan ships a global stream of entity references to compensate;
+   See [VII. Set up an optional Entity-Stream](#vii-set-up-an-optional-entity-stream).
 
 2. Events delivery to consumers is at-least _(not exactly)_ once and unordered. Consumers own idempotency and, if
    needed, ordering. Every event message carries a gapless `sequenceNumber` starting at 1 per `entityReference`, which
@@ -226,27 +212,16 @@ query-models **asynchronously** from command-handling writer processes.
    recommended to be taken care of by an underlying domain layer. e.g. Do not brew _coffee#7_, if the _coffee#7_ is
    already in status _delivered_.
 
-3. Since due to the project's philosophy the only unit of consistency is a single Entity, if there's a necessity to
-   maintain consistency across multiple Entities, applications must respond to this. The answer to this challenge is
-   [Sagas](#sagas).
+3. As per [Principle #2](#philosophy-in-principles) Events-caravan is satisfied with eventual consistency. If underlying database
+   does not provide transaction coordination, but there's a necessity to maintain consistency across multiple Entities,
+   applications must respond to this. The answer to this challenge is [Saga design pattern](https://microservices.io/patterns/data/saga.html).
+   Each saga step is an `EventHandler` that records the next event, and a process needing central state can be modeled as an `EventSourcedEntity`.
 
-4. Optimistic locking triggers late, and may waste hardware resources if clashes happen too often. DynamoDB's
-   `consistent-read` could be used to reduce loading stale entity states, which can be enabled via properties. But it's
-   twice cheaper to avoid it, unless frequent parallel writes to same entities are anticipated. On top of that custom
-   pessimistic locking and in-memory retry mechanisms can be applied on the entities that expect frequent clashes.
-
-5. With the reference technology adapters, events must fit DynamoDB item (400 KB) and SNS message (256 KB) limits.
-
-### Sagas
-
-![Sagas diagram](diagrams/sagas.png)
-
-For processes spanning multiple entities or services,
-prefer [choreography-based sagas](https://microservices.io/patterns/data/saga.html): each step is an `EventHandler`
-that records the next event, and if process fails due to domain logic, compensation is just another event reverting
-previous operations. This needs no machinery beyond what the events-caravan provides and keeps the pipeline free of
-orchestrators, in line with the philosophy. If a domain-process genuinely needs a central state, model the process
-itself as an `EventSourcedEntity`. Its events history then documents the workflow.
+4. Application code must be prepared for the loaded Entity state being stale due to eventual consistency across database replicas.
+   If new events are attempted to be produced on top of stale state, underlying database will detect the issue and throw `DuplicateEventProductionException`.
+   In such case, or if stale state is detected by application code earlier, process should fail and be retried.
+   With the DynamoDB adapter `consistent-read` could be used to reduce loading stale entity states, which can be enabled via properties.
+   But it's twice cheaper to avoid it, unless frequent parallel writes to same entities are anticipated.
 
 ## User guide
 
@@ -536,7 +511,7 @@ public class NumberAddedHandler implements EventHandler<NumberCarryingPayload> {
 ```
 
 > [!NOTE]
->- Handlers are registered automatically by Spring boot starters.
+>- Handlers are registered automatically by Spring Boot starters.
 
 ### VII. Set up an optional Entity-stream
 
@@ -669,32 +644,31 @@ infrastructure from scaling.
 
 - **DynamoDB** partitions natively by primary key, has no single leader node applications write through, and scales
   throughput per partition rather than globally, directly
-  serving [Principle #1 (horizontal scalability)](#philosophy-in-principles)
-  and [Principle #5 (stay available, no locks)](#philosophy-in-principles). DynamoDB Streams give an ordered, per-shard
-  change feed for free, which is what lets an event item insert *be equal* to the publishing it
-  (see [Producing and propagating events](#producing-and-propagating-events) point 4) without a transactional outbox,
-  serving [Principle #3 (one write destination)](#philosophy-in-principles).
+  serving [Principle #1 (enable horizontal scaling)](#philosophy-in-principles). DynamoDB Streams give an ordered, per-shard
+  change feed for free, which is what lets an event item insert *be equal* to the publishing it (see [Producing and propagating events](#producing-and-propagating-events) point 4) without a transactional outbox,
+  serving [Principle #4 (one write destination)](#philosophy-in-principles).
 - **SNS/SQS** is a broker that does not need to understand the domain: SNS fans out by opaque message attributes, and
   SQS queues are owned and scaled independently by each consumer application. This is "dumb pipes"
-  per [Principle #2](#philosophy-in-principles), there is no central bus or orchestrator coordinating consumers.
+  per [Principle #3](#philosophy-in-principles), there is no central bus or orchestrator coordinating consumers.
 - **The publisher Lambda** only moves records from DynamoDB Streams to SNS; it holds no business logic and scales with
   the number of stream shards, so it does not become a bottleneck or a single point of failure, consistent with
   [Principle #1](#philosophy-in-principles).
 
 None of this is AWS-specific in substance, only in the concrete API used, and
-per [Principle #10](#philosophy-in-principles) every integration point is an interface open for substitution
+per [Principle #9](#philosophy-in-principles) every integration point is an interface open for substitution
 (`EventStore`, `EventProducer`, `SnapshotStore`, event consumption, the publisher).
 
 > [!NOTE]
 > When operating applications on a high scale it might be worth switching to provisioned capacity of DynamoDB, 
 > with reserved instances. However, if very high-scale load is expected, it might be worthy to plan utilizing different
-> technologies not to pay AWS per request, but operate your own DB and Message broker. On the other hand that might 
+> technologies not to pay AWS per request, but operate your own DB and Message broker. On the other hand that might
 > increase operational cost of the system.
 
 #### Technologies with the properties could substitute the reference implementation:
 
-- A partitioned database with a native, ordered per-partition change feed can substitute DynamoDB: for example
-  Cassandra/ScyllaDB with CDC.
+- A database that can reject a duplicate `(entityReference, sequenceNumber)` on insert, read one entity's events in
+  order, and expose its inserts as a change feed can substitute DynamoDB. How far writes scale then depends on that
+  database.
 - A broker letting consumers own and scale their own subscriptions without a central process understanding the domain
   can substitute SNS/SQS: for example Kafka, Pulsar, or Google Pub/Sub.
 - The publisher can be substituted by a stream-reader process as long as it preserves at-least-once delivery and keeps
@@ -705,14 +679,14 @@ per [Principle #10](#philosophy-in-principles) every integration point is an int
 Events-caravan and Axon solve the same problem, which is event sourcing and CQRS, but with opposite approach on
 centralization, driven by [Compromise #1](#compromises):
 
-- **Choose Events-caravan** when horizontal scalability without a central component is the priority: there is no global
+- **Choose Events-caravan** when horizontal scalability without a central writer component is the priority: there is no global
   events sequence and duty to maintain it. Library's footprint is a handful of interfaces over your own database and
   broker, which suits teams already operating DynamoDB/SNS/SQS-shaped infrastructure, or willing to implement the
   equivalent adapters; and comfortable maintaining their own sorted query-model or global event-log, if they actually
   need one (see [Compromise #1](#compromises)).
 - **Choose Axon** when a global, replayable stream of all events is needed out of the box. For example rebuilding many
   projections from scratch across every entity, without building that yourself, or when Axon Server's built-in tracking
-  processors, deadline manager, and sagas orchestration outweigh the cost of running and scaling a central server.
+  processors, deadline manager, and Sagas orchestration outweigh the cost of running and scaling a central server.
 
 **In short:** Events-caravan trades Axon's built-in global event-store and orchestration machinery for horizontal
 scalability with fewer moving parts; pick whichever side of that trade fits your team's operational scale and appetite
@@ -734,9 +708,7 @@ for infrastructure.
     - **A:** having an "Inbox" table means that application needs to populate it after processing each message. If it's
       done in a separate transaction, appearance of the Inbox entry after a domain-write is not guaranteed. If saving
       the entry is done in the transaction scope as the domain entity writes, it'll contradict the philosophy of the
-      framework: the transaction would have to span two tables (or partitions, if went with single DynamoDB table),
-      potentially across several machines. Which has its costs when it comes to scalability, and in fact it's just a
-      more costly operation in AWS.
+      framework: the database would be required to coordinate a transaction spanning several tables.
 
 ## Yet to be built:
 
@@ -744,7 +716,7 @@ for infrastructure.
    query-models.
 2. Introduce events flow traceability, metrics.
 3. Introduce Event versioning and upcasting mechanism.
-4. Develop adapters for ScyllaDB + Debezium + Kafka protocol.
+4. Develop adapters for PostgreSQL/ScyllaDB + Debezium + Kafka protocol.
 5. Introduce Multi region scalability.
 6. Provide possibility of taking snapshots async from thread of `EventSourcedRepository.save(...)`;
 7. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
