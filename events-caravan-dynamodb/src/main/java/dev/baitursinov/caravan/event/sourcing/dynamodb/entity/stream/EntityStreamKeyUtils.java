@@ -17,8 +17,8 @@ public final class EntityStreamKeyUtils {
   private static final DateTimeFormatter TIMESTAMP_FORMATTER =
       new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
 
-  static String toPartitionKeyValue(String entityName, String timeBucket, int shardIndex) {
-    return entityName + SEPARATOR + timeBucket + SEPARATOR + shardIndex;
+  static String toPartitionKeyValue(String entityName, String timeBucket, int sliceIndex) {
+    return entityName + SEPARATOR + timeBucket + SEPARATOR + sliceIndex;
   }
 
   static String toSortKeyValue(ZonedDateTime firstEventTimestamp, String entityId) {

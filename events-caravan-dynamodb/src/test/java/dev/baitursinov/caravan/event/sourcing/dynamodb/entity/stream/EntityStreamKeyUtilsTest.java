@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class EntityStreamKeyUtilsTest {
 
   @Test
-  void partitionKeyValueJoinsNameBucketAndShard() {
+  void partitionKeyValueJoinsNameBucketAndSlice() {
     assertThat(toPartitionKeyValue("Entity", "2026-08", 3)).isEqualTo("Entity#2026-08#3");
   }
 

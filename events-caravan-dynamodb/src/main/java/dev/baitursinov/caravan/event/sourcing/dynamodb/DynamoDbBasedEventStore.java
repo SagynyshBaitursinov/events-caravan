@@ -36,7 +36,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbUtils.requireTableIsActive;
-import static dev.baitursinov.caravan.event.sourcing.dynamodb.PrimaryKeyUtils.toShardedPartitionKeyValue;
+import static dev.baitursinov.caravan.event.sourcing.dynamodb.PrimaryKeyUtils.toSlicedPartitionKeyValue;
 import static dev.baitursinov.caravan.utils.TextUtils.hasText;
 import static java.util.Objects.requireNonNull;
 
@@ -61,7 +61,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
   private final DynamoDbClient dynamoDbClient;
   private final String eventsTableName;
   private final int maxPageSize;
-  private final long partitionShardSize;
+  private final long partitionSliceSize;
   private final boolean consistentRead;
   private final EventPayloadSerializer eventPayloadSerializer;
   private final EventPayloadDeserializer eventPayloadDeserializer;
@@ -69,7 +69,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
   public DynamoDbBasedEventStore(DynamoDbClient dynamoDbClient,
                                  String eventsTableName,
                                  int maxPageSize,
-                                 long partitionShardSize,
+                                 long partitionSliceSize,
                                  boolean consistentRead,
                                  EventPayloadSerializer eventPayloadSerializer,
                                  EventPayloadDeserializer eventPayloadDeserializer) {
@@ -82,9 +82,9 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     }
     requireTableIsActive(dynamoDbClient, eventsTableName);
 
-    if (partitionShardSize <= 0) {
+    if (partitionSliceSize <= 0) {
       throw new DynamoDbSetupException(
-          "partitionShardSize must be positive, got %d".formatted(partitionShardSize));
+          "partitionSliceSize must be positive, got %d".formatted(partitionSliceSize));
     }
 
     if (maxPageSize <= 0) {
@@ -95,7 +95,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     this.dynamoDbClient = dynamoDbClient;
     this.eventsTableName = eventsTableName;
     this.maxPageSize = maxPageSize;
-    this.partitionShardSize = partitionShardSize;
+    this.partitionSliceSize = partitionSliceSize;
     this.consistentRead = consistentRead;
     this.eventPayloadSerializer = eventPayloadSerializer;
     this.eventPayloadDeserializer = eventPayloadDeserializer;
@@ -216,9 +216,9 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     attributes.put(
         PK,
         AttributeValue.fromS(
-            toShardedPartitionKeyValue(
+            toSlicedPartitionKeyValue(
                 event.entityReference(),
-                shardIndexForSequenceNumber(event.sequenceNumber()))));
+                sliceIndexForSequenceNumber(event.sequenceNumber()))));
     attributes.put(
         SK,
         AttributeValue.fromN(
@@ -238,8 +238,8 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     return attributes;
   }
 
-  private long shardIndexForSequenceNumber(long sequenceNumber) {
-    return (sequenceNumber - 1) / partitionShardSize;
+  private long sliceIndexForSequenceNumber(long sequenceNumber) {
+    return (sequenceNumber - 1) / partitionSliceSize;
   }
 
   @Override
@@ -259,34 +259,34 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
 
   private DynamoDbEventsSpliterator createSpliterator(EntityReference entityReference,
                                                       long fromSequenceNumberExclusive) {
-    long firstShardIndex = shardIndexForSequenceNumber(fromSequenceNumberExclusive + 1);
+    long firstSliceIndex = sliceIndexForSequenceNumber(fromSequenceNumberExclusive + 1);
 
-    Map<String, AttributeValue> firstShardExclusiveStartKey
-        = getFirstShardExclusiveStartKey(entityReference, fromSequenceNumberExclusive, firstShardIndex);
+    Map<String, AttributeValue> firstSliceExclusiveStartKey
+        = getFirstSliceExclusiveStartKey(entityReference, fromSequenceNumberExclusive, firstSliceIndex);
 
     return new DynamoDbEventsSpliterator(
         dynamoDbClient,
-        partitionShardSize,
+        partitionSliceSize,
         SK,
-        firstShardIndex,
-        firstShardExclusiveStartKey,
-        shardIndex -> shardQueryBuilder(entityReference, shardIndex),
+        firstSliceIndex,
+        firstSliceExclusiveStartKey,
+        sliceIndex -> sliceQueryBuilder(entityReference, sliceIndex),
         attributes ->
             this.mapAttributesToEvent(entityReference, attributes));
   }
 
-  private @Nullable Map<String, AttributeValue> getFirstShardExclusiveStartKey(EntityReference entityReference, long fromSequenceNumberExclusive, long firstShardIndex) {
-    boolean resumesExactlyAtShardBoundary = fromSequenceNumberExclusive % partitionShardSize == 0;
-    if (resumesExactlyAtShardBoundary) {
+  private @Nullable Map<String, AttributeValue> getFirstSliceExclusiveStartKey(EntityReference entityReference, long fromSequenceNumberExclusive, long firstSliceIndex) {
+    boolean resumesExactlyAtSliceBoundary = fromSequenceNumberExclusive % partitionSliceSize == 0;
+    if (resumesExactlyAtSliceBoundary) {
       return null;
     } else {
-      return Map.of(PK, AttributeValue.fromS(toShardedPartitionKeyValue(entityReference, firstShardIndex)),
+      return Map.of(PK, AttributeValue.fromS(toSlicedPartitionKeyValue(entityReference, firstSliceIndex)),
           SK, AttributeValue.fromN(String.valueOf(fromSequenceNumberExclusive)));
     }
   }
 
-  private QueryRequest.Builder shardQueryBuilder(EntityReference entityReference,
-                                                 long shardIndex) {
+  private QueryRequest.Builder sliceQueryBuilder(EntityReference entityReference,
+                                                 long sliceIndex) {
     return QueryRequest.builder()
         .tableName(eventsTableName)
         .scanIndexForward(true)
@@ -298,7 +298,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
             Map.of(
                 ":pkVal",
                 AttributeValue.fromS(
-                    toShardedPartitionKeyValue(entityReference, shardIndex))))
+                    toSlicedPartitionKeyValue(entityReference, sliceIndex))))
         .limit(maxPageSize);
   }
 

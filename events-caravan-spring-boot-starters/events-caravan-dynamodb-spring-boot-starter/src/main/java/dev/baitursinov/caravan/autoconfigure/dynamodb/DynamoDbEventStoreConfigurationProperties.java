@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param tableName          the DynamoDB table events are stored in
  * @param queryMaxPageSize   the maximum number of items requested per query page when reading
  *                           an entity's events to avoid running out of memory
- * @param partitionShardSize the number of events stored per partition-key shard, to shard
+ * @param partitionSliceSize the number of events stored per partition-key slice, to slice
  *                           entities event history across multiple partitions
  * @param consistentRead     whether to use DynamoDB strongly consistent reads when querying
  *                           an entity's events; defaults to {@code false} (eventually consistent
@@ -19,7 +19,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 @ConfigurationProperties(DynamoDbEventStoreConfigurationProperties.PREFIX)
 public record DynamoDbEventStoreConfigurationProperties(String tableName,
                                                         @DefaultValue("1000") int queryMaxPageSize,
-                                                        @DefaultValue("10000") long partitionShardSize,
+                                                        @DefaultValue("10000") long partitionSliceSize,
                                                         @DefaultValue("false") boolean consistentRead) {
 
   public static final String PREFIX = "caravan.event.sourcing.event-store.dynamo-db";

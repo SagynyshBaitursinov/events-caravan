@@ -37,7 +37,7 @@
         <mxCell id="rsnap" edge="1" parent="1" source="snap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#d6b656;labelBackgroundColor=#ffffff;" target="ent" value="optional shortcut: restore state,&lt;br&gt;then apply only later events">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="table" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=none;strokeColor=#666666;spacingTop=6;fontSize=13;" value="&lt;b&gt;DynamoDB events table&lt;/b&gt;&lt;div&gt;&amp;nbsp;Partition Key = &lt;i&gt;entityName#entityId#shardIndex&lt;/i&gt;&amp;nbsp;&lt;/div&gt;&lt;div&gt;Sort Key = &lt;i&gt;sequenceNumber&lt;/i&gt;&lt;/div&gt;" vertex="1">
+        <mxCell id="table" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=none;strokeColor=#666666;spacingTop=6;fontSize=13;" value="&lt;b&gt;DynamoDB events table&lt;/b&gt;&lt;div&gt;&amp;nbsp;Partition Key = &lt;i&gt;entityName#entityId#sliceIndex&lt;/i&gt;&amp;nbsp;&lt;/div&gt;&lt;div&gt;Sort Key = &lt;i&gt;sequenceNumber&lt;/i&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="430" width="460" x="652" y="49" as="geometry" />
         </mxCell>
         <mxCell id="p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;calculator#42#0&lt;/b&gt;&lt;br&gt;seq 1 … 10000 · sorted by sequenceNumber" vertex="1">
@@ -46,10 +46,10 @@
         <mxCell id="p1c" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;calculator#42#1&lt;/b&gt;&lt;br&gt;seq 10001 … 20000 · sorted by sequenceNumber" vertex="1">
           <mxGeometry height="80" width="400" x="682" y="229" as="geometry" />
         </mxCell>
-        <mxCell id="p2c" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;calculator#42#2&lt;/b&gt;&lt;br&gt;seq 20001 … · current shard, still growing" vertex="1">
+        <mxCell id="p2c" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;calculator#42#2&lt;/b&gt;&lt;br&gt;seq 20001 … · current slice, still growing" vertex="1">
           <mxGeometry height="80" width="400" x="682" y="339" as="geometry" />
         </mxCell>
-        <mxCell id="shardnote" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;align=left;spacing=8;" value="shardIndex increments every partition-shard-size events, so no partition grows unbounded; partitions may live on different storage nodes — the store scales horizontally." vertex="1">
+        <mxCell id="slicenote" parent="1" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;size=16;align=left;spacing=8;" value="sliceIndex increments every partition-slice-size events, so no partition grows unbounded; partitions may live on different storage nodes — the store scales horizontally." vertex="1">
           <mxGeometry height="70" width="460" x="652" y="499" as="geometry" />
         </mxCell>
         <mxCell id="load" edge="1" parent="1" source="table" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#666666;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="ent" value="loaded and applied&lt;div&gt;&amp;nbsp;page by page&lt;br&gt;(query-max-page-size)&lt;/div&gt;">

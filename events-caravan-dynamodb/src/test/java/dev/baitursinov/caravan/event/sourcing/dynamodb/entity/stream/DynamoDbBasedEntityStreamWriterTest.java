@@ -49,7 +49,7 @@ class DynamoDbBasedEntityStreamWriterTest {
   }
 
   @Test
-  void writingPutsItemUnconditionallyKeyedByNameBucketAndShard() {
+  void writingPutsItemUnconditionallyKeyedByNameBucketAndSlice() {
     entityStream.write(new EntityStreamEntry(ENTITY_REFERENCE, FIRST_EVENT_TIMESTAMP), "2026-08", 3);
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);

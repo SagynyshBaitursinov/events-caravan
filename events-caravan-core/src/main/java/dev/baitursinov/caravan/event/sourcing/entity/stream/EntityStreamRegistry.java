@@ -37,8 +37,8 @@ public class EntityStreamRegistry {
       }
 
       log.debug(
-          "Registered entityName={} for the entity stream with timeBucket={}, shardCount={}",
-          entityName, registration.timeBucket(), registration.shardCount());
+          "Registered entityName={} for the entity stream with timeBucket={}, sliceCount={}",
+          entityName, registration.timeBucket(), registration.sliceCount());
     });
 
     log.info("Built EntityStreamRegistry with {} entityName(s)", result.registrations.size());

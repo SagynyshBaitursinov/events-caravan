@@ -39,7 +39,7 @@ class EntityStreamTest extends AbstractSpringBootTest {
   String entityStreamTableName;
 
   @Test
-  void writesAStreamItemKeyedByEntityNameAndTimeBucketAndShard() {
+  void writesAStreamItemKeyedByEntityNameAndTimeBucketAndSlice() {
     var entityId = UUID.randomUUID().toString();
     var entityReference = new EntityReference("calculator", entityId);
     var firstEventTimestamp = ZonedDateTime.parse("2026-08-10T14:03:22.123Z");

@@ -41,7 +41,7 @@ The stream must carry the new image of each record (`StreamViewType=NEW_IMAGE`).
 
 | Attribute         | Type | Content                                                          |
 |-------------------|------|------------------------------------------------------------------|
-| `entityReference` | `S`  | Partition key, `entityName#entityId#shardIndex`                  |
+| `entityReference` | `S`  | Partition key, `entityName#entityId#sliceIndex`                  |
 | `sequenceNumber`  | `N`  | Sort key, gapless and starting at 1 per entity                   |
 | `eventName`       | `S`  | Name of the event                                                |
 | `timestamp`       | `S`  | ISO-8601 instant in UTC, always `uuuu-MM-dd'T'HH:mm:ss.SSS'Z'`   |

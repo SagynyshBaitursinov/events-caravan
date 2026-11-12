@@ -47,7 +47,7 @@ import static org.mockito.Mockito.when;
 class DynamoDbBasedEventStoreTest {
 
   private static final EntityReference ENTITY_REFERENCE = new EntityReference("Entity", "reference-1");
-  private static final long PARTITION_SHARD_SIZE = 100;
+  private static final long PARTITION_SLICE_SIZE = 100;
 
   DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
   EventPayloadDeserializer eventPayloadDeserializer = mock(EventPayloadDeserializer.class);
@@ -65,7 +65,7 @@ class DynamoDbBasedEventStoreTest {
 
     eventStore = new DynamoDbBasedEventStore(
         dynamoDbClient,
-        "events-table", 100, PARTITION_SHARD_SIZE, false, eventPayloadSerializer,
+        "events-table", 100, PARTITION_SLICE_SIZE, false, eventPayloadSerializer,
         eventPayloadDeserializer);
 
     clearInvocations(dynamoDbClient);
@@ -73,7 +73,7 @@ class DynamoDbBasedEventStoreTest {
 
   @Test
   @SneakyThrows
-  void resumingExactlyAtShardBoundaryQueriesOnlyTheNextShardWithNoExclusiveStartKey() {
+  void resumingExactlyAtSliceBoundaryQueriesOnlyTheNextSliceWithNoExclusiveStartKey() {
     when(eventPayloadDeserializer.deserializePayload(any(), any(EventType.class))).thenReturn(new Object());
     when(dynamoDbClient.query(any(QueryRequest.class)))
         .thenReturn(
@@ -115,7 +115,7 @@ class DynamoDbBasedEventStoreTest {
   }
 
   @Test
-  void resumingMidShardQueriesTheContainingShardWithExclusiveStartKey() {
+  void resumingMidSliceQueriesTheContainingSliceWithExclusiveStartKey() {
     when(dynamoDbClient.query(any(QueryRequest.class)))
         .thenReturn(QueryResponse.builder().items(List.of()).build());
 
@@ -132,7 +132,7 @@ class DynamoDbBasedEventStoreTest {
   }
 
   @Test
-  void resumingMidShardQueriesTheContainingShardWithExclusiveStartKeyOnShardIndexOne() {
+  void resumingMidSliceQueriesTheContainingSliceWithExclusiveStartKeyOnSliceIndexOne() {
     when(dynamoDbClient.query(any(QueryRequest.class)))
         .thenReturn(QueryResponse.builder().items(List.of()).build());
 
@@ -155,7 +155,7 @@ class DynamoDbBasedEventStoreTest {
   }
 
   @Test
-  void producingSingleEventPutsItemKeyedByItsShard() {
+  void producingSingleEventPutsItemKeyedByItsSlice() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{\"n\":1}");
 
     eventStore.produce(event(1));
@@ -175,16 +175,16 @@ class DynamoDbBasedEventStoreTest {
   }
 
   @Test
-  void producingEventPastTheShardBoundaryUsesTheNextShardsPartitionKey() {
+  void producingEventPastTheSliceBoundaryUsesTheNextSlicesPartitionKey() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
 
-    eventStore.produce(event(PARTITION_SHARD_SIZE + 1));
+    eventStore.produce(event(PARTITION_SLICE_SIZE + 1));
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient).putItem(captor.capture());
 
     assertThat(captor.getValue().item().get("entityReference").s()).isEqualTo("Entity#reference-1#1");
-    assertThat(captor.getValue().item().get("sequenceNumber").n()).isEqualTo(String.valueOf(PARTITION_SHARD_SIZE + 1));
+    assertThat(captor.getValue().item().get("sequenceNumber").n()).isEqualTo(String.valueOf(PARTITION_SLICE_SIZE + 1));
   }
 
   @Test
@@ -258,10 +258,10 @@ class DynamoDbBasedEventStoreTest {
   }
 
   @Test
-  void producingSeveralEventsUsesTransactionWithOnePutPerEventKeyedByItsOwnShard() {
+  void producingSeveralEventsUsesTransactionWithOnePutPerEventKeyedByItsOwnSlice() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
 
-    eventStore.produce(List.of(event(PARTITION_SHARD_SIZE), event(PARTITION_SHARD_SIZE + 1)));
+    eventStore.produce(List.of(event(PARTITION_SLICE_SIZE), event(PARTITION_SLICE_SIZE + 1)));
 
     ArgumentCaptor<TransactWriteItemsRequest> captor =
         ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
@@ -274,9 +274,9 @@ class DynamoDbBasedEventStoreTest {
 
     assertThat(items).hasSize(2);
     assertThat(items.get(0).get("entityReference").s()).isEqualTo("Entity#reference-1#0");
-    assertThat(items.get(0).get("sequenceNumber").n()).isEqualTo(String.valueOf(PARTITION_SHARD_SIZE));
+    assertThat(items.get(0).get("sequenceNumber").n()).isEqualTo(String.valueOf(PARTITION_SLICE_SIZE));
     assertThat(items.get(1).get("entityReference").s()).isEqualTo("Entity#reference-1#1");
-    assertThat(items.get(1).get("sequenceNumber").n()).isEqualTo(String.valueOf(PARTITION_SHARD_SIZE + 1));
+    assertThat(items.get(1).get("sequenceNumber").n()).isEqualTo(String.valueOf(PARTITION_SLICE_SIZE + 1));
   }
 
   @SuppressWarnings("unchecked")

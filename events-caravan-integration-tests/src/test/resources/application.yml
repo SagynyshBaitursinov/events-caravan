@@ -12,7 +12,7 @@ caravan:
         dynamo-db:
           table-name: ${app.name}_events
           query-max-page-size: 5
-          partition-shard-size: 10
+          partition-slice-size: 10
           consistent-read: false
       snapshot-store:
         dynamo-db:

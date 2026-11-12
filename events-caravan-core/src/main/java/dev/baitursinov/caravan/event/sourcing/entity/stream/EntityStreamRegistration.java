@@ -16,20 +16,20 @@ import static java.util.Objects.requireNonNull;
  * @param entityName the entity type to be recorded into the entity stream
  * @param timeBucket granularity entities of this type are bucketed by creation time;
  *                   must stay fixed once the stream is populated
- * @param shardCount number of shards each time bucket of this entity type is split
+ * @param sliceCount number of slices each time bucket of this entity type is split
  *                   into; must stay fixed once the stream is populated
  */
 public record EntityStreamRegistration(String entityName,
                                        TimeBucket timeBucket,
-                                       int shardCount) {
+                                       int sliceCount) {
 
   public EntityStreamRegistration {
     requireNonNull(entityName, "entityName cannot be null");
     requireNonNull(timeBucket, "timeBucket cannot be null");
 
-    if (shardCount <= 0) {
+    if (sliceCount <= 0) {
       throw new EntityStreamRegistrationException(
-          "shardCount must be positive, got %d".formatted(shardCount));
+          "sliceCount must be positive, got %d".formatted(sliceCount));
     }
   }
 }

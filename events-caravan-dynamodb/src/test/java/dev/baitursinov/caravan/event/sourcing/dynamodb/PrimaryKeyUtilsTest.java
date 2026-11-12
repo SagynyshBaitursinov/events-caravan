@@ -15,8 +15,8 @@ class PrimaryKeyUtilsTest {
   }
 
   @Test
-  void appendsShardIndex() {
-    assertThat(PrimaryKeyUtils.toShardedPartitionKeyValue(new EntityReference("calculator", "1"), 2))
+  void appendsSliceIndex() {
+    assertThat(PrimaryKeyUtils.toSlicedPartitionKeyValue(new EntityReference("calculator", "1"), 2))
         .isEqualTo("calculator#1#2");
   }
 
@@ -47,9 +47,9 @@ class PrimaryKeyUtilsTest {
   }
 
   @Test
-  void rejectsSeparatorWhenSharding() {
+  void rejectsSeparatorWhenSlicing() {
     assertThatThrownBy(() ->
-        PrimaryKeyUtils.toShardedPartitionKeyValue(new EntityReference("a", "b#c"), 0))
+        PrimaryKeyUtils.toSlicedPartitionKeyValue(new EntityReference("a", "b#c"), 0))
         .isExactlyInstanceOf(DynamoDbStoreException.class);
   }
 }

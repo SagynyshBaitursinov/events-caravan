@@ -32,15 +32,15 @@ public final class EntityStreamWritingEventHandler implements EventHandler<Objec
     var registration = getRegistration(entityReference);
 
     var timeBucketLocation = registration.timeBucket().locationOf(event.timestamp());
-    var shardLocation = getShardLocation(entityReference, registration.shardCount());
+    var sliceLocation = getSliceLocation(entityReference, registration.sliceCount());
 
     entityStreamWriter.write(
         new EntityStreamEntry(entityReference, event.timestamp()),
         timeBucketLocation,
-        shardLocation);
+        sliceLocation);
 
-    log.debug("Wrote {} to stream at timeBucket={}, shard={}",
-        entityReference, timeBucketLocation, shardLocation);
+    log.debug("Wrote {} to stream at timeBucket={}, slice={}",
+        entityReference, timeBucketLocation, sliceLocation);
   }
 
   private EntityStreamRegistration getRegistration(EntityReference entityReference) {
@@ -50,7 +50,7 @@ public final class EntityStreamWritingEventHandler implements EventHandler<Objec
                 .formatted(entityReference.entityName())));
   }
 
-  private int getShardLocation(EntityReference entityReference, int shardCount) {
-    return Math.floorMod(Fnv1a64.hash(entityReference.entityId()), shardCount);
+  private int getSliceLocation(EntityReference entityReference, int sliceCount) {
+    return Math.floorMod(Fnv1a64.hash(entityReference.entityId()), sliceCount);
   }
 }

@@ -17,29 +17,29 @@ import java.util.function.Consumer;
 import java.util.function.LongFunction;
 
 /**
- * Iterates over single entity's events across its sharded partitions in ascending sequence-number
+ * Iterates over single entity's events across its sliced partitions in ascending sequence-number
  * order. Events for an entity are spread across partition keys suffixed by
- * {@code sequenceNumber/partitionShardSize}, so after each page the highest sequence number
- * observed in the shard is compared against the shard's upper bound: an exact match means the
- * shard was filled to capacity and iteration jumps straight to the next shard (skipping any
- * remaining DynamoDB pagination, which would only return an empty page); otherwise the shard's
- * own pagination is followed until exhausted, and a shard ending below its upper bound is the
+ * {@code sequenceNumber/partitionSliceSize}, so after each page the highest sequence number
+ * observed in the slice is compared against the slice's upper bound: an exact match means the
+ * slice was filled to capacity and iteration jumps straight to the next slice (skipping any
+ * remaining DynamoDB pagination, which would only return an empty page); otherwise the slice's
+ * own pagination is followed until exhausted, and a slice ending below its upper bound is the
  * entity's last partition.
  */
 public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
 
   private final DynamoDbClient dynamoDbClient;
-  private final long partitionShardSize;
+  private final long partitionSliceSize;
   private final String sequenceNumberAttributeName;
-  private final LongFunction<QueryRequest.Builder> shardQueryBuilderFactory;
+  private final LongFunction<QueryRequest.Builder> sliceQueryBuilderFactory;
   private final EventMapper eventMapper;
 
-  private long currentShardIndex;
+  private long currentSliceIndex;
   @Nullable
-  private final Map<String, AttributeValue> firstShardExclusiveStartKey;
+  private final Map<String, AttributeValue> firstSliceExclusiveStartKey;
   @Nullable
-  private Map<String, AttributeValue> withinShardLastEvaluatedKey;
-  private long lastSequenceNumberSeenInShard = -1;
+  private Map<String, AttributeValue> withinSliceLastEvaluatedKey;
+  private long lastSequenceNumberSeenInSlice = -1;
 
   private Iterator<Map<String, AttributeValue>> currentPageIterator = Collections.emptyIterator();
 
@@ -47,18 +47,18 @@ public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
   private boolean finished = false;
 
   public DynamoDbEventsSpliterator(DynamoDbClient dynamoDbClient,
-                                   long partitionShardSize,
+                                   long partitionSliceSize,
                                    String sequenceNumberAttributeName,
-                                   long firstShardIndex,
-                                   @Nullable Map<String, AttributeValue> firstShardExclusiveStartKey,
-                                   LongFunction<QueryRequest.Builder> shardQueryBuilderFactory,
+                                   long firstSliceIndex,
+                                   @Nullable Map<String, AttributeValue> firstSliceExclusiveStartKey,
+                                   LongFunction<QueryRequest.Builder> sliceQueryBuilderFactory,
                                    EventMapper eventMapper) {
     this.dynamoDbClient = dynamoDbClient;
-    this.partitionShardSize = partitionShardSize;
+    this.partitionSliceSize = partitionSliceSize;
     this.sequenceNumberAttributeName = sequenceNumberAttributeName;
-    this.currentShardIndex = firstShardIndex;
-    this.firstShardExclusiveStartKey = firstShardExclusiveStartKey;
-    this.shardQueryBuilderFactory = shardQueryBuilderFactory;
+    this.currentSliceIndex = firstSliceIndex;
+    this.firstSliceExclusiveStartKey = firstSliceExclusiveStartKey;
+    this.sliceQueryBuilderFactory = sliceQueryBuilderFactory;
     this.eventMapper = eventMapper;
   }
 
@@ -123,11 +123,11 @@ public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
     List<Map<String, AttributeValue>> items = response.items();
     currentPageIterator = items.iterator();
     if (!items.isEmpty()) {
-      lastSequenceNumberSeenInShard =
+      lastSequenceNumberSeenInSlice =
           Long.parseLong(items.getLast().get(sequenceNumberAttributeName).n());
     }
 
-    withinShardLastEvaluatedKey = response.hasLastEvaluatedKey()
+    withinSliceLastEvaluatedKey = response.hasLastEvaluatedKey()
         ? response.lastEvaluatedKey()
         : null;
   }
@@ -135,32 +135,32 @@ public class DynamoDbEventsSpliterator implements Spliterator<Event<?>> {
   @Nullable
   private QueryRequest nextRequest() {
     if (!initialized) {
-      return shardQueryBuilderFactory.apply(currentShardIndex)
-          .exclusiveStartKey(firstShardExclusiveStartKey)
+      return sliceQueryBuilderFactory.apply(currentSliceIndex)
+          .exclusiveStartKey(firstSliceExclusiveStartKey)
           .build();
     }
 
-    if (lastSequenceNumberSeenInShard == shardUpperBound(currentShardIndex)) {
-      proceedToNextShard();
-      return shardQueryBuilderFactory.apply(currentShardIndex).build();
+    if (lastSequenceNumberSeenInSlice == sliceUpperBound(currentSliceIndex)) {
+      proceedToNextSlice();
+      return sliceQueryBuilderFactory.apply(currentSliceIndex).build();
     }
 
-    if (withinShardLastEvaluatedKey != null) {
-      return shardQueryBuilderFactory.apply(currentShardIndex)
-          .exclusiveStartKey(withinShardLastEvaluatedKey)
+    if (withinSliceLastEvaluatedKey != null) {
+      return sliceQueryBuilderFactory.apply(currentSliceIndex)
+          .exclusiveStartKey(withinSliceLastEvaluatedKey)
           .build();
     }
 
     return null;
   }
 
-  private void proceedToNextShard() {
-    currentShardIndex++;
-    lastSequenceNumberSeenInShard = -1;
-    withinShardLastEvaluatedKey = null;
+  private void proceedToNextSlice() {
+    currentSliceIndex++;
+    lastSequenceNumberSeenInSlice = -1;
+    withinSliceLastEvaluatedKey = null;
   }
 
-  private long shardUpperBound(long shardIndex) {
-    return (shardIndex + 1) * partitionShardSize;
+  private long sliceUpperBound(long sliceIndex) {
+    return (sliceIndex + 1) * partitionSliceSize;
   }
 }

@@ -105,12 +105,11 @@ be [registered](#ii-register-your-events).
    a partition per entity and shard partitions into different machines.
 8. For entities with long histories [Snapshotting](#v-set-up-optional-snapshot-takers) can be utilized to avoid loading
    and re-applying all historic events from the beginning.
-9. Hot entities with long histories can make a partition where its events are stored too large, turning it into a
-   scaling bottleneck. To avoid that an adapter can shard an `EntityReference` partition while events' sequenceNumbers
-   increase. In the DynamoDB adapter partition-key is `entityName#entityId#shardIndex` where
-   one `shardIndex` increments every N events defined by `partition-shard-size` property. Shard indexes are incremental,
-   and sort-key is `sequenceNumber`, so all events are sorted in each sharded partition. Because `shardIndex` is derived
-   from `sequenceNumber` and `partition-shard-size`, `partition-shard-size` parameter must stay fixed for the lifetime
+9. "Hot" entities with long histories can make a partition where its events are stored too heavy. 
+   In the DynamoDB adapter partition-key is `entityName#entityId#sliceIndex` where
+   one `sliceIndex` increments every N events defined by `partition-slice-size` property. Slice indexes are incremental,
+   and sort-key is `sequenceNumber`, so all events are sorted in each sliced partition. Because `sliceIndex` is derived
+   from `sequenceNumber` and `partition-slice-size`, `partition-slice-size` parameter must stay fixed for the lifetime
    of the table.
 
 ### Producing and propagating events
@@ -230,7 +229,7 @@ for defining how those query models are to be constructed and maintained. The fr
 | Module                                      | Purpose                                                                                                                                                |
 |---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
 | events-caravan-core                         | Core, technology-agnostic: entities, repositories, event registry, interfaces, Jackson serialization, event consumption and handlers, entity stream    |
-| events-caravan-dynamodb                     | `EventStore` + `EventProducer` + `SnapshotStore` + `EntityStreamWriter` implementations on DynamoDB, with partition sharding for long entity histories |
+| events-caravan-dynamodb                     | `EventStore` + `EventProducer` + `SnapshotStore` + `EntityStreamWriter` implementations on DynamoDB, with partition slicing for long entity histories |
 | events-caravan-queue-polling                | Transport-agnostic continuous polling mechanism (virtual threads, adaptive poller scaling, batched deletes, graceful shutdown)                         |
 | events-caravan-sqs                          | SQS polling/deletion primitives                                                                                                                        |
 | events-caravan-spring-boot-starter          | Auto-configuration of the core components                                                                                                              |
@@ -542,14 +541,14 @@ public class CalculatorEventsConfiguration {
 
 - `entityName`
 - first event timestamp's `timeBucket` granularity
-- N shards (`shardCount`) by a hash _(FNV-1a 64-bit)_ of `entityId` within each bucket
+- N slices (`sliceCount`) by a hash _(FNV-1a 64-bit)_ of `entityId` within each bucket
 
-then passes the derived time bucket and shard locations along with the entity reference to the configured
+then passes the derived time bucket and slice locations along with the entity reference to the configured
 `EntityStreamWriter`. This way the Entity-stream's storage is enabled to scale horizontally without hot partitions.
 
 > [!IMPORTANT]
->- `EntityStreamRegistration`'s `timeBucket` and `shardCount` must stay fixed per entityName` once the Entity-stream
-   > table has entities of it in it. Re-creating the stream for already written data changing their sharding parameters
+>- `EntityStreamRegistration`'s `timeBucket` and `sliceCount` must stay fixed per entityName` once the Entity-stream
+   > table has entities of it in it. Re-creating the stream for already written data changing their slicing parameters
    > may be an expensive operation.
 >
 >- If `EntityStreamRegistration` is not set up, entities won't be populated for the `entityName`. Setting it up later
@@ -564,11 +563,11 @@ then passes the derived time bucket and shard locations along with the entity re
    > entities can be onboarded onto the Entity-stream independently, at whatever granularity suits their event
    > production frequency.
 >
->- `timeBucket` and `shardCount` must stay fixed per `entityName` once the table has entities of it in it, as
-   > they define how the stream is sharded. Thus, it's important to set values to have fine enough partitions in
+>- `timeBucket` and `sliceCount` must stay fixed per `entityName` once the table has entities of it in it, as
+   > they define how the stream is sliced. Thus, it's important to set values to have fine enough partitions in
    > anticipation of the load.
 >
->- On the other hand, setting the values too generously (small time-buckets and high shard count) will lead to more
+>- On the other hand, setting the values too generously (small time-buckets and high slice count) will lead to more
    > partitions, which would be empty or underfilled, when Entity creation is not frequent enough. Consequently,
    > iterating over the Entity-stream will be more costly due to some DB queries will result in no or few entries.
 >
@@ -585,7 +584,7 @@ caravan:
       event-store:
         dynamo-db:
           table-name: my-app_events
-          partition-shard-size: 10000   # events per partition-key shard
+          partition-slice-size: 10000   # events per partition-key slice
           query-max-page-size: 1000     # events loaded into memory per page while replaying an entity
           consistent-read: false        # opt into strongly consistent reads if needed
       snapshot-store:
@@ -617,7 +616,7 @@ caravan:
 > [Entity-stream](#vii-set-up-an-optional-entity-stream) on.
 
 > [!IMPORTANT]
->`event-store.dynamo-db.partition-shard-size` is baked into how items are keyed and must be fixed once the events
+>`event-store.dynamo-db.partition-slice-size` is baked into how items are keyed and must be fixed once the events
 > table is populated.
 
 ### IX. Infrastructure

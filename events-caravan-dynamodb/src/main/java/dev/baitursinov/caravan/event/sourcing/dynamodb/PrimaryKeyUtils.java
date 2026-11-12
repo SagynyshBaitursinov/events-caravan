@@ -15,8 +15,8 @@ public final class PrimaryKeyUtils {
     return entityReference.entityName() + SEPARATOR + entityReference.entityId();
   }
 
-  static String toShardedPartitionKeyValue(EntityReference entityReference, long shardIndex) {
-    return toPartitionKeyValue(entityReference) + SEPARATOR + shardIndex;
+  static String toSlicedPartitionKeyValue(EntityReference entityReference, long sliceIndex) {
+    return toPartitionKeyValue(entityReference) + SEPARATOR + sliceIndex;
   }
 
   private static void requireFreeOfSeparator(EntityReference entityReference) {

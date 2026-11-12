@@ -43,15 +43,15 @@ public class CaravanDynamoDbAutoConfiguration {
 
     log.info(
         "Configuring DynamoDbBasedEventStore on tableName={} "
-            + "(queryMaxPageSize={}, partitionShardSize={}, consistentRead={})",
-        properties.tableName(), properties.queryMaxPageSize(), properties.partitionShardSize(),
+            + "(queryMaxPageSize={}, partitionSliceSize={}, consistentRead={})",
+        properties.tableName(), properties.queryMaxPageSize(), properties.partitionSliceSize(),
         properties.consistentRead());
 
     return new DynamoDbBasedEventStore(
         dynamoDbClient,
         properties.tableName(),
         properties.queryMaxPageSize(),
-        properties.partitionShardSize(),
+        properties.partitionSliceSize(),
         properties.consistentRead(),
         eventPayloadSerializer,
         eventPayloadDeserializer);

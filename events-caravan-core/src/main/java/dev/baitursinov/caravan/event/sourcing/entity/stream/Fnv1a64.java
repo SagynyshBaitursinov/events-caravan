@@ -7,8 +7,8 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * FNV-1a, 64-bit variant, over UTF-8 bytes. Used by {@link EntityStreamWritingEventHandler} to
- * shard entities within a time bucket. Specified here (rather than relying on
- * {@code String.hashCode()}) so any other language or tool computes the same shard for a given
+ * slice entities within a time bucket. Specified here (rather than relying on
+ * {@code String.hashCode()}) so any other language or tool computes the same slice for a given
  * {@code entityId} — see the design's determinism invariant.
  *
  * @see <a href="http://www.isthe.com/chongo/tech/comp/fnv/index.html">FNV hash reference</a>

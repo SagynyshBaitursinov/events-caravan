@@ -31,8 +31,8 @@ class DynamoDbEventsSpliteratorTest {
   private static final EntityReference ENTITY_REFERENCE = new EntityReference("Entity", "1");
 
   @Test
-  void fullShardRollsOverIntoTheNextShard() {
-    long partitionShardSize = 3;
+  void fullSliceRollsOverIntoTheNextSlice() {
+    long partitionSliceSize = 3;
     DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
 
     when(dynamoDbClient.query(any(QueryRequest.class))).thenAnswer(invocation -> {
@@ -56,10 +56,10 @@ class DynamoDbEventsSpliteratorTest {
                     item(5)))
             .build();
       }
-      throw new AssertionError("Unexpected shard queried: " + pkValue);
+      throw new AssertionError("Unexpected slice queried: " + pkValue);
     });
 
-    var spliterator = freshSpliterator(dynamoDbClient, partitionShardSize, 0);
+    var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
         .map(Event::sequenceNumber)
@@ -69,8 +69,8 @@ class DynamoDbEventsSpliteratorTest {
   }
 
   @Test
-  void shardHoldingFewerThanPartitionShardSizeEventsStopsWithoutQueryingTheNextShard() {
-    long partitionShardSize = 3;
+  void sliceHoldingFewerThanPartitionSliceSizeEventsStopsWithoutQueryingTheNextSlice() {
+    long partitionSliceSize = 3;
     DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
 
     when(dynamoDbClient.query(any(QueryRequest.class))).thenAnswer(invocation -> {
@@ -85,10 +85,10 @@ class DynamoDbEventsSpliteratorTest {
                     item(2)))
             .build();
       }
-      throw new AssertionError("Shard 1 should never be queried: " + pkValue);
+      throw new AssertionError("Slice 1 should never be queried: " + pkValue);
     });
 
-    var spliterator = freshSpliterator(dynamoDbClient, partitionShardSize, 0);
+    var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
         .map(Event::sequenceNumber)
@@ -98,8 +98,8 @@ class DynamoDbEventsSpliteratorTest {
   }
 
   @Test
-  void consecutiveFullShardsKeepRollingOverUntilPartialShardIsFound() {
-    long partitionShardSize = 2;
+  void consecutiveFullSlicesKeepRollingOverUntilPartialSliceIsFound() {
+    long partitionSliceSize = 2;
     DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
 
     when(dynamoDbClient.query(any(QueryRequest.class))).thenAnswer(invocation -> {
@@ -118,10 +118,10 @@ class DynamoDbEventsSpliteratorTest {
         return QueryResponse.builder().items(
             List.of(item(5))).build();
       }
-      throw new AssertionError("Unexpected shard queried: " + pkValue);
+      throw new AssertionError("Unexpected slice queried: " + pkValue);
     });
 
-    var spliterator = freshSpliterator(dynamoDbClient, partitionShardSize, 0);
+    var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
         .map(Event::sequenceNumber)
@@ -131,14 +131,14 @@ class DynamoDbEventsSpliteratorTest {
   }
 
   @Test
-  void emptyShardWithNoResumePointYieldsNoEventsAndQueriesOnlyOnce() {
-    long partitionShardSize = 3;
+  void emptySliceWithNoResumePointYieldsNoEventsAndQueriesOnlyOnce() {
+    long partitionSliceSize = 3;
     DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
 
     when(dynamoDbClient.query(any(QueryRequest.class)))
         .thenReturn(QueryResponse.builder().items(List.of()).build());
 
-    var spliterator = freshSpliterator(dynamoDbClient, partitionShardSize, 0);
+    var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
         .map(Event::sequenceNumber)
@@ -149,8 +149,8 @@ class DynamoDbEventsSpliteratorTest {
   }
 
   @Test
-  void shardSplitAcrossSeveralDynamoDbPagesIsFullyDrainedUsingEachPagesOwnLastEvaluatedKey() {
-    long partitionShardSize = 5;
+  void sliceSplitAcrossSeveralDynamoDbPagesIsFullyDrainedUsingEachPagesOwnLastEvaluatedKey() {
+    long partitionSliceSize = 5;
     DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
     Map<String, AttributeValue> lastEvaluatedKeyOfFirstPage = Map.of(SK, AttributeValue.fromN("2"));
 
@@ -165,7 +165,7 @@ class DynamoDbEventsSpliteratorTest {
                 .items(List.of(item(3)))
                 .build());
 
-    var spliterator = freshSpliterator(dynamoDbClient, partitionShardSize, 0);
+    var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
         .map(Event::sequenceNumber)
@@ -181,8 +181,8 @@ class DynamoDbEventsSpliteratorTest {
   }
 
   @Test
-  void pageEndingExactlyAtShardUpperBoundJumpsToNextShardWithoutFollowingLastEvaluatedKey() {
-    long partitionShardSize = 2;
+  void pageEndingExactlyAtSliceUpperBoundJumpsToNextSliceWithoutFollowingLastEvaluatedKey() {
+    long partitionSliceSize = 2;
     DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
 
     when(dynamoDbClient.query(any(QueryRequest.class))).thenAnswer(invocation -> {
@@ -202,10 +202,10 @@ class DynamoDbEventsSpliteratorTest {
         return QueryResponse.builder().items(
             List.of(item(3))).build();
       }
-      throw new AssertionError("Unexpected shard queried: " + pkValue);
+      throw new AssertionError("Unexpected slice queried: " + pkValue);
     });
 
-    var spliterator = freshSpliterator(dynamoDbClient, partitionShardSize, 0);
+    var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
         .map(Event::sequenceNumber)
@@ -222,8 +222,8 @@ class DynamoDbEventsSpliteratorTest {
   }
 
   @Test
-  void suppliedFirstShardExclusiveStartKeyIsSentOnTheFirstRequestOnly() {
-    long partitionShardSize = 5;
+  void suppliedFirstSliceExclusiveStartKeyIsSentOnTheFirstRequestOnly() {
+    long partitionSliceSize = 5;
     DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
     Map<String, AttributeValue> resumeKey = Map.of(
         PK, AttributeValue.fromS("Entity#1#0"),
@@ -237,10 +237,10 @@ class DynamoDbEventsSpliteratorTest {
         return QueryResponse.builder().items(
             List.of(item(2), item(3))).build();
       }
-      throw new AssertionError("Shard 1 should never be queried: " + pkValue);
+      throw new AssertionError("Slice 1 should never be queried: " + pkValue);
     });
 
-    var spliterator = spliteratorResumingAt(dynamoDbClient, partitionShardSize, 0, resumeKey);
+    var spliterator = spliteratorResumingAt(dynamoDbClient, partitionSliceSize, 0, resumeKey);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
         .map(Event::sequenceNumber)
@@ -255,32 +255,32 @@ class DynamoDbEventsSpliteratorTest {
 
   @SuppressWarnings("SameParameterValue")
   private static DynamoDbEventsSpliterator freshSpliterator(DynamoDbClient dynamoDbClient,
-                                                            long partitionShardSize,
-                                                            long firstShardIndex) {
-    return spliteratorResumingAt(dynamoDbClient, partitionShardSize, firstShardIndex, null);
+                                                            long partitionSliceSize,
+                                                            long firstSliceIndex) {
+    return spliteratorResumingAt(dynamoDbClient, partitionSliceSize, firstSliceIndex, null);
   }
 
   @SuppressWarnings("SameParameterValue")
   private static DynamoDbEventsSpliterator spliteratorResumingAt(
       DynamoDbClient dynamoDbClient,
-      long partitionShardSize,
-      long firstShardIndex,
-      @Nullable Map<String, AttributeValue> firstShardExclusiveStartKey) {
-    LongFunction<QueryRequest.Builder> shardQueryBuilderFactory = shardIndex ->
+      long partitionSliceSize,
+      long firstSliceIndex,
+      @Nullable Map<String, AttributeValue> firstSliceExclusiveStartKey) {
+    LongFunction<QueryRequest.Builder> sliceQueryBuilderFactory = sliceIndex ->
         QueryRequest.builder()
             .tableName("events")
             .keyConditionExpression("#pk = :pkVal")
             .expressionAttributeNames(Map.of("#pk", PK))
             .expressionAttributeValues(
-                Map.of(":pkVal", AttributeValue.fromS("Entity#1#" + shardIndex)));
+                Map.of(":pkVal", AttributeValue.fromS("Entity#1#" + sliceIndex)));
 
     return new DynamoDbEventsSpliterator(
         dynamoDbClient,
-        partitionShardSize,
+        partitionSliceSize,
         SK,
-        firstShardIndex,
-        firstShardExclusiveStartKey,
-        shardQueryBuilderFactory,
+        firstSliceIndex,
+        firstSliceExclusiveStartKey,
+        sliceQueryBuilderFactory,
         DynamoDbEventsSpliteratorTest::mapToEvent);
   }
 

@@ -21,10 +21,10 @@ class EntityStreamRegistrationTest {
   }
 
   @Test
-  void rejectsNonPositiveShardCount() {
+  void rejectsNonPositiveSliceCount() {
     assertThatThrownBy(() -> new EntityStreamRegistration("calculator", TimeBucket.MONTHLY, 0))
         .isExactlyInstanceOf(EntityStreamRegistrationException.class)
-        .hasMessageContaining("shardCount");
+        .hasMessageContaining("sliceCount");
   }
 
   @Test

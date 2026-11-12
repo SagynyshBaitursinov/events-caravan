@@ -18,8 +18,8 @@ import static dev.baitursinov.caravan.utils.TextUtils.hasText;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Writes entities into the DynamoDB entity stream table: a sharded, time-bucketed table of
- * every entity that has ever produced an event. The time bucket and shard an entity is written
+ * Writes entities into the DynamoDB entity stream table: a sliced, time-bucketed table of
+ * every entity that has ever produced an event. The time bucket and slice an entity is written
  * into are derived by the caller (see {@code EntityStreamWritingEventHandler}) from its
  * {@code EntityStreamRegistration} and passed in on every write.
  */
@@ -47,32 +47,32 @@ public class DynamoDbBasedEntityStreamWriter implements EntityStreamWriter {
 
   /**
    * Idempotent: the whole item is deterministic from {@code entry}, {@code timeBucketLocation}
-   * and {@code shardLocation}, so a redelivered first event re-writes the byte-identical item.
+   * and {@code sliceLocation}, so a redelivered first event re-writes the byte-identical item.
    */
   @Override
   public void write(EntityStreamEntry entry,
                     String timeBucketLocation,
-                    int shardLocation) {
+                    int sliceLocation) {
     requireFreeOfSeparator(entry.entityReference());
 
     log.debug("Writing {} into the entity stream", entry.entityReference());
     dynamoDbClient.putItem(
         PutItemRequest.builder()
             .tableName(tableName)
-            .item(mapEntryToAttributes(entry, timeBucketLocation, shardLocation))
+            .item(mapEntryToAttributes(entry, timeBucketLocation, sliceLocation))
             .build());
     log.debug("Wrote {} into the entity stream", entry.entityReference());
   }
 
   private Map<String, AttributeValue> mapEntryToAttributes(
-      EntityStreamEntry entry, String timeBucketLocation, int shardLocation) {
+      EntityStreamEntry entry, String timeBucketLocation, int sliceLocation) {
 
     var entityReference = entry.entityReference();
 
     return Map.of(
         PK,
         AttributeValue.fromS(
-            toPartitionKeyValue(entityReference.entityName(), timeBucketLocation, shardLocation)),
+            toPartitionKeyValue(entityReference.entityName(), timeBucketLocation, sliceLocation)),
         SK,
         AttributeValue.fromS(
             toSortKeyValue(entry.firstEventTimestamp(), entityReference.entityId())));

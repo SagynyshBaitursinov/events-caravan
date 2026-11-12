@@ -18,10 +18,10 @@ public interface EntityStreamWriter {
    * @param timeBucketLocation the time bucket {@code entry} is written into, as derived by
    *                           {@link EntityStreamWritingEventHandler} from the registered
    *                           {@link EntityStreamRegistration#timeBucket()} and Entity's first event's timestamp.
-   * @param shardLocation      the shard within {@code timeBucketLocation} that {@code entry} is
+   * @param sliceLocation      the slice within {@code timeBucketLocation} that {@code entry} is
    *                           written into, as derived by {@link EntityStreamWritingEventHandler}
-   *                           from the registered {@link EntityStreamRegistration#shardCount()}
+   *                           from the registered {@link EntityStreamRegistration#sliceCount()}
    *                           using Fnv1a64 hash on entityId.
    */
-  void write(EntityStreamEntry entry, String timeBucketLocation, int shardLocation);
+  void write(EntityStreamEntry entry, String timeBucketLocation, int sliceLocation);
 }

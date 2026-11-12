@@ -51,11 +51,11 @@ function deriveTopicArnPrefix(invokedFunctionArn) {
     return `arn:${partition}:sns:${region}:${accountId}:${TOPIC_NAME_PREFIX}_`;
 }
 
-function deriveEntityReference(shardedEntityReference) {
-    const parts = shardedEntityReference.split('#');
+function deriveEntityReference(slicedEntityReference) {
+    const parts = slicedEntityReference.split('#');
 
     if (parts.length !== 3) {
-        throw new Error(`Malformed entityReference: '${shardedEntityReference}'`);
+        throw new Error(`Malformed entityReference: '${slicedEntityReference}'`);
     }
 
     return {

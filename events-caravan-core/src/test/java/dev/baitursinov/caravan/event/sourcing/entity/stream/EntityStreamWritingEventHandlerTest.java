@@ -15,7 +15,7 @@ class EntityStreamWritingEventHandlerTest {
   public static final String EVENT_TIMESTAMP = "2026-08-10T14:03:22.123Z";
   public static final String ENTITY_ID = "1";
 
-  record WrittenEntry(EntityStreamEntry entry, String timeBucketLocation, int shardLocation) {
+  record WrittenEntry(EntityStreamEntry entry, String timeBucketLocation, int sliceLocation) {
   }
 
   static class InMemoryEntityStreamWriter implements EntityStreamWriter {
@@ -23,8 +23,8 @@ class EntityStreamWritingEventHandlerTest {
     final List<WrittenEntry> writtenEntities = new ArrayList<>();
 
     @Override
-    public void write(EntityStreamEntry entry, String timeBucketLocation, int shardLocation) {
-      writtenEntities.add(new WrittenEntry(entry, timeBucketLocation, shardLocation));
+    public void write(EntityStreamEntry entry, String timeBucketLocation, int sliceLocation) {
+      writtenEntities.add(new WrittenEntry(entry, timeBucketLocation, sliceLocation));
     }
   }
 
@@ -49,7 +49,7 @@ class EntityStreamWritingEventHandlerTest {
   @Test
   void writesEntityFromFirstEvent() {
     var event = event("car", 1);
-    var expectedShardLocation = Math.floorMod(Fnv1a64.hash(ENTITY_ID), 16);
+    var expectedSliceLocation = Math.floorMod(Fnv1a64.hash(ENTITY_ID), 16);
 
     handler.handle(event);
 
@@ -58,7 +58,7 @@ class EntityStreamWritingEventHandlerTest {
             new WrittenEntry(
                 new EntityStreamEntry(event.entityReference(), event.timestamp()),
                 "2026-08",
-                expectedShardLocation));
+                expectedSliceLocation));
   }
 
   private Event<Object> event(String entityName, long sequenceNumber) {

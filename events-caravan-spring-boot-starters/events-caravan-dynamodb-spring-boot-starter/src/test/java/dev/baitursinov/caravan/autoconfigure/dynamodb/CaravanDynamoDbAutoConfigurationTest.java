@@ -48,7 +48,7 @@ class CaravanDynamoDbAutoConfigurationTest {
       .withPropertyValues(
           "caravan.event.sourcing.event-store.dynamo-db.table-name=test-app_events",
           "caravan.event.sourcing.event-store.dynamo-db.query-max-page-size=50",
-          "caravan.event.sourcing.event-store.dynamo-db.partition-shard-size=100",
+          "caravan.event.sourcing.event-store.dynamo-db.partition-slice-size=100",
           "caravan.event.sourcing.snapshot-store.dynamo-db.table-name=test-app_snapshots");
 
   @Configuration(proxyBeanMethods = false)
@@ -96,12 +96,12 @@ class CaravanDynamoDbAutoConfigurationTest {
                 .satisfies(properties -> {
                   assertThat(properties.tableName()).isEqualTo("test-app_events");
                   assertThat(properties.queryMaxPageSize()).isEqualTo(50);
-                  assertThat(properties.partitionShardSize()).isEqualTo(100);
+                  assertThat(properties.partitionSliceSize()).isEqualTo(100);
                 }));
   }
 
   @Test
-  void leavesPartitionShardSizeAndPageSizesAtDefaults() {
+  void leavesPartitionSliceSizeAndPageSizesAtDefaults() {
     new ApplicationContextRunner()
         .withConfiguration(autoConfigurations)
         .withUserConfiguration(ApplicationConfiguration.class)
@@ -111,7 +111,7 @@ class CaravanDynamoDbAutoConfigurationTest {
         .run(context ->
             assertThat(context).getBean(DynamoDbEventStoreConfigurationProperties.class)
                 .satisfies(properties -> {
-                  assertThat(properties.partitionShardSize()).isEqualTo(10_000);
+                  assertThat(properties.partitionSliceSize()).isEqualTo(10_000);
                   assertThat(properties.queryMaxPageSize()).isEqualTo(1_000);
                 }));
   }
@@ -132,9 +132,9 @@ class CaravanDynamoDbAutoConfigurationTest {
   }
 
   @Test
-  void failsWhenPartitionShardSizeIsNotPositive() {
+  void failsWhenPartitionSliceSizeIsNotPositive() {
     contextRunner
-        .withPropertyValues("caravan.event.sourcing.event-store.dynamo-db.partition-shard-size=0")
+        .withPropertyValues("caravan.event.sourcing.event-store.dynamo-db.partition-slice-size=0")
         .run(context -> assertThat(context).hasFailed());
   }
 
