@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.2.1...events-caravan-v2.0.0) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **dynamodb:** renamed sharded entity reference to sliced. Same for slicing entity stream.
+
+### Features
+
+* **dynamodb:** renamed sharded entity reference to sliced. Same for slicing entity stream. ([40ec0fa](https://github.com/SagynyshBaitursinov/events-caravan/commit/40ec0fa514b37b1e1abcb51f913b82b46300f3f6))
+
+
+### Bug Fixes
+
+* **deps:** bump the maven-dependencies group with 2 updates ([#22](https://github.com/SagynyshBaitursinov/events-caravan/issues/22)) ([29196fb](https://github.com/SagynyshBaitursinov/events-caravan/commit/29196fb005f31fbfd73f0ef33135da351c68c089))
+
 ## [1.2.1](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.2.0...events-caravan-v1.2.1) (2026-10-31)
 
 
