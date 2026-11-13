@@ -5,7 +5,6 @@ import dev.baitursinov.caravan.event.EntityEventsRegistration;
 import dev.baitursinov.caravan.event.consumer.EventMessageConsumer;
 import dev.baitursinov.caravan.queue.polling.ContinuousMessagePollingController;
 import dev.baitursinov.caravan.queue.polling.QueuePollingProperties;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -24,7 +23,6 @@ import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.getQueue
 import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.pollMessagesFromQueue;
 import static java.util.stream.Collectors.toSet;
 
-@Slf4j
 @AutoConfiguration(after = CaravanEventDrivenComponentsAutoConfiguration.class)
 @EnableConfigurationProperties(CaravanQueuePollingConfigurationProperties.class)
 public class CaravanSqsAutoConfiguration {
