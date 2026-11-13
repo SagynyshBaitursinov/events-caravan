@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" pages="6">
+<mxfile host="app.diagrams.net" pages="5">
   <diagram id="event-sourcing-and-storage" name="Event sourcing and storage">
-    <mxGraphModel dx="1136" dy="644" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" background="light-dark(#FFFFFF,#121212)" math="0" shadow="0">
+    <mxGraphModel dx="1224" dy="648" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" background="light-dark(#FFFFFF,#121212)" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -37,7 +37,7 @@
         <mxCell id="rsnap" edge="1" parent="1" source="snap" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;dashed=1;strokeColor=#d6b656;labelBackgroundColor=#ffffff;" target="ent" value="optional shortcut: restore state,&lt;br&gt;then apply only later events">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="table" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=none;strokeColor=#666666;spacingTop=6;fontSize=13;" value="&lt;b&gt;DynamoDB events table&lt;/b&gt;&lt;div&gt;&amp;nbsp;Partition Key = &lt;i&gt;entityName#entityId#sliceIndex&lt;/i&gt;&amp;nbsp;&lt;/div&gt;&lt;div&gt;Sort Key = &lt;i&gt;sequenceNumber&lt;/i&gt;&lt;/div&gt;" vertex="1">
+        <mxCell id="table" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fillColor=none;strokeColor=#666666;spacingTop=6;fontSize=13;" value="&lt;b&gt;DynamoDB events table&lt;/b&gt;&lt;div&gt;&amp;nbsp;Partition Key = &lt;i&gt;entityName#entityId#&lt;/i&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;&lt;i&gt;sliceIndex&lt;/i&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;Sort Key = &lt;i&gt;sequenceNumber&lt;/i&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="430" width="460" x="652" y="49" as="geometry" />
         </mxCell>
         <mxCell id="p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="&lt;b&gt;calculator#42#0&lt;/b&gt;&lt;br&gt;seq 1 … 10000 · sorted by sequenceNumber" vertex="1">

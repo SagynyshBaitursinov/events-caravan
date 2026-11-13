@@ -6,325 +6,69 @@
 ![Reference impl](https://img.shields.io/badge/reference_impl-DynamoDB_·_SNS%2FSQS-FF9900)
 [![Maven Central](https://img.shields.io/maven-central/v/dev.baitursinov/events-caravan-core.svg)](https://central.sonatype.com/artifact/dev.baitursinov/events-caravan-core)
 
-Event-sourcing framework with no global events sequence, no locks and no coordinator, so it never prevents its 
+Event-sourcing framework with no global events sequence, no locks and no central coordinator, so it never prevents its 
 database's writer nodes from scaling horizontally. The core is technology-agnostic and every integration point 
 is an interface that can be implemented for any database and message broker fitting the framework's philosophy and contracts. 
-Adapters for [AWS DynamoDB, SNS/SQS](#i-modules-and-dependencies) are shipped as a [reference implementation](#why-the-reference-implementation-is-on-aws-why-it-suits-the-projects-philosophy-and-what-could-substitute-it).
+Adapters for [AWS DynamoDB, SNS/SQS](docs/guide/01-modules-and-dependencies.md) are shipped as a
+[reference implementation](docs/aws-reference-implementation.md).
 
-## Contents
+## Principles at a glance
 
-- [Philosophy in principles](#philosophy-in-principles)
-- [Design and Architecture](#design-and-architecture)
-    - [Event structure](#event-structure)
-    - [Event sourcing and storage](#event-sourcing-and-storage)
-    - [Producing and propagating events](#producing-and-propagating-events)
-    - [Event consumption](#event-consumption)
-    - [Optimistic concurrency control](#optimistic-concurrency-control)
-    - [CQRS](#cqrs-command-query-responsibility-segregation)
-    - [Compromises](#compromises)
-- [User guide](#user-guide)
-    - [I. Modules and dependencies](#i-modules-and-dependencies)
-    - [II. Register your Events](#ii-register-your-events)
-    - [III. Define an Event-sourced-entity](#iii-define-an-event-sourced-entity)
-    - [IV. Set up an Event-sourced-repository](#iv-set-up-an-event-sourced-repository)
-    - [V. Set up optional Snapshot-takers](#v-set-up-optional-snapshot-takers)
-    - [VI. Set up Event-handlers](#vi-set-up-event-handlers)
-    - [VII. Set up an optional Entity-stream](#vii-set-up-an-optional-entity-stream)
-    - [VIII. Configure via application properties](#viii-configure-via-application-properties)
-    - [IX. Infrastructure](#ix-infrastructure)
-- [Why the reference implementation is on AWS](#why-the-reference-implementation-is-on-aws-why-it-suits-the-projects-philosophy-and-what-could-substitute-it)
-- [When to choose Events-caravan over Axon](#when-to-choose-events-caravan-over-axon)
-- [Q&A](#qa)
-- [Yet to be built](#yet-to-be-built)
-- [Contributing](#contributing)
-- [Further reading](#further-reading)
-- [License](#license)
+1. **Enable horizontal scaling**: nothing global, no global events sequence, locks or coordinator.
+2. **Be satisfied with Eventual Consistency**: every read and write is keyed by one entity.
+3. **Utilize simple and cheap technology features**: smart endpoints and dumb pipes.
+4. **Have one write destination for each operation result**: no dual writes, no transactions across destinations.
+5. **Make compromises visible for devs**: see [Trade-offs you accept](#trade-offs-you-accept).
+6. **Produced data must be durable**: events are delivered and processed at least once.
+7. **Be ready for a failure**: every process is recoverable by a retry.
+8. **Simple is secure**: simple solutions, few dependencies.
+9. **Modules should be substitutable**: every integration point is an interface.
+10. **Developer experience is important**: simple interfaces, no DSL, fail fast when misconfigured.
 
-## Philosophy in principles
+Read the full [Philosophy in principles](docs/philosophy.md).
 
-1. **Enable horizontal scaling.** Anything that must be "the one" instance eventually becomes the ceiling, so the
-   framework requires nothing global: no global events sequence, no locks, no requirement for a central process or transaction coordinator.
-2. **Be satisfied with Eventual Consistency.** The framework does not require its database to provide atomic transaction coordination 
-   beyond a single entity, or across database replicas.
-   Every read and write is keyed by one entity, which enables data to be finely partitioned and sharded without constraints.
-   See [Pat Helland's "Life beyond Distributed Transactions"](https://queue.acm.org/detail.cfm?id=3025012).
-3. **Rely only on simple and cheap technology features.** Prefer
-   [smart endpoints and dumb pipes](https://martinfowler.com/articles/microservices.html#SmartEndpointsAndDumbPipes):
-   no central orchestrator for business or technical processes, no broker that has to understand your domain. This makes
-   it easy for the utilized technology to scale.
-4. **Have one write destination for each operation result** between databases and message brokers, so there is no
-   problem coordinating writes between multiple destinations and necessity to span transactions across them.
-5. **Make compromises visible for devs.** Where a guarantee is traded away, developers are informed explicitly 
-   and are given the tools to compensate.
-6. **Produced data must be durable.** An event written to the store survives anything short of losing the store itself;
-   Events must be delivered and processed by consumers at least once.
-7. **Be ready for a failure.** Software and hardware may break mid-process. Make every process recoverable. After a
-   failure a retry should happen and finish the job without leaving the system in inconsistent state.
-8. **Simple is secure.** Design simple solutions. Utilize few dependencies.
-9. **Modules should be substitutable.** Every integration point (`EventStore`, `EventProducer`,
-   `SnapshotStore`, (de)serializers, the polling transport, the events publisher) is an interface, implementations of
-   which could vary.
-10. **Developer experience is important.** Events-caravan provides simple interfaces, no DSL, which help devs to stay
-    focused on building domain behavior; framework has no complex mechanisms that require configuring, and it fails fast
-    when misconfigured.
+## Trade-offs you accept
 
-## Design and Architecture
+1. [No global sequence of events](docs/compromises.md#1-no-global-sequence-of-events), compensated by an optional
+   [Entity-stream](docs/guide/05-entity-stream.md).
+2. [At-least-once, unordered delivery](docs/compromises.md#2-at-least-once-unordered-delivery): handlers must be idempotent.
+3. [No cross-entity transactions are required](docs/compromises.md#3-strong-consistency-across-entities-is-not-required-from-adapters):  use Sagas where you need consistency
+4. [Loaded state may be stale](docs/compromises.md#4-loaded-state-may-be-stale): be aware and retry on `DuplicateEventProductionException`.
 
-### Event structure
+## Quick start
 
-```json
-{
-  "entityReference": {
-    "entityName": "calculator",
-    "entityId": "1123456"
-  },
-  "eventName": "number-added",
-  "sequenceNumber": 15,
-  "timestamp": "2025-10-20T10:20:30.000Z",
-  "payload": {
-    "number": 101
-  }
-}
-```
-
-`EventType` and its payload are defined by combination of `entityName` and `eventName`. Payload class has to
-be [registered](#ii-register-your-events).
-
-### Event sourcing and storage
-
-![Event sourcing and storage diagram](diagrams/event-sourcing.png)
-
-1. `EventSourcedEntity` derives its current state from all the events that happened to it.
-   See [usage](#iii-define-an-event-sourced-entity)
-2. Each Entity is identified by a `EntityReference`, which is a combination of `entityName` and `entityId`.
-3. Each Event recorded on an Entity is identified by a combination of `EntityReference` and `sequenceNumber`.
-4. Each Event has its `eventName`, which identifies how it alters state of an entity when applied on it.
-5. Events are gaplessly sequenced per each entity starting from `sequenceNumber` 1.
-6. `EntityReference` defines a partition where its events are stored.
-7. As the framework requires consistency only within a single entity, the underlying database is free to store 
-   a partition per entity and shard partitions into different machines.
-8. For entities with long histories [Snapshotting](#v-set-up-optional-snapshot-takers) can be utilized to avoid loading
-   and re-applying all historic events from the beginning.
-9. "Hot" entities with long histories can make a partition where its events are stored too heavy. 
-   In the DynamoDB adapter partition-key is `entityName#entityId#sliceIndex` where
-   one `sliceIndex` increments every N events defined by `partition-slice-size` property. Slice indexes are incremental,
-   and sort-key is `sequenceNumber`, so all events are sorted in each sliced partition. Because `sliceIndex` is derived
-   from `sequenceNumber` and `partition-slice-size`, `partition-slice-size` parameter must stay fixed for the lifetime
-   of the table.
-
-### Producing and propagating events
-
-![Producing and propagating events diagram](diagrams/producing-and-propagating-events.png)
-
-1. Domain methods on an `EventSourcedEntity` record new `Events`; and when entities are saved in
-   `EventSourcedRepository` all newly recorded events are appended to `EventStore`.
-   See [usage](#iv-set-up-an-event-sourced-repository)
-2. It's possible to produce multiple events atomically (up to 100 with AWS DynamoDB) when saving an
-   `EventSourcedEntity`, but it's recommended to limit to one event per operation. That saves the database from
-   potential duty having to span a transaction across multiple partitions and writer nodes, which is a more complex and
-   costly operation.
-3. Events that do not belong to an `EventSourcedEntity` can be produced using `EventProducer.produce(...)` interface
-   directly.
-4. Every produced event is an immutable document inserted into database. Inserting an event *is* publishing it. The
-   database's inserts-stream (CDC mechanism) is read by an events-publisher and events are
-   eventually propagated to consumers. This way there's no dual-write problem, no 2PC, and no need to maintain a
-   [transactional outbox table](https://microservices.io/patterns/data/transactional-outbox.html). The database's
-   inserts-stream can be sharded together with the database itself, each shard naturally maintaining a separate stream.
-5. In the reference implementation `DynamoDB Streams` are read by a `AWS Lambda` running on `Node.js`
-   runtime publishing the event messages into an `SNS` topic per entityName.
-
-### Event consumption
-
-![Event consumption diagram](diagrams/event-consumption.png)
-
-1. Event consumption mechanism can be implemented in various ways, but the reference implementation is based on
-   queue-polling mechanism provided in corresponding module.
-2. Provided reference implementation uses `SQS` queues owned by consumer application and per subscribed topic belonging
-   to an entityName.
-3. `entityName` and `eventName` are provided as String type `SNS MessageAttributes`, which can be utilized for filtering
-   when subscribing SQS queues to SNS topics.
-4. Application layer utilizes `HandlerBasedEventConsumer`, which provides possibility to consume events registering
-   `EventHandler` implementations. See [usage](#vi-set-up-event-handlers).
-5. `EventHandlers` are needed to react on interested events or execute a new command.
-6. The Event consumption mechanism and EventHandlers are not restricted to events produced by the same application, or
-   only to events recorded and produced within `EventSourcedEntity`.
-7. Only a successful consumption acknowledges an event message. If `EventHandler` throws an exception, the message is
-   not acknowledged, and may be redelivered by message broker.
-8. A handler that throws an Exception leaves its message in the queue for redelivery; configure the queue's redrive
-   policy and dead-letter queue so a permanently failing message does not retry forever.
-9. All matching `EventHandlers` are tried and called upon each event message delivery.
-10. Handlers or processes triggered by them must be **idempotent** and tolerant of out-of-order arrival (see [Compromise #2](#compromises)).
-11. Event consumption mechanism is entirely optional, if application does not need to consume events.
-12. The queue-polling mechanism scales vertically adapting to the load, performs partial polls in cases if message
-    consumption is not uniform across messages, batches deletes, supports graceful shutdown.
-
-### Optimistic concurrency control
-
-![Optimistic concurrency control diagram](diagrams/optimistic-concurrency-control.png)
-
-1. Only uniqueness constraint and primary key index maintained by the underlying database is
-   `(entityReference, sequenceNumber)`.
-2. Upon event production a `DuplicateEventProductionException` might be thrown for two reasons both having to do with
-   entity modification in parallel or in short span of time:
-    1. another `Event` of the same `sequenceNumber` was produced in parallel after the `EventSourcedEntity` was loaded.
-    2. an entity was loaded in a stale state without the newest events due to inconsistency between database's reader
-       nodes.
-3. In case of `DuplicateEventProductionException` the failed operation should be retried from the beginning until it's
-   successfully processed or recognized as outdated, and acknowledged in any case.
-
-### CQRS (Command Query Responsibility Segregation)
-
-![CQRS diagram](diagrams/cqrs.png)
-
-The event-store structure of events-caravan provides answer to exactly one query: find events of one entity, ordered.
-`EventSourcedRepository` provides possibility of re-creating an entity's single projection using `@ApplyEvent`
-annotation. This projection is utilized for responding to commands and writing new events further mutating the entity's
-state. Thus, this projection is called **write-model**.
-
-However, for more complex queries other projections of the entity called **query-models** must be utilized. The query
-models may and should have different structures, lifecycles, separate indexes, or even separate RDBMS than that of the
-write-model. (See [CQRS](https://martinfowler.com/bliki/CQRS.html)). Therefore, the events-caravan leaves complete freedom
-for defining how those query models are to be constructed and maintained. The framework provides and recommends 
-`EventHandlers` for maintaining the query-models **asynchronously** from command-handling writer processes.
-
-### Compromises
-
-> [!NOTE]
-> Per [Principle #5](#philosophy-in-principles), every guarantee traded away for scalability is listed here
-> explicitly, together with how to compensate for it.
-
-1. Compared to another popular event-sourcing framework, [Axon](#when-to-choose-events-caravan-over-axon), 
-   Events-caravan does not maintain a global sequence of events across all entities. Therefore, there's no global iterable 
-   stream of events. Such a compromise is taken because otherwise a global ordering mechanism and single writer node would be necessary; 
-   These would potentially become a bottleneck of the system on write path. Events-caravan avoids this by partitioning events at the entity level.
-
-   This approach has the following drawbacks:
-    - CQRS query-model reflections cannot be re-built by retriggering `EventHandlers` for all historic events.
-    - There's no built-in event-store in case if events across many entities need to be republished.
-
-   Events-caravan ships a global stream of entity references to compensate;
-   See [VII. Set up an optional Entity-Stream](#vii-set-up-an-optional-entity-stream).
-
-2. Events delivery to consumers is at-least _(not exactly)_ once and unordered. Consumers own idempotency and, if
-   needed, ordering. Every event message carries a gapless `sequenceNumber` starting at 1 per `entityReference`, which
-   might be helpful for deduplication and reordering by an application. Ultimate deduplication and reordering is
-   recommended to be taken care of by an underlying domain layer. e.g. Do not brew _coffee#7_, if the _coffee#7_ is
-   already in status _delivered_.
-
-3. As per [Principle #2](#philosophy-in-principles) Events-caravan is satisfied with eventual consistency. If underlying database
-   does not provide transaction coordination, but there's a necessity to maintain consistency across multiple Entities,
-   applications must respond to this. The answer to this challenge is [Saga design pattern](https://microservices.io/patterns/data/saga.html).
-   Each saga step is an `EventHandler` that records the next event, and a process needing central state can be modeled as an `EventSourcedEntity`.
-
-4. Application code must be prepared for the loaded Entity state being stale due to eventual consistency across database replicas.
-   If new events are attempted to be produced on top of stale state, underlying database will detect the issue and throw `DuplicateEventProductionException`.
-   In such case, or if stale state is detected by application code earlier, process should fail and be retried.
-   With the DynamoDB adapter `consistent-read` could be used to reduce loading stale entity states, which can be enabled via properties.
-   But it's twice cheaper to avoid it, unless frequent parallel writes to same entities are anticipated.
-
-## User guide
-
-### I. Modules and dependencies
-
-| Module                                      | Purpose                                                                                                                                                |
-|---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| events-caravan-core                         | Core, technology-agnostic: entities, repositories, event registry, interfaces, Jackson serialization, event consumption and handlers, entity stream    |
-| events-caravan-dynamodb                     | `EventStore` + `EventProducer` + `SnapshotStore` + `EntityStreamWriter` implementations on DynamoDB, with partition slicing for long entity histories |
-| events-caravan-queue-polling                | Transport-agnostic continuous polling mechanism (virtual threads, adaptive poller scaling, batched deletes, graceful shutdown)                         |
-| events-caravan-sqs                          | SQS polling/deletion primitives                                                                                                                        |
-| events-caravan-spring-boot-starter          | Auto-configuration of the core components                                                                                                              |
-| events-caravan-dynamodb-spring-boot-starter | Auto-configuration of the DynamoDB event, snapshot and entity stream stores                                                                            |
-| events-caravan-sqs-spring-boot-starter      | Auto-configuration of per-entity SQS queue polling                                                                                                     |
-| dynamodb-sqs-events-publisher-lambda        | Node.js based Lambda publishing events from DynamoDB's stream into SNS ([its README](dynamodb-sqs-events-publisher-lambda/README.md))                  |
-| events-caravan-integration-tests            | End-to-end tests against a local AWS simulator                                                                                                         |
-
-Add the starters your service needs:
+Add starters:
 
 ```xml
-
-<dependencies>
-    <dependency>
-        <groupId>dev.baitursinov</groupId>
-        <artifactId>events-caravan-dynamodb-spring-boot-starter</artifactId>
-        <version>${events-caravan-version}</version>
-    </dependency>
-
-    <!-- only if this service consumes events -->
-    <dependency>
-        <groupId>dev.baitursinov</groupId>
-        <artifactId>events-caravan-sqs-spring-boot-starter</artifactId>
-        <version>${events-caravan-version}</version>
-    </dependency>
-</dependencies>
+<dependency>
+    <groupId>dev.baitursinov</groupId>
+    <artifactId>events-caravan-dynamodb-spring-boot-starter</artifactId>
+    <version>${events-caravan-version}</version>
+</dependency>
+<dependency>
+    <groupId>dev.baitursinov</groupId>
+    <artifactId>events-caravan-sqs-spring-boot-starter</artifactId>
+    <version>${events-caravan-version}</version>
+</dependency>
 ```
 
-> [!NOTE]
->- If default Jackson based (de)serializers are to be used, the events-caravan's spring-boot-starter does not bring in
-   > the `JsonMapper` bean it requires. Your application should configure and provide it. The default Jackson-based
-   > serialization activates when Jackson 3 is on the classpath and a `JsonMapper` bean is provided in Spring context.
->
->- Alternatively, provide your own `EventSerializer`, `EventPayloadSerializer`, `EventDeserializer`,
-   > `EventPayloadDeserializer`, `SnapshotSerializer` and `SnapshotDeserializer` beans to use a different serialization
-   > mechanism.
->
->- `DynamoDbClient` / `SqsClient` beans are expected in the context for their corresponding modules to work.
->
->- Every autoconfigured component is `@ConditionalOnMissingBean`, supply your own bean to override them. Any
-   > `EventProducer` bean is transparently wrapped into `ValidatingEventProducer` so all produced events are validated
-   > against the `EntityEventsRegistry`.
-
-### II. Register your Events
+Register events, define an entity, its repository, event handlers:
 
 ```java
-
-@Configuration
-public class CalculatorEventsConfiguration {
-
-  @Bean
-  public EntityEventsRegistration calculatorEventsRegistration() {
-    return new EntityEventsRegistration(
-        "calculator",
-        Map.of(
-            "number-added", NumberCarryingPayload.class,
-            "number-subtracted", NumberCarryingPayload.class));
-  }
+@Bean
+public EntityEventsRegistration calculatorEventsRegistration() {
+  return new EntityEventsRegistration(
+      "calculator", 
+      Map.of("number-added", NumberCarryingPayload.class));
 }
-```
-
-> [!NOTE]
->- A registered entity does not have to be produced locally: you can register events produced by another application to
-   > react to them in your application.
->
->- Entity and Event names are identified by explicit **Strings**, not Java class names, so payload classes can be
-   > renamed and moved freely without breaking stored history.
->
->- The registry is built once at startup. Application validates every event produced or applied against the registry.
->
->- EntityEventsRegistration is picked up by Spring-boot automatically.
-
-### III. Define an Event-sourced-entity
-
-The matching `@ApplyEvent` method mutates in-memory state immediately when recording a new event and when the entity is
-later loaded by replaying its historical events.
-
-Entity state mutates further when new events are recorded by `EventSourcedEntity.recordEvent()`.
-
-```java
 
 @EntityName("calculator")
 public class Calculator extends EventSourcedEntity {
 
   private final String id;
-
   long currentNumber = 0;
 
-  public Calculator(String id) {
-    this.id = id;
-  }
-
-  public long currentNumber() {
-    return this.currentNumber;
-  }
+  public Calculator(String id) { this.id = id; }
 
   public void addNumber(long number) {
     recordEvent("number-added", new NumberCarryingPayload(number));
@@ -336,70 +80,8 @@ public class Calculator extends EventSourcedEntity {
   }
 
   @Override
-  public String entityId() {
-    return id;
-  }
+  public String entityId() { return id; }
 }
-```
-
-> [!TIP]
->- Apply methods can also live outside the entity class (see `@ApplyEvent` and `@EventApplier`), keeping domain classes
-   > free of state change mechanics.
->
->  It's recommended to place external @EventApplier classes in the same package as Entity in order to utilize
-   > package-private fields/methods in order to mutate Entity's state while applying its events.
-   > This helps Entity not to expose public getter/setter methods just for applying events without real domain behavior.
-
-```java
-
-@EntityName("calculator")
-@EventApplier(CalculatorEventApplier.class)
-public class Calculator extends EventSourcedEntity {
-
-  private final String id;
-
-  long currentNumber = 0; // package-private: mutated only by CalculatorEventApplier
-
-  public Calculator(String id) {
-    this.id = id;
-  }
-
-  public long currentNumber() {
-    return this.currentNumber;
-  }
-
-  public void addNumber(long number) {
-    recordEvent("number-added", new NumberCarryingPayload(number));
-  }
-
-  @Override
-  public String entityId() {
-    return id;
-  }
-}
-```
-
-```java
-// same package as Calculator
-final class CalculatorEventApplier {
-
-  @ApplyEvent("number-added")
-  static void applyAddNumber(Calculator calculator, Event<NumberCarryingPayload> event) {
-    calculator.currentNumber += event.payload().number();
-  }
-}
-```
-
-> [!NOTE]
->- `@ApplyEvent` methods in an `@EventApplier` class must be `static` and take `(EntityClass entity, Event<PayloadClass> event)`
-   > parameters. This is validated at startup.
->- `@EventApplier` accepts several classes, e.g. `@EventApplier({OrderPlacementApplier.class, OrderShippingApplier.class})`.
->- Each event name may have only one apply method across the entity class and all its `@EventApplier` classes.
-   > Duplicates fail at startup.
-
-### IV. Set up an Event-sourced-repository
-
-```java
 
 @Repository
 public class CalculatorRepository extends EventSourcedRepository<Calculator> {
@@ -409,87 +91,21 @@ public class CalculatorRepository extends EventSourcedRepository<Calculator> {
   }
 
   @Override
-  protected Calculator createWithBlankState(String entityId) {
-    return new Calculator(entityId);
-  }
+  protected Calculator createWithBlankState(String entityId) { return new Calculator(entityId); }
 }
 ```
 
-Use it like any repository:
+Use it:
 
 ```java
-public class CalculatorService {
+var calculator = new Calculator("42");
+calculator.addNumber(10);
+calculatorRepository.save(calculator);
 
-  private final CalculatorRepository calculatorRepository;
-
-  public CalculatorService(CalculatorRepository calculatorRepository) {
-    this.calculatorRepository = calculatorRepository;
-  }
-
-  void addToMagicNumber() {
-    var calculator = new Calculator("42");
-    calculator.addNumber(10);
-    calculatorRepository.save(calculator);
-
-    Optional<Calculator> foundCalculator = calculatorRepository.findBy("42");
-  }
-}
+var found = calculatorRepository.findBy("42").orElseThrow();
 ```
 
-> [!NOTE]
->- Entities in a blank state (no events recorded) cannot be saved or loaded.
->- Saving produces all events recorded since the entity was loaded.
-
-### V. Set up optional Snapshot-takers
-
-For entities with long histories, register a `SnapshotTaker` bean. An `EventSourcedRepository` then persists a snapshot
-every N events defined by `frequencyOfSnapshots`. When the entity is loaded, the framework restores its state from the
-latest snapshot plus later events instead of having to load and re-apply all events.
-
-Snapshot writes are deliberately not atomic with event production to avoid the dual-write problem. A failed snapshot is
-simply retaken at the next opportunity, and failure to take snapshot does not corrupt an entity's state.
-
-```java
-
-@Component
-public class CalculatorSnapshotTaker extends SnapshotTaker<Calculator, CalculatorSnapshot> {
-
-  public CalculatorSnapshotTaker() {
-    super(Calculator.class, CalculatorSnapshot.class);
-  }
-
-  @Override
-  public CalculatorSnapshot takeSnapshot(Calculator entity) {
-    return new CalculatorSnapshot(entity.currentNumber());
-  }
-
-  @Override
-  public Calculator recreateFromSnapshot(EntityReference entityReference,
-                                         CalculatorSnapshot snapshotPayload) {
-    var result = new Calculator(entityReference.entityId());
-    result.currentNumber = snapshotPayload.currentNumber();
-    return result;
-  }
-
-  @Override
-  public int frequencyOfSnapshots() {
-    return 50;
-  }
-}
-```
-
-> [!NOTE]
->- Spring Boot starter wires it into the `EventSourcingRepositoryContext` automatically.
->
->- SnapshotTaker in the provided example is located in the same package as Calculator entity, and uses its
-   > package-private fields to create its snapshot and recreate the Calculator from snapshot.
-   > This helps Calculator entity not to expose public getter/setter methods just for snapshotting without real domain
-   > behavior.
-
-### VI. Set up Event-handlers
-
-Handlers are matched by payload type, then filtered by `isOfInterest` (typically on the `EventType`):
-
+Subscribe to events:
 ```java
 
 @Component
@@ -509,222 +125,25 @@ public class NumberAddedHandler implements EventHandler<NumberCarryingPayload> {
 }
 ```
 
-> [!NOTE]
->- Handlers are registered automatically by Spring Boot starters.
+Follow the [User guide](#documentation) for modules, external event appliers, snapshots, event handlers, serialization and entity stream.
 
-### VII. Set up an optional Entity-stream
+## Documentation
 
-Per [Compromise #1](#compromises), Events-caravan keeps no global, cross-entity stream of events. Events are sorted in
-scope of each entity only. So in case if all entities or events must be iterated over (e.g. CQRS query-models need to be
-rebuilt), an optional functionality Entity-stream compensates for absence of global sequence of events.
-
-With the DynamoDB starter, setting `caravan.event.sourcing.entity-stream.dynamo-db.table-name` property autoconfigures a
-`DynamoDbBasedEntityStreamWriter`, and its caller `EntityStreamWritingEventHandler`
-(see [Configure via application properties](#viii-configure-via-application-properties)).
-
-Which entities are written into the stream, and at which granularity, is declared per `entityName` via an
-`EntityStreamRegistration` bean:
-
-```java
-
-@Configuration
-public class CalculatorEventsConfiguration {
-
-  @Bean
-  public EntityStreamRegistration calculatorEntityStreamRegistration() {
-    return new EntityStreamRegistration("calculator", TimeBucket.MONTHLY, 4);
-  }
-}
-```
-
-`EntityStreamWritingEventHandler` partitions entity references by their:
-
-- `entityName`
-- first event timestamp's `timeBucket` granularity
-- N slices (`sliceCount`) by a hash _(FNV-1a 64-bit)_ of `entityId` within each bucket
-
-then passes the derived time bucket and slice locations along with the entity reference to the configured
-`EntityStreamWriter`. This way the Entity-stream's storage is enabled to scale horizontally without hot partitions.
-
-> [!IMPORTANT]
->- `EntityStreamRegistration`'s `timeBucket` and `sliceCount` must stay fixed per entityName` once the Entity-stream
-   > table has entities of it in it. Re-creating the stream for already written data changing their slicing parameters
-   > may be an expensive operation.
->
->- If `EntityStreamRegistration` is not set up, entities won't be populated for the `entityName`. Setting it up later
-   > will start populating only the new entities into the stream.
-
-> [!NOTE]
->- This functionality is entirely optional; without an `EntityStreamWriter` bean, the Entity-stream is not populated.
-   > However, the functionality must be enabled in advance, as there's no way of populating the Entity-stream for
-   > Entities having been created in the past.
->
->- Entities whose `entityName` has no `EntityStreamRegistration` are not written into the Entity-stream, so different
-   > entities can be onboarded onto the Entity-stream independently, at whatever granularity suits their event
-   > production frequency.
->
->- `timeBucket` and `sliceCount` must stay fixed per `entityName` once the table has entities of it in it, as
-   > they define how the stream is sliced. Thus, it's important to set values to have fine enough partitions in
-   > anticipation of the load.
->
->- On the other hand, setting the values too generously (small time-buckets and high slice count) will lead to more
-   > partitions, which would be empty or underfilled, when Entity creation is not frequent enough. Consequently,
-   > iterating over the Entity-stream will be more costly due to some DB queries will result in no or few entries.
->
->- Wiring of components is automatic once beans exist: `EntityStreamRegistration` beans are collected into an
-   > `EntityStreamRegistry`, and `EntityStreamWritingEventHandler` is registered by the Spring boot starter and calls
-   > it for every registered entity's first event (`sequenceNumber == 1`).
-
-### VIII. Configure via application properties
-
-```yaml
-caravan:
-  event:
-    sourcing:
-      event-store:
-        dynamo-db:
-          table-name: my-app_events
-          partition-slice-size: 10000   # events per partition-key slice
-          query-max-page-size: 1000     # events loaded into memory per page while replaying an entity
-          consistent-read: false        # opt into strongly consistent reads if needed
-      snapshot-store:
-        dynamo-db:
-          table-name: my-app_snapshots
-          consistent-read: false      # opt into strongly consistent reads if needed
-      entity-stream:
-        dynamo-db:
-          table-name: my-app_entity-stream   # absent by default: entity stream is off unless this is set
-    messaging: # only with the SQS starter
-      queue-name-prefix: my-app       # queues are named {prefix}_{entityName}
-      subscribed-entities:
-        - calculator
-      graceful-shutdown-seconds: 10   # set 0 for immediate shutdown
-      concurrency: 10                 # max in-flight messages per queue
-      max-poll-size: 10               # max messages requested per poll
-      min-poll-size: 3                # min free capacity worth polling for
-      pollers-count-cap: 0            # max poller threads per queue; 0 = derived from concurrency and max-poll-size
-      poll-wait-seconds: 10           # long-poll wait per request
-      deletion: # batching of consumed-message deletions
-        max-batch-size: 10
-        period-seconds: 1
-        concurrency: 3
-```
-
-> [!NOTE]
-> All values except the table names, `queue-name-prefix` and `subscribed-entities` properties are shown at their
-> defaults and can be omitted. `entity-stream.dynamo-db.table-name` has no default: it is what turns the optional
-> [Entity-stream](#vii-set-up-an-optional-entity-stream) on.
-
-> [!IMPORTANT]
->`event-store.dynamo-db.partition-slice-size` is baked into how items are keyed and must be fixed once the events
-> table is populated.
-
-### IX. Infrastructure
-
-Events-caravan provides no infrastructure, and is infrastructure-agnostic. A deployment utilizing the reference
-implementation based on AWS must provide: the events and snapshots DynamoDB tables, plus the entity-stream DynamoDB
-table if [Entity-Stream](#vii-set-up-an-optional-entity-stream) is enabled. The events table should have
-`NEW_IMAGE` stream enabled, for which a `Node.js` based Lambda code is provided, which can be used as a reference for
-publishing events. It's used for integration-tests as well. The Lambda code itself is documented in
-the [Lambda's README](dynamodb-sqs-events-publisher-lambda/README.md).
-
-> [!TIP]
-> For local development, `./local/env-up` provisions the entire pipeline (tables, stream, Lambda, topics, queues)
-> against a local AWS simulator run by Docker Compose; and `./local/test` runs the full integration test suite against
-> it.
-
-## Why the reference implementation is on AWS, why it suits the project's philosophy and what could substitute it
-
-#### DynamoDB and SNS/SQS were chosen because each maps directly onto a philosophy principle
-
-Services that are utilized by events-caravan are serverless, and horizontal scaling is provided by AWS itself. This is
-the primary reason why these technologies were chosen. Events-caravan utilizes them without constraining the underlying
-infrastructure from scaling.
-
-- **DynamoDB** partitions natively by primary key, has no single leader node applications write through, and scales
-  throughput per partition rather than globally, directly
-  serving [Principle #1 (enable horizontal scaling)](#philosophy-in-principles). DynamoDB Streams give an ordered, per-shard
-  change feed for free, which is what lets an event item insert *be equal* to the publishing it (see [Producing and propagating events](#producing-and-propagating-events) point 4) without a transactional outbox,
-  serving [Principle #4 (one write destination)](#philosophy-in-principles).
-- **SNS/SQS** is a broker that does not need to understand the domain: SNS fans out by opaque message attributes, and
-  SQS queues are owned and scaled independently by each consumer application. This is "dumb pipes"
-  per [Principle #3](#philosophy-in-principles), there is no central bus or orchestrator coordinating consumers.
-- **The publisher Lambda** only moves records from DynamoDB Streams to SNS; it holds no business logic and scales with
-  the number of stream shards, so it does not become a bottleneck or a single point of failure, consistent with
-  [Principle #1](#philosophy-in-principles).
-
-None of this is AWS-specific in substance, only in the concrete API used, and
-per [Principle #9](#philosophy-in-principles) every integration point is an interface open for substitution
-(`EventStore`, `EventProducer`, `SnapshotStore`, event consumption, the publisher).
-
-> [!NOTE]
-> When operating applications on a high scale it might be worth switching to provisioned capacity of DynamoDB, 
-> with reserved instances. However, if very high-scale load is expected, it might be worthy to plan utilizing different
-> technologies not to pay AWS per request, but operate your own DB and Message broker. On the other hand that might
-> increase operational cost of the system.
-
-#### Technologies with the properties could substitute the reference implementation:
-
-- A database that can reject a duplicate `(entityReference, sequenceNumber)` on insert, read one entity's events in
-  order, and expose its inserts as a change feed can substitute DynamoDB. How far writes scale then depends on that
-  database.
-- A broker letting consumers own and scale their own subscriptions without a central process understanding the domain
-  can substitute SNS/SQS: for example Kafka, Pulsar, or Google Pub/Sub.
-- The publisher can be substituted by a stream-reader process as long as it preserves at-least-once delivery and keeps
-  the insert as the sole trigger for publishing.
-
-## When to choose Events-caravan over Axon
-
-Events-caravan and Axon solve the same problem, which is event sourcing and CQRS, but with opposite approach on
-centralization, driven by [Compromise #1](#compromises):
-
-- **Choose Events-caravan** when horizontal scalability without a central writer component is the priority: there is no global
-  events sequence and duty to maintain it. Library's footprint is a handful of interfaces over your own database and
-  broker, which suits teams already operating DynamoDB/SNS/SQS-shaped infrastructure, or willing to implement the
-  equivalent adapters; and comfortable maintaining their own sorted query-model or global event-log, if they actually
-  need one (see [Compromise #1](#compromises)).
-- **Choose Axon** when a global, replayable stream of all events is needed out of the box. For example rebuilding many
-  projections from scratch across every entity, without building that yourself, or when Axon Server's built-in tracking
-  processors, deadline manager, and Sagas orchestration outweigh the cost of running and scaling a central server.
-
-**In short:** Events-caravan trades Axon's built-in global event-store and orchestration machinery for horizontal
-scalability with fewer moving parts; pick whichever side of that trade fits your team's operational scale and appetite
-for infrastructure.
-
-## Q&A
-
-- **Q:** Is AI (LLM) utilized when developing Events-caravan?
-    - **A:** Yes, for coding, documenting and brainstorming it was useful. However, its output, especially concerning
-      important software components, was carefully read and integrated after analysis. I find staying on top of code
-      changes and making both strategic and tactical design decisions to be important for developers and software quality.
-
-- **Q:** How to design Aggregates (DDD)?
-    - **A:** EventSourcedEntity as single unit of consistency, which can serve as an Aggregate root. Its state may
-      contain other domain entities or value objects; and it may maintain business invariants within itself.
-
-- **Q:** Why isn't an Inbox for events-messages to technically deduplicate them based on EventReference to achieve
-  idempotence?
-    - **A:** having an "Inbox" table means that application needs to populate it after processing each message. If it's
-      done in a separate transaction, appearance of the Inbox entry after a domain-write is not guaranteed. If saving
-      the entry is done in the transaction scope as the domain entity writes, it'll contradict the philosophy of the
-      framework: the database would be required to coordinate a transaction spanning several tables.
-
-## Yet to be built:
-
-1. Introduce a mechanism of iterating over [Entity-Stream](#vii-set-up-an-optional-entity-stream) and re-building CQRS
-   query-models.
-2. Introduce events flow traceability, metrics.
-3. Introduce Event versioning and upcasting mechanism.
-4. Develop adapters for PostgreSQL/ScyllaDB + Debezium + Kafka protocol.
-5. Introduce Multi region scalability.
-6. Provide possibility of taking snapshots async from thread of `EventSourcedRepository.save(...)`;
-7. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
-   the event details from the event-store.
-8. Support to have `@ApplyEvent` parameter as unwrapped payload (without `Event<T>`).
-9. Add possibility to have `Void` payload of events and no Event parameter to `@ApplyEvent`.
-10. Introduce grouping of EventHandlers per queue groups.
-11. Loading events directly via a provided API could be interesting for apps.
-12. Consider possibility of adding Enums as Event names.
+- [Philosophy in principles](docs/philosophy.md)
+- [Design and Architecture](docs/architecture.md): event structure, storage, propagation, consumption, optimistic
+  concurrency control, CQRS
+- [Compromises](docs/compromises.md)
+- User guide
+    1. [Modules and dependencies](docs/guide/01-modules-and-dependencies.md)
+    2. [Events and entities](docs/guide/02-events-and-entities.md)
+    3. [Repositories and snapshots](docs/guide/03-repositories-and-snapshots.md)
+    4. [Event handlers](docs/guide/04-event-handlers.md)
+    5. [Entity-stream](docs/guide/05-entity-stream.md)
+- [AWS reference implementation](docs/aws-reference-implementation.md): why AWS, substitutes, configuration
+  properties, infrastructure
+- [When to choose Events-caravan over Axon](docs/comparison-axon.md)
+- [FAQ](docs/faq.md)
+- [Roadmap](ROADMAP.md)
 
 ## Contributing
 

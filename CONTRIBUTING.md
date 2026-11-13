@@ -7,13 +7,13 @@ Thank you for considering a contribution! Events Caravan is maintained by
 
 - **Report a bug** — open an issue using the bug report template. Include reproduction steps and versions.
 - **Propose a feature or improvement** — open an issue first so we can discuss the design before you invest time in
-  code. Proposals are evaluated against the project's [philosophy principles](README.md#philosophy-in-principles):
+  code. Proposals are evaluated against the project's [philosophy principles](docs/philosophy.md):
   horizontal scalability, simple and cheap technology features, one write destination, eventual consistency.
 - **Improve documentation** — README fixes, clearer explanations, and diagram corrections are always welcome as
   direct pull requests.
 - **Implement an adapter** — the core is technology-agnostic; adapters for other databases and brokers that honor the
   library's contracts are great contributions.
-- [TODOs from the author](TODOs.md) with further plan of developing the library.
+- [Roadmap](ROADMAP.md) with further plan of developing the library.
 
 ## Development setup
 
