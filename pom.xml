@@ -53,8 +53,8 @@
         <jspecify.version>1.0.1</jspecify.version>
 
         <spring.boot.version>4.1.2</spring.boot.version>
-        <aws.sdk.version>2.57.8</aws.sdk.version>
-        <jackson.version>3.2.4</jackson.version>
+        <aws.sdk.version>2.57.13</aws.sdk.version>
+        <jackson.version>3.3.0</jackson.version>
         <slf4j.version>2.0.20</slf4j.version>
 
         <assertj.version>3.27.7</assertj.version>
@@ -66,7 +66,7 @@
         <maven.compiler.plugin.version>3.16.0</maven.compiler.plugin.version>
         <maven.surefire.plugin.version>3.6.1</maven.surefire.plugin.version>
         <maven.dependency.plugin.version>3.11.0</maven.dependency.plugin.version>
-        <flatten.maven.plugin.version>1.8.0</flatten.maven.plugin.version>
+        <flatten.maven.plugin.version>1.9.0</flatten.maven.plugin.version>
         <maven.source.plugin.version>3.4.0</maven.source.plugin.version>
         <maven.javadoc.plugin.version>3.12.0</maven.javadoc.plugin.version>
         <maven.gpg.plugin.version>3.2.8</maven.gpg.plugin.version>
