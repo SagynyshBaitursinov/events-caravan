@@ -20,6 +20,7 @@
         <module>events-caravan-spring-boot-starter</module>
         <module>events-caravan-dynamodb-spring-boot-starter</module>
         <module>events-caravan-sqs-spring-boot-starter</module>
+        <module>events-caravan-sns-spring-boot-starter</module>
     </modules>
 
     <dependencyManagement>

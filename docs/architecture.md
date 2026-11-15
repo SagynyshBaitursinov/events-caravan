@@ -60,7 +60,7 @@ be [registered](guide/02-events-and-entities.md#register-your-events).
    potential duty having to span a transaction across multiple partitions and writer nodes, which is a more complex and
    costly operation.
 3. Events that do not belong to an `EventSourcedEntity` can be produced using `EventProducer.produce(...)` interface
-   directly.
+   directly. See [usage](guide/02-events-and-entities.md#produce-events-without-an-entity)
 4. Every produced event is an immutable document inserted into database. Inserting an event *is* publishing it. The
    database's inserts-stream (CDC mechanism) is read by an events-publisher and events are
    eventually propagated to consumers. This way there's no dual-write problem, no 2PC, and no need to maintain a

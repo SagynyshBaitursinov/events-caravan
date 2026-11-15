@@ -2,7 +2,7 @@ package dev.baitursinov.caravan.event.serialization.jackson;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
-import dev.baitursinov.caravan.event.serialization.EventPayloadSerializationException;
+import dev.baitursinov.caravan.event.serialization.EventSerializationException;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
@@ -58,8 +58,40 @@ class JacksonEventSerializerTest {
     var event = event(new ExplodingPayload());
 
     assertThatThrownBy(() -> serializer.serialize(event))
-        .isInstanceOf(EventPayloadSerializationException.class)
+        .isInstanceOf(EventSerializationException.class)
         .hasMessageContaining(event.eventReference().toString());
+  }
+
+  @Test
+  void shouldSerializeFromStoredPartsIdenticallyToWholeEvent() {
+    var event = event(new CarTurnedOnPayload("red"));
+    var serializedPayload = new JacksonEventPayloadSerializer(jsonMapper).serializePayload(event);
+
+    var fromParts = serializer.serialize(event.eventReference(), event.timestamp(), serializedPayload);
+
+    assertThat(fromParts).isEqualTo(serializer.serialize(event));
+  }
+
+  @Test
+  void shouldNormalizeTimestampOfStoredPartsLikeEvent() {
+    var event = event(new CarTurnedOnPayload("red"));
+    var serializedPayload = new JacksonEventPayloadSerializer(jsonMapper).serializePayload(event);
+
+    var fromParts = serializer.serialize(
+        event.eventReference(),
+        ZonedDateTime.parse("2026-01-01T12:15:30.000999+02:00"),
+        serializedPayload);
+
+    assertThat(fromParts).isEqualTo(serializer.serialize(event));
+  }
+
+  @Test
+  void shouldEmbedSerializedPayloadVerbatim() {
+    var event = event(new CarTurnedOnPayload("red"));
+
+    var fromParts = serializer.serialize(event.eventReference(), event.timestamp(), "{\"color\" :  \"red\"}");
+
+    assertThat(fromParts).endsWith("\"payload\":{\"color\" :  \"red\"}}");
   }
 
   private Event<Object> event(Object payload) {

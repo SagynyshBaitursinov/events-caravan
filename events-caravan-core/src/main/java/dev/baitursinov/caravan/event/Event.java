@@ -50,7 +50,7 @@ public record Event<T>(EntityReference entityReference,
     requireNonNull(payload, "payload cannot be null");
   }
 
-  private ZonedDateTime normalize(ZonedDateTime zonedDateTime) {
+  public static ZonedDateTime normalize(ZonedDateTime zonedDateTime) {
     return zonedDateTime.truncatedTo(MILLIS).withZoneSameInstant(Z);
   }
 

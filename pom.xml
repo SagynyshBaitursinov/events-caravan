@@ -41,6 +41,7 @@
         <module>events-caravan-queue-polling</module>
         <module>events-caravan-dynamodb</module>
         <module>events-caravan-sqs</module>
+        <module>events-caravan-sns</module>
         <module>events-caravan-spring-boot-starters</module>
         <module>events-caravan-integration-tests</module>
     </modules>

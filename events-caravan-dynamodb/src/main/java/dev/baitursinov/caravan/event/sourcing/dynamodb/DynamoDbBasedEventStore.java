@@ -334,7 +334,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
           new EventType(entityReference.entityName(), eventName));
     } catch (Exception exception) {
       throw new EventStoreException(
-          "Could not payload for %s".formatted(
+          "Could not deserialize payload for %s".formatted(
               new EventReference(entityReference, sequenceNumber, eventName)),
           exception);
     }

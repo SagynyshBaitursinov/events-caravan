@@ -6,6 +6,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 import java.net.URI;
@@ -35,6 +36,15 @@ public class LocalAwsConfiguration {
   @Bean
   public SqsClient sqsClient(AwsCredentialsProvider awsCredentialsProvider) {
     return SqsClient.builder()
+        .credentialsProvider(awsCredentialsProvider)
+        .region(US_EAST_1)
+        .endpointOverride(LOCAL_ENDPOINT)
+        .build();
+  }
+
+  @Bean
+  public SnsClient snsClient(AwsCredentialsProvider awsCredentialsProvider) {
+    return SnsClient.builder()
         .credentialsProvider(awsCredentialsProvider)
         .region(US_EAST_1)
         .endpointOverride(LOCAL_ENDPOINT)

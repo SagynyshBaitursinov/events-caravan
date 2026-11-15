@@ -22,8 +22,7 @@ public class JacksonEventPayloadDeserializer implements EventPayloadDeserializer
       return jsonMapper.readValue(payload, eventPayloadClass);
     } catch (JacksonException jacksonException) {
       throw new EventPayloadDeserializationException(
-          "Could not deserialize payload into class=%s".formatted(eventPayloadClass),
-          jacksonException);
+          "Could not deserialize payload into class=%s".formatted(eventPayloadClass));
     }
   }
 

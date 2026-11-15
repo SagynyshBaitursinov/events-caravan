@@ -2,6 +2,7 @@
 
 - [Register your Events](#register-your-events)
 - [Define an Event-sourced-entity](#define-an-event-sourced-entity)
+- [Produce events without an entity](#produce-events-without-an-entity)
 
 ## Register your Events
 
@@ -128,6 +129,52 @@ final class CalculatorEventApplier {
 >- `@EventApplier` accepts several classes, e.g. `@EventApplier({OrderPlacementApplier.class, OrderShippingApplier.class})`.
 >- Each event name may have only one apply method across the entity class and all its `@EventApplier` classes.
    > Duplicates fail at startup.
+
+## Produce events without an entity
+
+Some events are plain facts with no state to rebuild later, such as a received payment notification or a
+user's login. You can produce them with `EventProducer` directly, without an `EventSourcedEntity` or
+repository. Their events still have to be [registered](#register-your-events).
+
+```java
+
+@Service
+@RequiredArgsConstructor
+public class PaymentNotifications {
+
+  private final EventProducer eventProducer;
+
+  public void paymentReceived(String paymentId, long amount) {
+    eventProducer.produce(
+        Event.builder()
+            .entityReference(new EntityReference("payment", paymentId))
+            .eventName("payment-received")
+            .sequenceNumber(1)
+            .timestamp(ZonedDateTime.now())
+            .payload(new PaymentReceivedPayload(amount))
+            .build());
+  }
+}
+```
+
+> [!NOTE]
+>- You choose the `sequenceNumber`. It starts at 1 and must increase by one for each later event of the same entity.
+   > Giving each fact its own entity id with sequence number 1 makes production idempotent: producing the same fact
+   > again fails with `DuplicateEventProductionException` instead of storing a duplicate.
+>
+>- `DuplicateEventProductionException` means an event with the same entity and sequence number already exists:
+   > either a retry of an already produced event, or a concurrent write to the same entity. Do not blindly retry
+   > with the next sequence number; re-read the entity's events from `EventStore` and decide.
+>
+>- `produce(List)` writes all events atomically: all or none. The DynamoDB implementation allows at most 100 events
+   > per call.
+>
+>- The autoconfigured `EventProducer` is wrapped in `ValidatingEventProducer`: an event whose name is not
+   > registered, or whose payload class differs from the registered one, fails with `EventProductionException`
+   > before anything is written.
+>
+>- If you need to rebuild state from an entity's events, or to enforce rules across them, define an
+   > [Event-sourced-entity](#define-an-event-sourced-entity) and save it through a repository instead.
 
 ---
 Previous: [Modules and dependencies](01-modules-and-dependencies.md) · Next: [Repositories and snapshots](03-repositories-and-snapshots.md)

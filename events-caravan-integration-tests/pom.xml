@@ -38,6 +38,12 @@
             <version>${revision}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>dev.baitursinov</groupId>
+            <artifactId>events-caravan-sns-spring-boot-starter</artifactId>
+            <version>${revision}</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

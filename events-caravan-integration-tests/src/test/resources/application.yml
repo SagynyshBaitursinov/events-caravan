@@ -21,6 +21,9 @@ caravan:
       entity-stream:
         dynamo-db:
           table-name: ${app.name}_entity-stream
+    publishing:
+      sns:
+        topic-name-prefix: ${app.name}
     messaging:
       queue-name-prefix: ${app.name}
       subscribed-entities:
