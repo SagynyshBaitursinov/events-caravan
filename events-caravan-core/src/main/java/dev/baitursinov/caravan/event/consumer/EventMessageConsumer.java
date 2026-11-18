@@ -18,15 +18,15 @@ public class EventMessageConsumer {
   private final EventConsumer eventConsumer;
 
   /**
-   * Deserializes {@code eventMessage} and passes it to the underlying {@link EventConsumer}.
+   * Deserializes {@code messageBody} and passes it to the underlying {@link EventConsumer}.
    *
    * @throws EventMessageConsumptionException if deserialization fails or the underlying
    *                                          consumer throws
    */
-  public void consume(String eventMessage) {
+  public void consume(String messageBody) {
     log.debug("Consuming a message");
 
-    Event<?> event = deserialize(eventMessage);
+    Event<?> event = deserialize(messageBody);
 
     try {
       eventConsumer.consume(event);
@@ -35,9 +35,9 @@ public class EventMessageConsumer {
     }
   }
 
-  private Event<?> deserialize(String eventMessage) {
+  private Event<?> deserialize(String messageBody) {
     try {
-      return eventDeserializer.deserialize(eventMessage);
+      return eventDeserializer.deserialize(messageBody);
     } catch (EventDeserializationException exception) {
       throw new EventMessageConsumptionException(exception);
     }
