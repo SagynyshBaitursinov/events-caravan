@@ -1,11 +1,9 @@
 package dev.baitursinov.caravan.autoconfigure.sqs;
 
-import dev.baitursinov.caravan.autoconfigure.CaravanEventDrivenComponentsAutoConfiguration;
-import dev.baitursinov.caravan.event.EntityEventsRegistration;
+import dev.baitursinov.caravan.event.EntityEventsRegistry;
 import dev.baitursinov.caravan.event.consumer.EventMessageConsumer;
 import dev.baitursinov.caravan.queue.polling.ContinuousMessagePollingController;
 import dev.baitursinov.caravan.queue.polling.QueuePollingProperties;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,9 +19,8 @@ import java.util.Set;
 import static dev.baitursinov.caravan.queue.sqs.SqsUtils.deleteMessages;
 import static dev.baitursinov.caravan.queue.sqs.SqsUtils.getQueueUrl;
 import static dev.baitursinov.caravan.queue.sqs.SqsUtils.pollMessagesFromQueue;
-import static java.util.stream.Collectors.toSet;
 
-@AutoConfiguration(after = CaravanEventDrivenComponentsAutoConfiguration.class)
+@AutoConfiguration
 @EnableConfigurationProperties(CaravanQueuePollingConfigurationProperties.class)
 public class CaravanSqsAutoConfiguration {
 
@@ -38,10 +35,11 @@ public class CaravanSqsAutoConfiguration {
   }
 
   @Bean
+  @ConditionalOnMissingBean(name = "sqsMessagePollingControllerLifecycle")
   public SmartLifecycle sqsMessagePollingControllerLifecycle(
       SqsClient sqsClient,
       EventMessageConsumer eventMessageConsumer,
-      ObjectProvider<EntityEventsRegistration> entityEventsRegistrations,
+      EntityEventsRegistry entityEventsRegistry,
       QueuePollingProperties queuePollingProperties,
       CaravanQueuePollingConfigurationProperties caravanQueuePollingConfigurationProperties) {
 
@@ -54,7 +52,7 @@ public class CaravanSqsAutoConfiguration {
         ? caravanQueuePollingConfigurationProperties.subscribedEntities()
         : Collections.emptySet();
 
-    var sqsPollingControllers = subscribedQueueNames(entityEventsRegistrations, subscribedEntities, queueNamePrefix)
+    var sqsPollingControllers = subscribedQueueNames(entityEventsRegistry, subscribedEntities, queueNamePrefix)
         .stream()
         .map(queueName ->
             createSqsPollingController(
@@ -91,12 +89,10 @@ public class CaravanSqsAutoConfiguration {
     };
   }
 
-  private Collection<String> subscribedQueueNames(ObjectProvider<EntityEventsRegistration> entityEventsRegistrations,
+  private Collection<String> subscribedQueueNames(EntityEventsRegistry entityEventsRegistry,
                                                   Set<String> subscribedEntities,
                                                   String queueNamePrefix) {
-    var registeredEntityNames = entityEventsRegistrations.stream()
-        .map(EntityEventsRegistration::entityName)
-        .collect(toSet());
+    var registeredEntityNames = entityEventsRegistry.registeredEntityNames();
 
     var unregisteredSubscribedEntities = subscribedEntities.stream()
         .filter(entityName -> !registeredEntityNames.contains(entityName))
@@ -104,12 +100,11 @@ public class CaravanSqsAutoConfiguration {
 
     if (!unregisteredSubscribedEntities.isEmpty()) {
       throw new SqsQueuesSetupException(
-          "Subscribed entities %s are not registered using EntityEventsRegistration"
+          "Subscribed entities %s are not registered in EntityEventsRegistry"
               .formatted(unregisteredSubscribedEntities));
     }
 
-    return registeredEntityNames.stream()
-        .filter(subscribedEntities::contains)
+    return subscribedEntities.stream()
         .map(entityName -> toQueueName(queueNamePrefix, entityName))
         .toList();
   }
