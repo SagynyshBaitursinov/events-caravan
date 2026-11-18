@@ -3,7 +3,7 @@ package dev.baitursinov.caravan.event.publisher.sns;
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.EventReference;
 import dev.baitursinov.caravan.event.publisher.EventMessage;
-import dev.baitursinov.caravan.event.publisher.EventPublicationException;
+import dev.baitursinov.caravan.event.publisher.EventMessagePublicationException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.services.sns.SnsClient;
@@ -89,7 +89,7 @@ class SnsEventMessagePublisherTest {
             .build());
 
     assertThatThrownBy(() -> publisher.publish(List.of(message("car", 1), message("car", 2), message("car", 3))))
-        .isInstanceOfSatisfying(EventPublicationException.class, exception ->
+        .isInstanceOfSatisfying(EventMessagePublicationException.class, exception ->
             assertThat(exception.failedEventReferences()).containsExactly(reference("car", 2)));
   }
 
@@ -102,7 +102,7 @@ class SnsEventMessagePublisherTest {
         .thenThrow(NotFoundException.builder().message("gone").build());
 
     assertThatThrownBy(() -> publisher.publish(List.of(message("car", 1), message("car", 2))))
-        .isInstanceOfSatisfying(EventPublicationException.class, exception ->
+        .isInstanceOfSatisfying(EventMessagePublicationException.class, exception ->
             assertThat(exception.failedEventReferences()).containsExactly(reference("car", 2)));
 
     verify(snsClient, times(2)).publish(any(PublishRequest.class));
@@ -115,7 +115,7 @@ class SnsEventMessagePublisherTest {
         .thenReturn(PublishResponse.builder().build());
 
     assertThatThrownBy(() -> publisher.publish(List.of(message("car", 1), message("boat", 1))))
-        .isInstanceOfSatisfying(EventPublicationException.class, exception ->
+        .isInstanceOfSatisfying(EventMessagePublicationException.class, exception ->
             assertThat(exception.failedEventReferences()).containsExactly(reference("car", 1)))
         .hasCauseInstanceOf(NotFoundException.class);
 

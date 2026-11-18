@@ -2,8 +2,8 @@ package dev.baitursinov.caravan.event.publisher.sns;
 
 import dev.baitursinov.caravan.event.EventReference;
 import dev.baitursinov.caravan.event.publisher.EventMessage;
+import dev.baitursinov.caravan.event.publisher.EventMessagePublicationException;
 import dev.baitursinov.caravan.event.publisher.EventMessagePublisher;
-import dev.baitursinov.caravan.event.publisher.EventPublicationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.sns.SnsClient;
@@ -80,8 +80,8 @@ public class SnsEventMessagePublisher implements EventMessagePublisher {
       var message = "Could not publish %d of %d event messages to SNS: %s"
           .formatted(failed.size(), eventMessages.size(), failed);
       throw lastFailure == null
-          ? new EventPublicationException(failed, message)
-          : new EventPublicationException(failed, message, lastFailure);
+          ? new EventMessagePublicationException(failed, message)
+          : new EventMessagePublicationException(failed, message, lastFailure);
     }
   }
 
