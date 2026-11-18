@@ -1,4 +1,4 @@
-package dev.baitursinov.caravan.event.consumer.queue.sqs;
+package dev.baitursinov.caravan.queue.sqs;
 
 import dev.baitursinov.caravan.queue.polling.Message;
 import dev.baitursinov.caravan.queue.polling.PollMessagesRequest;
