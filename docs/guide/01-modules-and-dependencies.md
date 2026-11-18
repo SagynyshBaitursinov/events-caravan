@@ -3,7 +3,7 @@
 | Module                                      | Purpose                                                                                                                                                |
 |---------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
 | events-caravan-core                         | Core, technology-agnostic: entities, repositories, event registry, interfaces, Jackson serialization, event consumption and handlers, entity stream    |
-| events-caravan-dynamodb                     | `EventStore` + `EventProducer` + `SnapshotStore` + `EntityStreamWriter` implementations on DynamoDB, with partition slicing for long entity histories |
+| events-caravan-dynamodb                     | `EventStore` + `SequencedEventWriter` + `SnapshotStore` + `EntityStreamWriter` implementations on DynamoDB, with partition slicing for long entity histories |
 | events-caravan-queue-polling                | Transport-agnostic continuous polling mechanism (virtual threads, adaptive poller scaling, batched deletes, graceful shutdown)                         |
 | events-caravan-sqs                          | SQS polling/deletion primitives                                                                                                                        |
 | events-caravan-sns                          | `SnsEventMessagePublisher` publishing event messages into per-entity topics                               |
@@ -45,9 +45,7 @@ Add the starters your service needs:
 >
 >- `DynamoDbClient` / `SqsClient` / `SnsClient` beans are expected in the context for their corresponding modules to work.
 >
->- Every autoconfigured component is `@ConditionalOnMissingBean`, supply your own bean to override them. Any
-   > `EventProducer` bean is transparently wrapped into `ValidatingEventProducer` so all produced events are validated
-   > against the `EntityEventsRegistry`.
+>- Every autoconfigured component is `@ConditionalOnMissingBean`, supply your own bean to override them.
 
 Configuration properties and infrastructure of the reference implementation are described in
 [AWS reference implementation](../aws-reference-implementation.md).

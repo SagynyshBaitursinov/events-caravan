@@ -8,8 +8,10 @@ import dev.baitursinov.caravan.event.EventType;
 import dev.baitursinov.caravan.event.consumer.EventConsumer;
 import dev.baitursinov.caravan.event.consumer.EventMessageConsumer;
 import dev.baitursinov.caravan.event.consumer.handler.HandlerBasedEventConsumer;
-import dev.baitursinov.caravan.event.producer.EventProducer;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
+import dev.baitursinov.caravan.event.producer.SequencedEventWriter;
+import dev.baitursinov.caravan.event.producer.ValidatedEvents;
 import dev.baitursinov.caravan.event.serialization.EventDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
@@ -49,6 +51,7 @@ class CaravanAutoConfigurationTest {
   AutoConfigurations autoConfigurations = AutoConfigurations.of(
       CaravanEventRegistryAutoConfiguration.class,
       CaravanEventDrivenComponentsAutoConfiguration.class,
+      CaravanEventProducersAutoConfiguration.class,
       CaravanJacksonSerializationAutoConfiguration.class,
       CaravanEventSourcingAutoConfiguration.class,
       CaravanEntityStreamAutoConfiguration.class);
@@ -57,32 +60,27 @@ class CaravanAutoConfigurationTest {
       .withConfiguration(autoConfigurations)
       .withUserConfiguration(ApplicationConfiguration.class);
 
-  static class RecordingEventProducer implements EventProducer {
+  static class RecordingSequencedEventWriter implements SequencedEventWriter {
 
-    final List<Event<?>> producedEvents = new ArrayList<>();
-
-    @Override
-    public void produce(Event<?> event) {
-      producedEvents.add(event);
-    }
+    final List<Event<?>> writtenEvents = new ArrayList<>();
 
     @Override
-    public void produce(List<Event<?>> events) {
-      producedEvents.addAll(events);
+    public void write(ValidatedEvents events) {
+      writtenEvents.addAll(events.events());
     }
   }
 
-  interface CombinedEventStoreAndProducer extends EventStore, EventProducer {
+  interface CombinedEventStoreAndWriter extends EventStore, SequencedEventWriter {
   }
 
   @Configuration(proxyBeanMethods = false)
   static class ApplicationConfiguration {
 
-    RecordingEventProducer eventProducer = new RecordingEventProducer();
+    RecordingSequencedEventWriter eventWriter = new RecordingSequencedEventWriter();
 
     @Bean
-    public EventProducer eventProducer() {
-      return eventProducer;
+    public SequencedEventWriter eventWriter() {
+      return eventWriter;
     }
 
     @Bean
@@ -111,8 +109,8 @@ class CaravanAutoConfigurationTest {
   static class ApplicationConfigurationWithoutJsonMapper {
 
     @Bean
-    public EventProducer eventProducer() {
-      return mock(EventProducer.class);
+    public SequencedEventWriter eventWriter() {
+      return mock(SequencedEventWriter.class);
     }
 
     @Bean
@@ -126,8 +124,8 @@ class CaravanAutoConfigurationTest {
   static class ApplicationConfigurationWithDoubleRegistration {
 
     @Bean
-    public EventProducer eventProducer() {
-      return mock(EventProducer.class);
+    public SequencedEventWriter eventWriter() {
+      return mock(SequencedEventWriter.class);
     }
 
     @Bean
@@ -152,8 +150,8 @@ class CaravanAutoConfigurationTest {
   static class ApplicationConfigurationWithoutStorageBackend {
 
     @Bean
-    public EventProducer eventProducer() {
-      return mock(EventProducer.class);
+    public SequencedEventWriter eventWriter() {
+      return mock(SequencedEventWriter.class);
     }
 
     @Bean
@@ -169,7 +167,7 @@ class CaravanAutoConfigurationTest {
   }
 
   @Configuration(proxyBeanMethods = false)
-  static class ApplicationConfigurationWithoutEventProducer {
+  static class ApplicationConfigurationWithoutEventWriter {
 
     @Bean
     public EventStore eventStore() {
@@ -194,11 +192,11 @@ class CaravanAutoConfigurationTest {
   }
 
   @Configuration(proxyBeanMethods = false)
-  static class ApplicationConfigurationWithCombinedEventStoreAndProducer {
+  static class ApplicationConfigurationWithCombinedEventStoreAndWriter {
 
     @Bean
-    public CombinedEventStoreAndProducer combinedEventStoreAndProducer() {
-      return mock(CombinedEventStoreAndProducer.class);
+    public CombinedEventStoreAndWriter combinedEventStoreAndWriter() {
+      return mock(CombinedEventStoreAndWriter.class);
     }
 
     @Bean
@@ -336,35 +334,47 @@ class CaravanAutoConfigurationTest {
     }
 
     @Test
-    void shouldValidateEventsBeforeDelegatingToConfiguredProducer() {
+    void shouldValidateEventsBeforeHandingThemToConfiguredWriter() {
       contextRunner.run(context -> {
         var applicationConfiguration = context.getBean(ApplicationConfiguration.class);
-        var eventProducer = context.getBean(EventProducer.class);
+        var eventProducer = context.getBean(SequencedEventProducer.class);
 
         var validEvent = event("added", new NumberPayload(42));
         eventProducer.produce(validEvent);
-        assertThat(applicationConfiguration.eventProducer.producedEvents).containsExactly(validEvent);
+        assertThat(applicationConfiguration.eventWriter.writtenEvents).containsExactly(validEvent);
 
         var invalidEvent = event("removed", new NumberPayload(42));
         assertThatThrownBy(() -> eventProducer.produce(invalidEvent))
             .isInstanceOf(EventProductionException.class);
-        assertThat(applicationConfiguration.eventProducer.producedEvents).containsExactly(validEvent);
+        assertThat(applicationConfiguration.eventWriter.writtenEvents).containsExactly(validEvent);
       });
     }
 
     @Test
-    void shouldFailIfNoEventProducerIsConfigured() {
+    void shouldFailIfNoSequencedEventWriterIsConfigured() {
       new ApplicationContextRunner()
           .withConfiguration(autoConfigurations)
-          .withUserConfiguration(ApplicationConfigurationWithoutEventProducer.class)
+          .withUserConfiguration(ApplicationConfigurationWithoutEventWriter.class)
           .run(context -> assertThat(context).hasFailed());
     }
 
     @Test
-    void shouldPreserveOtherRolesOfAProducerThatAlsoActsAsAnEventStore() {
+    void shouldFailWithTwoSequencedEventWritersEvenIfOneMatchesTheParameterName() {
       new ApplicationContextRunner()
           .withConfiguration(autoConfigurations)
-          .withUserConfiguration(ApplicationConfigurationWithCombinedEventStoreAndProducer.class)
+          .withUserConfiguration(ApplicationConfigurationWithoutStorageBackend.class)
+          .withBean("sequencedEventWriter", SequencedEventWriter.class, () -> mock(SequencedEventWriter.class))
+          .run(context -> assertThat(context).getFailure()
+              .rootCause()
+              .isInstanceOf(IllegalStateException.class)
+              .hasMessageContaining("Exactly one SequencedEventWriter"));
+    }
+
+    @Test
+    void shouldUseOneBeanAsBothEventStoreAndSequencedEventWriter() {
+      new ApplicationContextRunner()
+          .withConfiguration(autoConfigurations)
+          .withUserConfiguration(ApplicationConfigurationWithCombinedEventStoreAndWriter.class)
           .run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).hasSingleBean(EventStore.class);

@@ -6,7 +6,7 @@ import dev.baitursinov.caravan.event.Event;
 import java.util.stream.Stream;
 
 /**
- * Reads back events previously produced by an {@link dev.baitursinov.caravan.event.producer.EventProducer}.
+ * Reads back events previously written by a {@link dev.baitursinov.caravan.event.producer.SequencedEventWriter}.
  * Implemented by extenders for a specific storage backend; used by
  * {@link EventSourcedRepository} to restore an entity's state.
  */

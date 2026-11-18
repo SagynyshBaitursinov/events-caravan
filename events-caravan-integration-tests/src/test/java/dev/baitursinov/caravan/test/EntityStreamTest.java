@@ -2,7 +2,7 @@ package dev.baitursinov.caravan.test;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
-import dev.baitursinov.caravan.event.producer.EventProducer;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamEntry;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWriter;
 import dev.baitursinov.caravan.test.value.TestEventPayload;
@@ -30,7 +30,7 @@ class EntityStreamTest extends AbstractSpringBootTest {
   EntityStreamWriter entityStreamWriter;
 
   @Autowired
-  EventProducer eventProducer;
+  SequencedEventProducer eventProducer;
 
   @Autowired
   DynamoDbClient dynamoDbClient;

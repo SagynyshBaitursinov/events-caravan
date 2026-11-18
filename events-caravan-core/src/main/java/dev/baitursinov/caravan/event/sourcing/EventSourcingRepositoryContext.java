@@ -1,6 +1,6 @@
 package dev.baitursinov.caravan.event.sourcing;
 
-import dev.baitursinov.caravan.event.producer.EventProducer;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.event.sourcing.applying.ApplyEventMethodPayloadsValidator;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotStore;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotTaker;
@@ -14,7 +14,7 @@ import java.util.Set;
 
 /**
  * The shared dependencies of every {@link EventSourcedRepository} in an application: the
- * {@link EventStore}, {@link EventProducer} and {@link SnapshotStore} to use, plus the
+ * {@link EventStore}, {@link SequencedEventProducer} and {@link SnapshotStore} to use, plus the
  * {@link SnapshotTaker}s available for specific entity types. Applications construct one
  * instance and pass it to each of their {@link EventSourcedRepository} subclasses' constructors;
  * it also enforces that at most one repository is registered per entity name.
@@ -23,7 +23,7 @@ public class EventSourcingRepositoryContext {
 
   private final Set<String> entityNames = new HashSet<>();
   private final EventStore eventStore;
-  private final EventProducer eventProducer;
+  private final SequencedEventProducer eventProducer;
   private final SnapshotStore snapshotStore;
   private final ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator;
   private final Map<Class<? extends EventSourcedEntity>, SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakerMap;
@@ -34,7 +34,7 @@ public class EventSourcingRepositoryContext {
    *                                          snapshot frequency
    */
   public EventSourcingRepositoryContext(EventStore eventStore,
-                                        EventProducer eventProducer,
+                                        SequencedEventProducer eventProducer,
                                         SnapshotStore snapshotStore,
                                         ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator,
                                         List<SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakers) {
@@ -68,7 +68,7 @@ public class EventSourcingRepositoryContext {
     return eventStore;
   }
 
-  EventProducer eventProducer() {
+  SequencedEventProducer eventProducer() {
     return eventProducer;
   }
 

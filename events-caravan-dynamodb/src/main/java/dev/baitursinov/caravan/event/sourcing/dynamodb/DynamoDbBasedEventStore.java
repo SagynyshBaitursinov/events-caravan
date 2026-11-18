@@ -5,8 +5,9 @@ import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.EventType;
 import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
-import dev.baitursinov.caravan.event.producer.EventProducer;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
+import dev.baitursinov.caravan.event.producer.SequencedEventWriter;
+import dev.baitursinov.caravan.event.producer.ValidatedEvents;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
@@ -41,7 +42,7 @@ import static dev.baitursinov.caravan.utils.TextUtils.hasText;
 import static java.util.Objects.requireNonNull;
 
 @Slf4j
-public class DynamoDbBasedEventStore implements EventStore, EventProducer {
+public class DynamoDbBasedEventStore implements EventStore, SequencedEventWriter {
 
   private static final String PK = "entityReference";
   private static final String SK = "sequenceNumber";
@@ -101,10 +102,8 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     this.eventPayloadDeserializer = eventPayloadDeserializer;
   }
 
-  @Override
-  public void produce(Event<?> event) {
+  private void writeSingle(Event<?> event) {
     log.debug("Producing {}", event.eventReference());
-    sequenceNumberOf(event);
     try {
       dynamoDbClient.putItem(
           PutItemRequest.builder()
@@ -123,7 +122,8 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
   }
 
   @Override
-  public void produce(List<Event<?>> events) {
+  public void write(ValidatedEvents validatedEvents) {
+    var events = validatedEvents.events();
     if (events.isEmpty()) {
       log.debug("Received empty list of events for producing");
       return;
@@ -132,7 +132,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     events.forEach(DynamoDbBasedEventStore::sequenceNumberOf);
 
     if (events.size() == 1) {
-      produce(events.getFirst());
+      writeSingle(events.getFirst());
       return;
     }
 

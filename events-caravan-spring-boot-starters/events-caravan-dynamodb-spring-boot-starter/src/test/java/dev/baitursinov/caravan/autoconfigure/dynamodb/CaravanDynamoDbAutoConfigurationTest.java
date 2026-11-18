@@ -1,6 +1,9 @@
 package dev.baitursinov.caravan.autoconfigure.dynamodb;
 
-import dev.baitursinov.caravan.event.producer.EventProducer;
+import dev.baitursinov.caravan.autoconfigure.CaravanEventProducersAutoConfiguration;
+import dev.baitursinov.caravan.event.EntityEventsRegistry;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
+import dev.baitursinov.caravan.event.producer.SequencedEventWriter;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
@@ -22,6 +25,8 @@ import software.amazon.awssdk.services.dynamodb.model.DescribeTableResponse;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 import software.amazon.awssdk.services.dynamodb.model.TableDescription;
 import software.amazon.awssdk.services.dynamodb.model.TableStatus;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -197,15 +202,26 @@ class CaravanDynamoDbAutoConfigurationTest {
   }
 
   @Test
+  void sequencedEventProducerIsBackedByDynamoDbEventStore() {
+    contextRunner
+        .withConfiguration(AutoConfigurations.of(CaravanEventProducersAutoConfiguration.class))
+        .withBean(EntityEventsRegistry.class, () -> EntityEventsRegistry.createFor(List.of()))
+        .run(context -> {
+          assertThat(context).hasSingleBean(DynamoDbBasedEventStore.class);
+          assertThat(context).hasSingleBean(SequencedEventProducer.class);
+        });
+  }
+
+  @Test
   void applicationMaySupplyItsOwnStores() {
     var ownEventStore = mock(EventStore.class);
     var ownSnapshotStore = mock(SnapshotStore.class);
-    var ownEventProducer = mock(EventProducer.class);
+    var ownEventWriter = mock(SequencedEventWriter.class);
 
     contextRunner
         .withBean(EventStore.class, () -> ownEventStore)
         .withBean(SnapshotStore.class, () -> ownSnapshotStore)
-        .withBean(EventProducer.class, () -> ownEventProducer)
+        .withBean(SequencedEventWriter.class, () -> ownEventWriter)
         .run(context -> {
           assertThat(context).doesNotHaveBean(DynamoDbBasedEventStore.class);
           assertThat(context).doesNotHaveBean(DynamoDbBasedSnapshotStore.class);
@@ -213,11 +229,11 @@ class CaravanDynamoDbAutoConfigurationTest {
   }
 
   @Test
-  void applicationMaySupplyOwnEventProducer() {
-    var ownEventProducer = mock(EventProducer.class);
+  void applicationMaySupplyOwnEventWriter() {
+    var ownEventWriter = mock(SequencedEventWriter.class);
 
     contextRunner
-        .withBean(EventProducer.class, () -> ownEventProducer)
+        .withBean(SequencedEventWriter.class, () -> ownEventWriter)
         .run(context -> {
           assertThat(context).doesNotHaveBean(DynamoDbBasedEventStore.class);
           assertThat(context).hasSingleBean(DynamoDbBasedSnapshotStore.class);

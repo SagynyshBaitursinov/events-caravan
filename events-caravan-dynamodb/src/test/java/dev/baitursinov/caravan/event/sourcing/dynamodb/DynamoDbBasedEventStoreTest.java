@@ -1,11 +1,14 @@
 package dev.baitursinov.caravan.event.sourcing.dynamodb;
 
 import dev.baitursinov.caravan.entity.EntityReference;
+import dev.baitursinov.caravan.event.EntityEventsRegistration;
+import dev.baitursinov.caravan.event.EntityEventsRegistry;
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.EventType;
 import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.sourcing.EventStoreException;
@@ -54,7 +57,11 @@ class DynamoDbBasedEventStoreTest {
   EventPayloadDeserializer eventPayloadDeserializer = mock(EventPayloadDeserializer.class);
   EventPayloadSerializer eventPayloadSerializer = mock(EventPayloadSerializer.class);
 
+  record Incremented() {
+  }
+
   DynamoDbBasedEventStore eventStore;
+  SequencedEventProducer producer;
 
   @BeforeEach
   void clearMockInvocations() {
@@ -68,6 +75,10 @@ class DynamoDbBasedEventStoreTest {
         dynamoDbClient,
         "events-table", 100, PARTITION_SLICE_SIZE, false, eventPayloadSerializer,
         eventPayloadDeserializer);
+    producer = new SequencedEventProducer(
+        eventStore,
+        EntityEventsRegistry.createFor(List.of(
+            new EntityEventsRegistration("Entity", Map.of("Incremented", Incremented.class)))));
 
     clearInvocations(dynamoDbClient);
   }
@@ -159,7 +170,7 @@ class DynamoDbBasedEventStoreTest {
   void producingSingleEventPutsItemKeyedByItsSlice() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{\"n\":1}");
 
-    eventStore.produce(event(1));
+    producer.produce(List.of(event(1)));
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient).putItem(captor.capture());
@@ -179,7 +190,7 @@ class DynamoDbBasedEventStoreTest {
   void producingEventPastTheSliceBoundaryUsesTheNextSlicesPartitionKey() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
 
-    eventStore.produce(event(PARTITION_SLICE_SIZE + 1));
+    producer.produce(List.of(event(PARTITION_SLICE_SIZE + 1)));
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient).putItem(captor.capture());
@@ -192,7 +203,7 @@ class DynamoDbBasedEventStoreTest {
   void producingEventOnAWholeSecondStillWritesThreeFractionalDigits() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
 
-    eventStore.produce(event(1, ZonedDateTime.parse("2026-01-01T00:00:00Z")));
+    producer.produce(List.of(event(1, ZonedDateTime.parse("2026-01-01T00:00:00Z"))));
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient).putItem(captor.capture());
@@ -204,7 +215,7 @@ class DynamoDbBasedEventStoreTest {
   void producingEventOutsideUtcWritesTheSameInstantAsUtc() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
 
-    eventStore.produce(event(1, ZonedDateTime.parse("2026-01-01T03:00:00.5+03:00")));
+    producer.produce(List.of(event(1, ZonedDateTime.parse("2026-01-01T03:00:00.5+03:00"))));
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient).putItem(captor.capture());
@@ -216,8 +227,8 @@ class DynamoDbBasedEventStoreTest {
   void storedTimestampsOfTheSameSecondCompareLexicographicallyInInstantOrder() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
 
-    eventStore.produce(event(1, ZonedDateTime.parse("2026-01-01T00:00:00Z")));
-    eventStore.produce(event(2, ZonedDateTime.parse("2026-01-01T00:00:00.123Z")));
+    producer.produce(List.of(event(1, ZonedDateTime.parse("2026-01-01T00:00:00Z"))));
+    producer.produce(List.of(event(2, ZonedDateTime.parse("2026-01-01T00:00:00.123Z"))));
 
     ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
     verify(dynamoDbClient, times(2)).putItem(captor.capture());
@@ -235,7 +246,7 @@ class DynamoDbBasedEventStoreTest {
     when(dynamoDbClient.putItem(any(PutItemRequest.class)))
         .thenThrow(ConditionalCheckFailedException.builder().message("exists").build());
 
-    assertThatThrownBy(() -> eventStore.produce(event(1)))
+    assertThatThrownBy(() -> producer.produce(List.of(event(1))))
         .isExactlyInstanceOf(DuplicateEventProductionException.class)
         .hasMessageContaining("Entity")
         .hasMessageContaining("sequenceNumber=1");
@@ -243,7 +254,7 @@ class DynamoDbBasedEventStoreTest {
 
   @Test
   void producingEmptyListOfEventsDoesNothing() {
-    eventStore.produce(List.of());
+    producer.produce(List.of());
 
     verifyNoInteractions(dynamoDbClient);
   }
@@ -252,7 +263,7 @@ class DynamoDbBasedEventStoreTest {
   void producingSingleElementListDelegatesToSinglePutItem() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
 
-    eventStore.produce(List.of(event(1)));
+    producer.produce(List.of(event(1)));
 
     verify(dynamoDbClient).putItem(any(PutItemRequest.class));
     verify(dynamoDbClient, never()).transactWriteItems(any(TransactWriteItemsRequest.class));
@@ -262,7 +273,7 @@ class DynamoDbBasedEventStoreTest {
   void producingSeveralEventsUsesTransactionWithOnePutPerEventKeyedByItsOwnSlice() {
     when(eventPayloadSerializer.serializePayload(any())).thenReturn("{}");
 
-    eventStore.produce(List.of(event(PARTITION_SLICE_SIZE), event(PARTITION_SLICE_SIZE + 1)));
+    producer.produce(List.of(event(PARTITION_SLICE_SIZE), event(PARTITION_SLICE_SIZE + 1)));
 
     ArgumentCaptor<TransactWriteItemsRequest> captor =
         ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
@@ -287,7 +298,7 @@ class DynamoDbBasedEventStoreTest {
         .mapToObj(DynamoDbBasedEventStoreTest::event)
         .toList();
 
-    assertThatThrownBy(() -> eventStore.produce((List<Event<?>>) events))
+    assertThatThrownBy(() -> producer.produce((List<Event<?>>) events))
         .isExactlyInstanceOf(EventProductionException.class);
 
     verifyNoInteractions(dynamoDbClient);
@@ -304,7 +315,7 @@ class DynamoDbBasedEventStoreTest {
                 CancellationReason.builder().code("ConditionalCheckFailed").build())
             .build());
 
-    assertThatThrownBy(() -> eventStore.produce(List.of(event(1), event(2))))
+    assertThatThrownBy(() -> producer.produce(List.of(event(1), event(2))))
         .isExactlyInstanceOf(DuplicateEventProductionException.class)
         .hasMessageContaining("sequenceNumber=2");
   }
@@ -320,7 +331,7 @@ class DynamoDbBasedEventStoreTest {
                 CancellationReason.builder().code("ConditionalCheckFailed").build())
             .build());
 
-    assertThatThrownBy(() -> eventStore.produce(List.of(event(1), event(2))))
+    assertThatThrownBy(() -> producer.produce(List.of(event(1), event(2))))
         .isExactlyInstanceOf(DuplicateEventProductionException.class)
         .hasMessageContaining("sequenceNumber=1")
         .hasMessageContaining("sequenceNumber=2");
@@ -337,7 +348,7 @@ class DynamoDbBasedEventStoreTest {
                 CancellationReason.builder().code("None").build())
             .build());
 
-    assertThatThrownBy(() -> eventStore.produce(List.of(event(1), event(2))))
+    assertThatThrownBy(() -> producer.produce(List.of(event(1), event(2))))
         .isExactlyInstanceOf(EventProductionException.class)
         .isNotInstanceOf(DuplicateEventProductionException.class);
   }
@@ -348,7 +359,7 @@ class DynamoDbBasedEventStoreTest {
     when(dynamoDbClient.transactWriteItems(any(TransactWriteItemsRequest.class)))
         .thenThrow(DynamoDbException.builder().message("service unavailable").build());
 
-    assertThatThrownBy(() -> eventStore.produce(List.of(event(1), event(2))))
+    assertThatThrownBy(() -> producer.produce(List.of(event(1), event(2))))
         .isExactlyInstanceOf(EventProductionException.class)
         .isNotInstanceOf(DuplicateEventProductionException.class)
         .hasMessageContaining("service unavailable");
@@ -364,7 +375,7 @@ class DynamoDbBasedEventStoreTest {
         .eventName("Incremented")
         .sequenceNumber(sequenceNumber)
         .timestamp(timestamp)
-        .payload(new Object())
+        .payload(new Incremented())
         .build();
   }
 

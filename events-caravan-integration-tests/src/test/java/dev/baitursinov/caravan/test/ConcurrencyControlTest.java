@@ -2,7 +2,7 @@ package dev.baitursinov.caravan.test;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
-import dev.baitursinov.caravan.event.producer.EventProducer;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.CalculatorRepository;
 import dev.baitursinov.caravan.test.value.NumberAdditionRequest;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ import static org.awaitility.Awaitility.await;
 public class ConcurrencyControlTest extends AbstractSpringBootTest {
 
   @Autowired
-  EventProducer eventProducer;
+  SequencedEventProducer eventProducer;
 
   @Autowired
   CalculatorRepository calculatorRepository;

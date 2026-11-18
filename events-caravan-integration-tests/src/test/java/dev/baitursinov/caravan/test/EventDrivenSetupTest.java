@@ -4,8 +4,8 @@ import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.consumer.EventConsumer;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
-import dev.baitursinov.caravan.event.producer.EventProducer;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.test.event.handler.AllTestFieldSavingEventHandler;
 import dev.baitursinov.caravan.test.event.handler.AnotherTestFieldSavingEventHandler;
 import dev.baitursinov.caravan.test.event.handler.InterestingTestFieldSavingEventHandler;
@@ -29,7 +29,7 @@ import static org.awaitility.Awaitility.await;
 class EventDrivenSetupTest extends AbstractSpringBootTest {
 
   @Autowired
-  EventProducer eventProducer;
+  SequencedEventProducer eventProducer;
 
   @Autowired
   EventConsumer eventConsumer;

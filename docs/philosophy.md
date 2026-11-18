@@ -19,8 +19,8 @@
 7. **Be ready for a failure.** Software and hardware may break mid-process. Make every process recoverable. After a
    failure a retry should happen and finish the job without leaving the system in inconsistent state.
 8. **Simple is secure.** Design simple solutions. Utilize few dependencies.
-9. **Modules should be substitutable.** Every integration point (`EventStore`, `EventProducer`,
-   `SnapshotStore`, (de)serializers, the polling transport, the events publisher) is an interface, implementations of
+9. **Modules should be substitutable.** Every integration point (`EventStore`, `SequencedEventWriter`, `UnsequencedEventWriter`,
+   `SnapshotStore`, (de)serializers, the polling transport, `EventMessagePublisher`) is an interface, implementations of
    which could vary.
 10. **Developer experience is important.** Events-caravan provides simple interfaces, no DSL, which help devs to stay
     focused on building domain behavior; framework has no complex mechanisms that require configuring, and it fails fast

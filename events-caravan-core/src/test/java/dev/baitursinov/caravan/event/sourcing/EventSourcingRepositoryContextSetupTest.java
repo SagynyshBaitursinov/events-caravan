@@ -4,7 +4,7 @@ import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.EntityEventsRegistration;
 import dev.baitursinov.caravan.event.EntityEventsRegistry;
 import dev.baitursinov.caravan.event.Event;
-import dev.baitursinov.caravan.event.producer.EventProducer;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.event.sourcing.applying.ApplyEvent;
 import dev.baitursinov.caravan.event.sourcing.applying.ApplyEventMethodPayloadsValidator;
 import dev.baitursinov.caravan.event.sourcing.snapshot.EntitySnapshot;
@@ -258,7 +258,7 @@ class EventSourcingRepositoryContextSetupTest {
           new EntityEventsRegistration(TRUCK, Map.of(TURNED_ON, TurnedOnPayload.class))));
 
   EventStore eventStore = mock(EventStore.class);
-  EventProducer eventProducer = mock(EventProducer.class);
+  SequencedEventProducer eventProducer = mock(SequencedEventProducer.class);
   SnapshotStore snapshotStore = mock(SnapshotStore.class);
 
   EventSourcingRepositoryContext context = contextWith(List.of());

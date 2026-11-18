@@ -21,7 +21,7 @@ infrastructure from scaling.
 - **DynamoDB** partitions natively by primary key, has no single leader node applications write through, and scales
   throughput per partition rather than globally, directly
   serving [Principle #1 (enable horizontal scaling)](philosophy.md). DynamoDB Streams give an ordered, per-shard
-  change feed for free, which is what lets an event item insert *be equal* to the publishing it (see [Producing and propagating events](architecture.md#producing-and-propagating-events) point 4) without a
+  change feed for free, which is what lets an event item insert *be equal* to the publishing it (see [Producing and propagating events](architecture.md#producing-and-propagating-events) point 3) without a
   transactional outbox, serving [Principle #4 (one write destination)](philosophy.md).
 - **SNS/SQS** is a broker that does not need to understand the domain: SNS fans out by opaque message attributes, and
   SQS queues are owned and scaled independently by each consumer application. This is "dumb pipes"
@@ -31,7 +31,7 @@ infrastructure from scaling.
   [Principle #1](philosophy.md).
 
 None of this is AWS-specific in substance, only in the concrete API used, and
-per [Principle #9](philosophy.md) every integration point is an interface open for substitution (`EventStore`, `EventProducer`, `SnapshotStore`, event consumption, the publisher).
+per [Principle #9](philosophy.md) every integration point is an interface open for substitution (`EventStore`, `SequencedEventWriter`, `UnsequencedEventWriter`, `SnapshotStore`, event consumption, the publisher).
 
 > [!NOTE]
 > When operating applications on a high scale it might be worth switching to provisioned capacity of DynamoDB,
@@ -48,8 +48,8 @@ Technologies with the following properties could substitute the reference implem
   database.
 - A broker letting consumers own and scale their own subscriptions without a central process understanding the domain
   can substitute SNS/SQS: for example Kafka, Pulsar, or Google Pub/Sub.
-- The publisher can be substituted by a stream-reader process as long as it preserves at-least-once delivery and keeps
-  the insert as the sole trigger for publishing.
+- The publisher can be substituted by a stream-reader process or database poller as long as they preserve at-least-once 
+  delivery.
 
 ## Partition slicing of the events table
 

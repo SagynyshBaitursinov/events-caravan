@@ -1,7 +1,7 @@
 package dev.baitursinov.caravan.autoconfigure;
 
 import dev.baitursinov.caravan.event.EntityEventsRegistry;
-import dev.baitursinov.caravan.event.producer.EventProducer;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.event.sourcing.EventSourcedEntity;
 import dev.baitursinov.caravan.event.sourcing.EventSourcingRepositoryContext;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
@@ -28,7 +28,7 @@ public class CaravanEventSourcingAutoConfiguration {
   @ConditionalOnMissingBean
   public EventSourcingRepositoryContext eventSourcingRepositoryContext(
       EventStore eventStore,
-      EventProducer eventProducer,
+      SequencedEventProducer eventProducer,
       SnapshotStore snapshotStore,
       ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator,
       ObjectProvider<SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakers) {

@@ -5,7 +5,7 @@ import dev.baitursinov.caravan.entity.Repository;
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
-import dev.baitursinov.caravan.event.producer.EventProducer;
+import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.EntitySnapshot;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotStore;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotTaker;
@@ -35,7 +35,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
   private final Class<T> entityClass;
 
   private final EventStore eventStore;
-  private final EventProducer eventProducer;
+  private final SequencedEventProducer eventProducer;
   private final SnapshotStore snapshotStore;
 
   @Nullable
@@ -44,7 +44,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
   /**
    * @param entityClass the concrete entity class this repository manages
    * @param context     the shared context this repository draws its {@link EventStore},
-   *                    {@link EventProducer} and {@link SnapshotStore} from, and registers
+   *                    {@link SequencedEventProducer} and {@link SnapshotStore} from, and registers
    *                    itself with
    * @throws EventSourcedEntitySetupException if another repository is already registered for
    *                                          the same entity name, or the entity class's
