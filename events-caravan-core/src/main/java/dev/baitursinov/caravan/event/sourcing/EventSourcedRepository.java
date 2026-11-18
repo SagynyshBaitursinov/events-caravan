@@ -36,6 +36,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
 
   private final EventStore eventStore;
   private final SequencedEventProducer eventProducer;
+  @Nullable
   private final SnapshotStore snapshotStore;
 
   @Nullable

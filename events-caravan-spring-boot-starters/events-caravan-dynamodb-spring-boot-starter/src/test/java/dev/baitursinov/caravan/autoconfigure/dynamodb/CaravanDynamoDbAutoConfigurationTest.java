@@ -1,11 +1,13 @@
 package dev.baitursinov.caravan.autoconfigure.dynamodb;
 
 import dev.baitursinov.caravan.autoconfigure.CaravanEventProducersAutoConfiguration;
+import dev.baitursinov.caravan.autoconfigure.CaravanEventSourcingAutoConfiguration;
 import dev.baitursinov.caravan.event.EntityEventsRegistry;
 import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.event.producer.SequencedEventWriter;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
+import dev.baitursinov.caravan.event.sourcing.EventSourcingRepositoryContext;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedEventStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedSnapshotStore;
@@ -91,6 +93,31 @@ class CaravanDynamoDbAutoConfigurationTest {
       assertThat(context).hasSingleBean(DynamoDbBasedEventStore.class);
       assertThat(context).hasSingleBean(DynamoDbBasedSnapshotStore.class);
     });
+  }
+
+  @Test
+  void doesNotConfigureSnapshotStoreWithoutTableName() {
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withUserConfiguration(ApplicationConfiguration.class)
+        .withPropertyValues("caravan.event.sourcing.event-store.dynamo-db.table-name=test-app_events")
+        .run(context -> {
+          assertThat(context).hasSingleBean(DynamoDbBasedEventStore.class);
+          assertThat(context).doesNotHaveBean(SnapshotStore.class);
+        });
+  }
+
+  @Test
+  void eventSourcingWorksWithoutSnapshotStoreWhenNoSnapshotTakersAreDeclared() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(
+            CaravanDynamoDbAutoConfiguration.class,
+            CaravanEventProducersAutoConfiguration.class,
+            CaravanEventSourcingAutoConfiguration.class))
+        .withUserConfiguration(ApplicationConfiguration.class)
+        .withBean(EntityEventsRegistry.class, () -> EntityEventsRegistry.createFor(List.of()))
+        .withPropertyValues("caravan.event.sourcing.event-store.dynamo-db.table-name=test-app_events")
+        .run(context -> assertThat(context).hasSingleBean(EventSourcingRepositoryContext.class));
   }
 
   @Test

@@ -321,6 +321,32 @@ class EventSourcingRepositoryContextSetupTest {
   }
 
   @Test
+  void shouldAllowMissingSnapshotStoreWithoutSnapshotTakers() {
+    var contextWithoutSnapshotStore = new EventSourcingRepositoryContext(
+        eventStore,
+        eventProducer,
+        null,
+        new ApplyEventMethodPayloadsValidator(entityEventsRegistry),
+        List.of());
+
+    assertThatCode(() -> new CarRepository(contextWithoutSnapshotStore))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void shouldFailWithSnapshotTakersButWithoutSnapshotStore() {
+    assertThatThrownBy(() -> new EventSourcingRepositoryContext(
+        eventStore,
+        eventProducer,
+        null,
+        new ApplyEventMethodPayloadsValidator(entityEventsRegistry),
+        List.of(new CarSnapshotTaker())))
+        .isInstanceOf(EventSourcedEntitySetupException.class)
+        .hasMessageContaining("no SnapshotStore is configured")
+        .hasMessageContaining(CarSnapshotTaker.class.getName());
+  }
+
+  @Test
   void shouldAssignCorrectSnapshotTakerToRepository() {
     var contextWithSnapshotTakers = contextWith(
         List.of(

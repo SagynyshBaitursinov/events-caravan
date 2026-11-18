@@ -15,7 +15,8 @@ import java.util.Set;
 /**
  * The shared dependencies of every {@link EventSourcedRepository} in an application: the
  * {@link EventStore}, {@link SequencedEventProducer} and {@link SnapshotStore} to use, plus the
- * {@link SnapshotTaker}s available for specific entity types. Applications construct one
+ * {@link SnapshotTaker}s available for specific entity types. The {@link SnapshotStore} is optional
+ * and only required when at least one {@link SnapshotTaker} is given. Applications construct one
  * instance and pass it to each of their {@link EventSourcedRepository} subclasses' constructors;
  * it also enforces that at most one repository is registered per entity name.
  */
@@ -24,20 +25,30 @@ public class EventSourcingRepositoryContext {
   private final Set<String> entityNames = new HashSet<>();
   private final EventStore eventStore;
   private final SequencedEventProducer eventProducer;
+  @Nullable
   private final SnapshotStore snapshotStore;
   private final ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator;
   private final Map<Class<? extends EventSourcedEntity>, SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakerMap;
 
   /**
+   * @param snapshotStore the store snapshots are saved to and loaded from; {@code null} when no
+   *                      snapshots are taken
    * @throws EventSourcedEntitySetupException if two snapshot takers are given for the same
-   *                                          entity class, or one declares a non-positive
-   *                                          snapshot frequency
+   *                                          entity class, one declares a non-positive
+   *                                          snapshot frequency, or snapshot takers are given
+   *                                          without a snapshot store
    */
   public EventSourcingRepositoryContext(EventStore eventStore,
                                         SequencedEventProducer eventProducer,
-                                        SnapshotStore snapshotStore,
+                                        @Nullable SnapshotStore snapshotStore,
                                         ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator,
                                         List<SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakers) {
+    if (snapshotStore == null && !snapshotTakers.isEmpty()) {
+      throw new EventSourcedEntitySetupException(
+          "Snapshot takers %s are given, but no SnapshotStore is configured"
+              .formatted(snapshotTakers.stream().map(Object::getClass).map(Class::getName).toList()));
+    }
+
     this.eventStore = eventStore;
     this.eventProducer = eventProducer;
     this.snapshotStore = snapshotStore;
@@ -72,6 +83,7 @@ public class EventSourcingRepositoryContext {
     return eventProducer;
   }
 
+  @Nullable
   SnapshotStore snapshotStore() {
     return snapshotStore;
   }

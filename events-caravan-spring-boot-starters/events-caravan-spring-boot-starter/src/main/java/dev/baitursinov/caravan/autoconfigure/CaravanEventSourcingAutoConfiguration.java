@@ -29,14 +29,14 @@ public class CaravanEventSourcingAutoConfiguration {
   public EventSourcingRepositoryContext eventSourcingRepositoryContext(
       EventStore eventStore,
       SequencedEventProducer eventProducer,
-      SnapshotStore snapshotStore,
+      ObjectProvider<SnapshotStore> snapshotStore,
       ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator,
       ObjectProvider<SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakers) {
 
     return new EventSourcingRepositoryContext(
         eventStore,
         eventProducer,
-        snapshotStore,
+        snapshotStore.getIfAvailable(),
         applyEventMethodPayloadsValidator,
         snapshotTakers.stream().toList());
   }

@@ -20,6 +20,7 @@ import dev.baitursinov.caravan.event.serialization.EventDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.serialization.EventSerializer;
+import dev.baitursinov.caravan.event.sourcing.EventSourcedEntitySetupException;
 import dev.baitursinov.caravan.event.sourcing.EventSourcingRepositoryContext;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistration;
@@ -30,6 +31,7 @@ import dev.baitursinov.caravan.event.sourcing.entity.stream.TimeBucket;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotStore;
+import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotTaker;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -368,6 +370,31 @@ class CaravanAutoConfigurationTest {
           .withConfiguration(autoConfigurations)
           .withUserConfiguration(ApplicationConfigurationWithoutStorageBackend.class)
           .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void setsUpRepositoryContextWithoutSnapshotStoreWhenNoSnapshotTakersAreDeclared() {
+      new ApplicationContextRunner()
+          .withConfiguration(autoConfigurations)
+          .withUserConfiguration(ApplicationConfigurationWithoutStorageBackend.class)
+          .withBean(EventStore.class, () -> mock(EventStore.class))
+          .run(context -> {
+            assertThat(context).doesNotHaveBean(SnapshotStore.class);
+            assertThat(context).hasSingleBean(EventSourcingRepositoryContext.class);
+          });
+    }
+
+    @Test
+    void failsWithSnapshotTakersButWithoutSnapshotStore() {
+      new ApplicationContextRunner()
+          .withConfiguration(autoConfigurations)
+          .withUserConfiguration(ApplicationConfigurationWithoutStorageBackend.class)
+          .withBean(EventStore.class, () -> mock(EventStore.class))
+          .withBean(SnapshotTaker.class, () -> mock(SnapshotTaker.class))
+          .run(context -> assertThat(context).getFailure()
+              .rootCause()
+              .isInstanceOf(EventSourcedEntitySetupException.class)
+              .hasMessageContaining("no SnapshotStore is configured"));
     }
   }
 

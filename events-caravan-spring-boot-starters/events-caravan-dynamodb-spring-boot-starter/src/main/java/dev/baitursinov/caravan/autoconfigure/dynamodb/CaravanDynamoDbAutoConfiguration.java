@@ -63,6 +63,7 @@ public class CaravanDynamoDbAutoConfiguration {
   }
 
   @Bean
+  @ConditionalOnProperty(prefix = DynamoDbSnapshotStoreConfigurationProperties.PREFIX, name = "table-name")
   @ConditionalOnMissingBean(SnapshotStore.class)
   public DynamoDbBasedSnapshotStore dynamoDbBasedSnapshotStore(
       DynamoDbClient dynamoDbClient,

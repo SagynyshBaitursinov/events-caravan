@@ -5,7 +5,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
  * Configures the DynamoDB-backed {@code SnapshotStore} autoconfigured under the
- * {@value #PREFIX} prefix.
+ * {@value #PREFIX} prefix. The store is enabled by configuring it: an absent {@code tableName}
+ * means no snapshot store is created, which is only valid when no {@code SnapshotTaker} is
+ * declared.
  *
  * @param tableName      the DynamoDB table snapshots are stored in
  * @param consistentRead whether to use DynamoDB strongly consistent reads when loading a
