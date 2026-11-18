@@ -1,6 +1,8 @@
 package dev.baitursinov.caravan.autoconfigure.sqs;
 
+import dev.baitursinov.caravan.autoconfigure.CaravanEventRegistryAutoConfiguration;
 import dev.baitursinov.caravan.event.EntityEventsRegistration;
+import dev.baitursinov.caravan.event.EntityEventsRegistry;
 import dev.baitursinov.caravan.event.consumer.EventMessageConsumer;
 import dev.baitursinov.caravan.queue.polling.MessageBatchDeletionProperties;
 import dev.baitursinov.caravan.queue.polling.QueuePollingProperties;
@@ -35,7 +37,9 @@ class CaravanSqsAutoConfigurationTest {
 
   private static final String QUEUE_URL = "http://localhost:4566/000000000000/test-app_calculator";
 
-  AutoConfigurations autoConfigurations = AutoConfigurations.of(CaravanSqsAutoConfiguration.class);
+  AutoConfigurations autoConfigurations = AutoConfigurations.of(
+      CaravanEventRegistryAutoConfiguration.class,
+      CaravanSqsAutoConfiguration.class);
 
   ApplicationContextRunner contextRunner = new ApplicationContextRunner()
       .withConfiguration(autoConfigurations)
@@ -161,6 +165,49 @@ class CaravanSqsAutoConfigurationTest {
 
           assertThat(lifecycle.isRunning()).isFalse();
           verify(sqsClient, never()).getQueueUrl(any(GetQueueUrlRequest.class));
+        });
+  }
+
+  @Test
+  void failsWhenNoEventMessageConsumerIsAvailable() {
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withBean(SqsClient.class, () -> mock(SqsClient.class))
+        .withPropertyValues("caravan.event.messaging.queue-name-prefix=test-app")
+        .run(context -> assertThat(context).getFailure()
+            .rootCause()
+            .hasMessageContaining(EventMessageConsumer.class.getName()));
+  }
+
+  @Test
+  void applicationCanSupplyOwnPollingLifecycle() {
+    var ownLifecycle = mock(SmartLifecycle.class);
+
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withBean("sqsMessagePollingControllerLifecycle", SmartLifecycle.class, () -> ownLifecycle)
+        .run(context -> {
+          assertThat(context).hasNotFailed();
+          assertThat(context).getBean(SmartLifecycle.class).isSameAs(ownLifecycle);
+        });
+  }
+
+  @Test
+  void subscribesToEntitiesOfApplicationSuppliedEntityEventsRegistry() {
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withBean(SqsClient.class, () -> new ApplicationConfiguration().sqsClient())
+        .withBean(EventMessageConsumer.class, () -> mock(EventMessageConsumer.class))
+        .withBean(EntityEventsRegistry.class, () -> EntityEventsRegistry.createFor(
+            List.of(new EntityEventsRegistration("calculator", Map.of()))))
+        .withPropertyValues(
+            "caravan.event.messaging.queue-name-prefix=test-app",
+            "caravan.event.messaging.subscribed-entities=calculator",
+            "caravan.event.messaging.graceful-shutdown-seconds=0")
+        .run(context -> {
+          assertThat(context).hasNotFailed();
+          verify(context.getBean(SqsClient.class)).getQueueUrl(
+              GetQueueUrlRequest.builder().queueName("test-app_calculator").build());
         });
   }
 

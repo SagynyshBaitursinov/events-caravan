@@ -109,6 +109,18 @@ class EntityEventsRegistryTest {
   }
 
   @Test
+  void shouldReturnAllRegisteredEntityNamesIncludingThoseWithoutEvents() {
+    var registrations = List.of(
+        new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class)),
+        new EntityEventsRegistration("truck", Map.of()));
+
+    var entityEventsRegistry = EntityEventsRegistry.createFor(registrations);
+
+    assertThat(entityEventsRegistry.registeredEntityNames())
+        .containsExactlyInAnyOrder("car", "truck");
+  }
+
+  @Test
   void shouldReturnAllRegisteredEventTypes() {
     var registrations = List.of(
         new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class)),

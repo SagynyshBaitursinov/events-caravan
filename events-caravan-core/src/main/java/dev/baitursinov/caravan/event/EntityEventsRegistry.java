@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Modifier;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -23,6 +24,7 @@ public class EntityEventsRegistry {
   private static final Pattern ALLOWED_ENTITY_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
 
   private final Map<EventType, Class<?>> map = new HashMap<>();
+  private final Set<String> entityNames = new HashSet<>();
 
   /**
    * Builds a registry from the given registrations.
@@ -34,7 +36,6 @@ public class EntityEventsRegistry {
       Collection<EntityEventsRegistration> entityEventsRegistrations) {
 
     var result = new EntityEventsRegistry();
-    var alreadyProcessedEntityNames = new HashSet<String>();
 
     entityEventsRegistrations.forEach(
         entityEventsRegistration -> {
@@ -42,7 +43,7 @@ public class EntityEventsRegistry {
 
           validateEntityName(entityName);
 
-          if (!alreadyProcessedEntityNames.add(entityName)) {
+          if (!result.entityNames.add(entityName)) {
             throw new EntityEventsRegistrationException(
                 "Registration for entityName=%s is duplicated".formatted(entityName));
           }
@@ -58,7 +59,7 @@ public class EntityEventsRegistry {
         });
 
     log.info("Built EntityEventsRegistry with {} event type(s) across {} entity name(s)",
-        result.map.size(), alreadyProcessedEntityNames.size());
+        result.map.size(), result.entityNames.size());
 
     return result;
   }
@@ -75,6 +76,13 @@ public class EntityEventsRegistry {
    */
   public Set<EventType> registeredEventTypes() {
     return map.keySet();
+  }
+
+  /**
+   * All entity names known to this registry, including those registered without any events.
+   */
+  public Set<String> registeredEntityNames() {
+    return Collections.unmodifiableSet(entityNames);
   }
 
   private static void validateEntityName(String entityName) {
