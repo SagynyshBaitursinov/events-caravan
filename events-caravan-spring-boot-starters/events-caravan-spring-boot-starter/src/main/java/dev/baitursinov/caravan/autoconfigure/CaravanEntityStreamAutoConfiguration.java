@@ -1,6 +1,7 @@
 package dev.baitursinov.caravan.autoconfigure;
 
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistration;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistrationException;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistry;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWriter;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWritingEventHandler;
@@ -23,9 +24,18 @@ public class CaravanEntityStreamAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   public EntityStreamRegistry entityStreamRegistry(
-      ObjectProvider<EntityStreamRegistration> entityStreamRegistrations) {
+      ObjectProvider<EntityStreamRegistration> entityStreamRegistrations,
+      ObjectProvider<EntityStreamWriter> entityStreamWriter) {
 
-    return EntityStreamRegistry.createFor(entityStreamRegistrations.stream().toList());
+    var registrations = entityStreamRegistrations.stream().toList();
+
+    if (!registrations.isEmpty() && entityStreamWriter.getIfAvailable() == null) {
+      throw new EntityStreamRegistrationException(
+          "Entity stream registrations for entityNames %s are given, but no EntityStreamWriter is configured"
+              .formatted(registrations.stream().map(EntityStreamRegistration::entityName).toList()));
+    }
+
+    return EntityStreamRegistry.createFor(registrations);
   }
 
   @Bean

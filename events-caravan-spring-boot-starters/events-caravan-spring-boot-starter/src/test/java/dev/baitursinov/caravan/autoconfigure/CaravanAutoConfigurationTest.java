@@ -24,6 +24,7 @@ import dev.baitursinov.caravan.event.sourcing.EventSourcedEntitySetupException;
 import dev.baitursinov.caravan.event.sourcing.EventSourcingRepositoryContext;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistration;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistrationException;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistry;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWriter;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWritingEventHandler;
@@ -592,6 +593,18 @@ class CaravanAutoConfigurationTest {
               assertThat(context).getBean(EntityStreamRegistry.class)
                   .satisfies(registry ->
                       assertThat(registry.registrationFor("calculator")).isPresent()));
+    }
+
+    @Test
+    void failsWithEntityStreamRegistrationsButWithoutAnEntityStreamWriter() {
+      contextRunner
+          .withBean(EntityStreamRegistration.class,
+              () -> new EntityStreamRegistration("calculator", TimeBucket.MONTHLY, 4))
+          .run(context -> assertThat(context).getFailure()
+              .rootCause()
+              .isInstanceOf(EntityStreamRegistrationException.class)
+              .hasMessageContaining("no EntityStreamWriter is configured")
+              .hasMessageContaining("calculator"));
     }
 
     @Test
