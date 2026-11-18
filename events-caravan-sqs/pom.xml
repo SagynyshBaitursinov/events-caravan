@@ -18,12 +18,6 @@
     <dependencies>
         <dependency>
             <groupId>dev.baitursinov</groupId>
-            <artifactId>events-caravan-core</artifactId>
-            <version>${revision}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>dev.baitursinov</groupId>
             <artifactId>events-caravan-queue-polling</artifactId>
             <version>${revision}</version>
         </dependency>

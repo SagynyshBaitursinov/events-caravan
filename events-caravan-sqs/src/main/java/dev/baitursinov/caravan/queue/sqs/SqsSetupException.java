@@ -1,4 +1,4 @@
-package dev.baitursinov.caravan.event.consumer.queue.sqs;
+package dev.baitursinov.caravan.queue.sqs;
 
 public class SqsSetupException extends RuntimeException {
 

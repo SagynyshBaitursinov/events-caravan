@@ -18,9 +18,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
-import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.deleteMessages;
-import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.getQueueUrl;
-import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.pollMessagesFromQueue;
+import static dev.baitursinov.caravan.queue.sqs.SqsUtils.deleteMessages;
+import static dev.baitursinov.caravan.queue.sqs.SqsUtils.getQueueUrl;
+import static dev.baitursinov.caravan.queue.sqs.SqsUtils.pollMessagesFromQueue;
 import static java.util.stream.Collectors.toSet;
 
 @AutoConfiguration(after = CaravanEventDrivenComponentsAutoConfiguration.class)

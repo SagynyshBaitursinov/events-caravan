@@ -1,4 +1,4 @@
-package dev.baitursinov.caravan.event.consumer.queue.sqs;
+package dev.baitursinov.caravan.queue.sqs;
 
 import dev.baitursinov.caravan.queue.polling.Message;
 import dev.baitursinov.caravan.queue.polling.PollMessagesRequest;
@@ -19,9 +19,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.deleteMessages;
-import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.getQueueUrl;
-import static dev.baitursinov.caravan.event.consumer.queue.sqs.SqsUtils.pollMessagesFromQueue;
+import static dev.baitursinov.caravan.queue.sqs.SqsUtils.deleteMessages;
+import static dev.baitursinov.caravan.queue.sqs.SqsUtils.getQueueUrl;
+import static dev.baitursinov.caravan.queue.sqs.SqsUtils.pollMessagesFromQueue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
