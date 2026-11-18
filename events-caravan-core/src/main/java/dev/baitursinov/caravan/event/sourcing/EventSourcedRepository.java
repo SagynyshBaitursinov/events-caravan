@@ -3,6 +3,7 @@ package dev.baitursinov.caravan.event.sourcing;
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.entity.Repository;
 import dev.baitursinov.caravan.event.Event;
+import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
 import dev.baitursinov.caravan.event.producer.EventProducer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.EntitySnapshot;
@@ -128,7 +129,9 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
     }
 
     return entity.notProducedEvents().stream()
-        .map(Event::sequenceNumber)
+        .map(Event::eventReference)
+        .map(SequencedEventReference.class::cast)
+        .map(SequencedEventReference::sequenceNumber)
         .anyMatch(this::matchesSnapshotFrequency);
   }
 

@@ -68,7 +68,7 @@ class EntityStreamTest extends AbstractSpringBootTest {
     var entityId = UUID.randomUUID().toString();
 
     eventProducer.produce(
-        Event.builder()
+        Event.sequenced()
             .entityReference(new EntityReference(TEST_ENTITY, entityId))
             .eventName(TEST_EVENT)
             .sequenceNumber(1)

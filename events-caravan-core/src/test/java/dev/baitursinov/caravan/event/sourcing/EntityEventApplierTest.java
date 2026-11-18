@@ -49,7 +49,7 @@ class EntityEventApplierTest {
   }
 
   private <T> Event<T> eventOf(String eventName, T payload) {
-    return Event.<T>builder()
+    return Event.<T>sequenced()
         .entityReference(new EntityReference(CAR, "car-1"))
         .sequenceNumber(1L)
         .eventName(eventName)
@@ -80,6 +80,25 @@ class EntityEventApplierTest {
     assertThatThrownBy(() -> EntityEventApplier.apply(car, event))
         .isInstanceOf(EventApplyingException.class)
         .hasMessage("No @ApplyEvent method for eventName=unknown-event in entity class dev.baitursinov.caravan.event.sourcing.EntityEventApplierTest$Car");
+
+    assertThat(car.turnedOnReason).isNull();
+    assertThat(car.version()).isEqualTo(0L);
+  }
+
+  @Test
+  void shouldThrowWhenEventIsUnsequenced() {
+    var car = new Car("car-1");
+    var event = Event.<TurnedOnPayload>unsequenced()
+        .entityReference(new EntityReference(CAR, "car-1"))
+        .naturalKey("a1b2")
+        .eventName(TURNED_ON)
+        .timestamp(ZonedDateTime.now())
+        .payload(new TurnedOnPayload("ignition"))
+        .build();
+
+    assertThatThrownBy(() -> EntityEventApplier.apply(car, event))
+        .isInstanceOf(EventApplyingException.class)
+        .hasMessageContaining("not sequenced");
 
     assertThat(car.turnedOnReason).isNull();
     assertThat(car.version()).isEqualTo(0L);

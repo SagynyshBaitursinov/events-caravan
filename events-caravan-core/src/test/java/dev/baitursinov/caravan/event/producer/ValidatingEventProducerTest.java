@@ -114,7 +114,7 @@ class ValidatingEventProducerTest {
   }
 
   private Event<Object> event(String eventName, Object payload) {
-    return Event.builder()
+    return Event.sequenced()
         .entityReference(new EntityReference("car", "1"))
         .eventName(eventName)
         .sequenceNumber(1)

@@ -41,6 +41,19 @@ class EntityStreamWritingEventHandlerTest {
   }
 
   @Test
+  void isNotOfInterestInUnsequencedEvent() {
+    Event<Object> unsequenced = Event.unsequenced()
+        .entityReference(new EntityReference("car", ENTITY_ID))
+        .eventName("turned-on")
+        .naturalKey("a1b2")
+        .timestamp(ZonedDateTime.parse(EVENT_TIMESTAMP))
+        .payload("payload")
+        .build();
+
+    assertThat(handler.isOfInterest(unsequenced)).isFalse();
+  }
+
+  @Test
   void isNotOfInterestWhenEntityNameIsNotRegistered() {
     assertThat(handler.isOfInterest(event("unregistered-entity", 1))).isFalse();
     assertThat(handler.isOfInterest(event("unregistered-entity", 2))).isFalse();
@@ -62,7 +75,7 @@ class EntityStreamWritingEventHandlerTest {
   }
 
   private Event<Object> event(String entityName, long sequenceNumber) {
-    return Event.builder()
+    return Event.sequenced()
         .entityReference(new EntityReference(entityName, ENTITY_ID))
         .eventName("turned-on")
         .sequenceNumber(sequenceNumber)

@@ -120,7 +120,7 @@ class HandlerBasedEventConsumerTest {
   }
 
   private <T> Event<T> event(T payload) {
-    return Event.<T>builder()
+    return Event.<T>sequenced()
         .entityReference(new EntityReference("car", "1"))
         .eventName("turned-on")
         .sequenceNumber(1)

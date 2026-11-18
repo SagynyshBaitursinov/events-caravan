@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.ZonedDateTime;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,25 +31,29 @@ class JacksonEventSerializerTest {
   JacksonEventSerializer serializer = new JacksonEventSerializer(jsonMapper);
 
   @Test
-  void shouldSerializeEventToJson() {
-    var event = event(new CarTurnedOnPayload("red"));
+  void shouldSerializeEvent() {
+    var json = serializer.serialize(event(new CarTurnedOnPayload("red")));
 
-    var json = serializer.serialize(event);
+    assertThat(json).isEqualTo(
+        "{\"entityReference\":{\"entityName\":\"car\",\"entityId\":\"1\"},\"eventName\":\"turned-on\",\"sequenceNumber\":1,\"timestamp\":\"2026-01-01T10:15:30Z\",\"payload\":{\"color\":\"red\"}}");
+  }
 
-    @SuppressWarnings("unchecked")
-    var asMap = (Map<String, Object>) jsonMapper.readValue(json, Map.class);
+  @Test
+  void shouldSerializeUnsequencedEvent() {
+    var json = serializer.serialize(unsequencedEvent(new CarTurnedOnPayload("red")));
 
-    @SuppressWarnings("unchecked")
-    var entityReference = (Map<String, Object>) asMap.get("entityReference");
-    assertThat(entityReference)
-        .containsEntry("entityName", "car")
-        .containsEntry("entityId", "1");
-    assertThat(asMap.get("eventName")).isEqualTo("turned-on");
-    assertThat(((Number) asMap.get("sequenceNumber")).longValue()).isEqualTo(1L);
+    assertThat(json).isEqualTo(
+        "{\"entityReference\":{\"entityName\":\"car\",\"entityId\":\"1\"},\"eventName\":\"turned-on\",\"naturalKey\":\"a1b2\",\"timestamp\":\"2026-01-01T10:15:30Z\",\"payload\":{\"color\":\"red\"}}");
+  }
 
-    @SuppressWarnings("unchecked")
-    var payload = (Map<String, Object>) asMap.get("payload");
-    assertThat(payload).containsEntry("color", "red");
+  @Test
+  void shouldSerializeUnsequencedEventFromStoredPartsIdenticallyToWholeEvent() {
+    var event = unsequencedEvent(new CarTurnedOnPayload("red"));
+    var serializedPayload = new JacksonEventPayloadSerializer(jsonMapper).serializePayload(event);
+
+    var fromParts = serializer.serialize(event.eventReference(), event.timestamp(), serializedPayload);
+
+    assertThat(fromParts).isEqualTo(serializer.serialize(event));
   }
 
   @Test
@@ -94,8 +97,18 @@ class JacksonEventSerializerTest {
     assertThat(fromParts).endsWith("\"payload\":{\"color\" :  \"red\"}}");
   }
 
+  private Event<Object> unsequencedEvent(Object payload) {
+    return Event.unsequenced()
+        .entityReference(new EntityReference("car", "1"))
+        .eventName("turned-on")
+        .naturalKey("a1b2")
+        .timestamp(ZonedDateTime.parse("2026-01-01T10:15:30Z"))
+        .payload(payload)
+        .build();
+  }
+
   private Event<Object> event(Object payload) {
-    return Event.builder()
+    return Event.sequenced()
         .entityReference(new EntityReference("car", "1"))
         .eventName("turned-on")
         .sequenceNumber(1)

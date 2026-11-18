@@ -2,6 +2,7 @@ package dev.baitursinov.caravan.event.sourcing.dynamodb;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
+import dev.baitursinov.caravan.event.SequencedEventReference;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -62,7 +63,7 @@ class DynamoDbEventsSpliteratorTest {
     var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
-        .map(Event::sequenceNumber)
+        .map(event -> ((SequencedEventReference) event.eventReference()).sequenceNumber())
         .toList();
 
     assertThat(sequenceNumbers).containsExactly(1L, 2L, 3L, 4L, 5L);
@@ -91,7 +92,7 @@ class DynamoDbEventsSpliteratorTest {
     var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
-        .map(Event::sequenceNumber)
+        .map(event -> ((SequencedEventReference) event.eventReference()).sequenceNumber())
         .toList();
 
     assertThat(sequenceNumbers).containsExactly(1L, 2L);
@@ -124,7 +125,7 @@ class DynamoDbEventsSpliteratorTest {
     var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
-        .map(Event::sequenceNumber)
+        .map(event -> ((SequencedEventReference) event.eventReference()).sequenceNumber())
         .toList();
 
     assertThat(sequenceNumbers).containsExactly(1L, 2L, 3L, 4L, 5L);
@@ -141,7 +142,7 @@ class DynamoDbEventsSpliteratorTest {
     var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
-        .map(Event::sequenceNumber)
+        .map(event -> ((SequencedEventReference) event.eventReference()).sequenceNumber())
         .toList();
 
     assertThat(sequenceNumbers).isEmpty();
@@ -168,7 +169,7 @@ class DynamoDbEventsSpliteratorTest {
     var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
-        .map(Event::sequenceNumber)
+        .map(event -> ((SequencedEventReference) event.eventReference()).sequenceNumber())
         .toList();
 
     assertThat(sequenceNumbers).containsExactly(1L, 2L, 3L);
@@ -208,7 +209,7 @@ class DynamoDbEventsSpliteratorTest {
     var spliterator = freshSpliterator(dynamoDbClient, partitionSliceSize, 0);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
-        .map(Event::sequenceNumber)
+        .map(event -> ((SequencedEventReference) event.eventReference()).sequenceNumber())
         .toList();
 
     assertThat(sequenceNumbers).containsExactly(1L, 2L, 3L);
@@ -243,7 +244,7 @@ class DynamoDbEventsSpliteratorTest {
     var spliterator = spliteratorResumingAt(dynamoDbClient, partitionSliceSize, 0, resumeKey);
 
     List<Long> sequenceNumbers = StreamSupport.stream(spliterator, false)
-        .map(Event::sequenceNumber)
+        .map(event -> ((SequencedEventReference) event.eventReference()).sequenceNumber())
         .toList();
 
     assertThat(sequenceNumbers).containsExactly(2L, 3L);
@@ -291,7 +292,7 @@ class DynamoDbEventsSpliteratorTest {
   }
 
   private static Event<?> mapToEvent(Map<String, AttributeValue> attributes) {
-    return Event.builder()
+    return Event.sequenced()
         .entityReference(ENTITY_REFERENCE)
         .eventName("Incremented")
         .sequenceNumber(Long.parseLong(attributes.get(SK).n()))

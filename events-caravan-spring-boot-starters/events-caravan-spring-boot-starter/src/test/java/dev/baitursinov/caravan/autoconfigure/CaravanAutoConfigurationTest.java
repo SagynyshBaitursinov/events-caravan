@@ -222,7 +222,7 @@ class CaravanAutoConfigurationTest {
   }
 
   private static Event<Object> event(String eventName, Object payload) {
-    return Event.builder()
+    return Event.sequenced()
         .entityReference(new EntityReference("calculator", "1"))
         .eventName(eventName)
         .sequenceNumber(1)

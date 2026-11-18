@@ -20,7 +20,7 @@ public interface EventSerializer {
    *
    * <p>The result must be identical to {@link #serialize(Event)} of the same event.
    *
-   * @param eventReference    entity reference, sequence number and event name of the event
+   * @param eventReference    the event's reference: entity reference, event name and either sequence number or natural key
    * @param timestamp         when the event happened; normalized like {@link Event#timestamp()}
    * @param serializedPayload the event's payload, as produced by an {@link EventPayloadSerializer}
    * @throws EventSerializationException if the event cannot be serialized

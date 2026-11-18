@@ -1,48 +1,36 @@
 package dev.baitursinov.caravan.event;
 
 import dev.baitursinov.caravan.entity.EntityReference;
-import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 
-import static dev.baitursinov.caravan.utils.TextUtils.hasText;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A single fact that happened to an entity: the {@code sequenceNumber}-th event named
- * {@code eventName} recorded against {@code entityReference}, carrying a {@code payload}
- * describing details of what has happened.
+ * A single fact that happened to an entity, identified by its {@link EventReference} and
+ * carrying a {@code payload} describing details of what has happened.
  *
- * <p>{@code sequenceNumber} starts at 1 and increases by one for each subsequent event of the
- * same entity. {@code timestamp} is normalized to millisecond precision in UTC. Two events are
- * {@link #equals(Object) equal} when they share the same {@code entityReference} and
- * {@code sequenceNumber}, regardless of their other fields.
+ * <p>An event is either sequenced, the {@code sequenceNumber}-th event of its entity
+ * ({@link SequencedEventReference}), or unsequenced, independent of the entity's other events and
+ * told apart from them by a {@code naturalKey} ({@link UnsequencedEventReference}).
+ *
+ * <p>{@code timestamp} is normalized to millisecond precision in UTC. Two events are
+ * {@link #equals(Object) equal} when they share the same {@link EventReference}.
  *
  * @param <T> the type of {@code payload}
  */
-@Builder
-public record Event<T>(EntityReference entityReference,
-                       String eventName,
-                       long sequenceNumber,
+public record Event<T>(EventReference eventReference,
                        ZonedDateTime timestamp,
                        T payload) {
 
   private static final ZoneId Z = ZoneId.of("Z");
 
   public Event {
-    requireNonNull(entityReference, "entityReference cannot be null");
-
-    if (sequenceNumber <= 0) {
-      throw new IllegalArgumentException("sequenceNumber must be positive number");
-    }
-
-    if (!hasText(eventName)) {
-      throw new IllegalArgumentException("eventName must contain text");
-    }
+    requireNonNull(eventReference, "eventReference cannot be null");
 
     requireNonNull(timestamp, "timestamp cannot be null");
     timestamp = normalize(timestamp);
@@ -55,13 +43,26 @@ public record Event<T>(EntityReference entityReference,
   }
 
   /**
-   * A lightweight reference to this event, without its payload.
+   * Starts building a sequenced event, the {@code sequenceNumber}-th event of its entity.
    */
-  public EventReference eventReference() {
-    return new EventReference(
-        this.entityReference(),
-        this.sequenceNumber(),
-        this.eventName());
+  public static <T> SequencedEventBuilder<T> sequenced() {
+    return new SequencedEventBuilder<>();
+  }
+
+  /**
+   * Starts building an unsequenced event, independent of its entity's other events and told
+   * apart from them by a {@code naturalKey}.
+   */
+  public static <T> UnsequencedEventBuilder<T> unsequenced() {
+    return new UnsequencedEventBuilder<>();
+  }
+
+  public EntityReference entityReference() {
+    return this.eventReference().entityReference();
+  }
+
+  public String eventName() {
+    return this.eventReference().eventName();
   }
 
   /**
@@ -82,12 +83,11 @@ public record Event<T>(EntityReference entityReference,
   public boolean equals(@Nullable Object o) {
     if (o == null || getClass() != o.getClass()) return false;
     Event<?> event = (Event<?>) o;
-    return Objects.equals(this.entityReference, event.entityReference)
-        && this.sequenceNumber == event.sequenceNumber;
+    return Objects.equals(this.eventReference, event.eventReference);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(entityReference, sequenceNumber);
+    return Objects.hash(eventReference);
   }
 }

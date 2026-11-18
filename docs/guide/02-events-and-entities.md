@@ -146,7 +146,7 @@ public class PaymentNotifications {
 
   public void paymentReceived(String paymentId, long amount) {
     eventProducer.produce(
-        Event.builder()
+        Event.sequenced()
             .entityReference(new EntityReference("payment", paymentId))
             .eventName("payment-received")
             .sequenceNumber(1)

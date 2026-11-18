@@ -86,7 +86,7 @@ public abstract class EventSourcedEntity extends Entity {
 
   private <E> Event<E> buildEvent(String eventName,
                                   E eventPayload) {
-    return Event.<E>builder()
+    return Event.<E>sequenced()
         .entityReference(this.entityReference())
         .sequenceNumber(this.version + 1)
         .eventName(eventName)

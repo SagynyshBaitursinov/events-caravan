@@ -3,6 +3,7 @@ package dev.baitursinov.caravan.event.sourcing.dynamodb;
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.EventType;
+import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
@@ -83,7 +84,7 @@ class DynamoDbBasedEventStoreTest {
                 .build());
 
     List<Long> sequenceNumbers = eventStore.getEventsOfEntity(ENTITY_REFERENCE, 100)
-        .map(Event::sequenceNumber)
+        .map(event -> ((SequencedEventReference) event.eventReference()).sequenceNumber())
         .toList();
 
     assertThat(sequenceNumbers).containsExactly(101L, 102L);
@@ -358,7 +359,7 @@ class DynamoDbBasedEventStoreTest {
   }
 
   private static Event<?> event(long sequenceNumber, ZonedDateTime timestamp) {
-    return Event.builder()
+    return Event.sequenced()
         .entityReference(ENTITY_REFERENCE)
         .eventName("Incremented")
         .sequenceNumber(sequenceNumber)

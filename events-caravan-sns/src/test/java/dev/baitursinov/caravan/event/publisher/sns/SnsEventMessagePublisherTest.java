@@ -2,6 +2,7 @@ package dev.baitursinov.caravan.event.publisher.sns;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.EventReference;
+import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.publisher.EventMessage;
 import dev.baitursinov.caravan.event.publisher.EventMessagePublicationException;
 import org.junit.jupiter.api.Test;
@@ -128,6 +129,6 @@ class SnsEventMessagePublisherTest {
   }
 
   private static EventReference reference(String entityName, long sequenceNumber) {
-    return new EventReference(new EntityReference(entityName, "1"), sequenceNumber, "turned-on");
+    return new SequencedEventReference(new EntityReference(entityName, "1"), sequenceNumber, "turned-on");
   }
 }

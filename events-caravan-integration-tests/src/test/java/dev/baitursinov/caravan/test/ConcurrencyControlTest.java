@@ -31,7 +31,7 @@ public class ConcurrencyControlTest extends AbstractSpringBootTest {
 
     for (int i = 0; i < 100; i++) {
       eventProducer.produce(
-          Event.builder()
+          Event.sequenced()
               .entityReference(
                   new EntityReference(NUMBER_ADDITION_REQUEST, UUID.randomUUID().toString()))
               .eventName(RECEIVED)

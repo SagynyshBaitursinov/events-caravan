@@ -2,7 +2,10 @@ package dev.baitursinov.caravan.event.serialization.jackson;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
+import dev.baitursinov.caravan.event.EventReference;
 import dev.baitursinov.caravan.event.EventType;
+import dev.baitursinov.caravan.event.SequencedEventReference;
+import dev.baitursinov.caravan.event.UnsequencedEventReference;
 import dev.baitursinov.caravan.event.serialization.EventDeserializationException;
 import dev.baitursinov.caravan.event.serialization.EventDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializationException;
@@ -24,6 +27,7 @@ public class JacksonEventDeserializer implements EventDeserializer {
   private static final String ENTITY_REFERENCE = "entityReference";
   private static final String EVENT_NAME = "eventName";
   private static final String SEQUENCE_NUMBER = "sequenceNumber";
+  private static final String NATURAL_KEY = "naturalKey";
   private static final String TIMESTAMP = "timestamp";
   private static final String PAYLOAD = "payload";
 
@@ -47,7 +51,8 @@ public class JacksonEventDeserializer implements EventDeserializer {
     try (var jsonParser = jsonMapper.createParser(eventMessage)) {
       EntityReference entityReference = null;
       String eventName = null;
-      long sequenceNumber = 0;
+      Long sequenceNumber = null;
+      String naturalKey = null;
       ZonedDateTime timestamp = null;
       String payloadAsJson = null;
 
@@ -60,27 +65,34 @@ public class JacksonEventDeserializer implements EventDeserializer {
           case ENTITY_REFERENCE -> entityReference = jsonParser.readValueAs(EntityReference.class);
           case EVENT_NAME -> eventName = jsonParser.getValueAsString();
           case SEQUENCE_NUMBER -> sequenceNumber = jsonParser.getValueAsLong();
+          case NATURAL_KEY -> naturalKey = jsonParser.getValueAsString();
           case TIMESTAMP -> timestamp = ZonedDateTime.parse(jsonParser.getValueAsString());
           case PAYLOAD -> payloadAsJson = extractRawJson(jsonParser);
           default -> jsonParser.skipChildren();
         }
       }
 
-      if (entityReference == null || eventName == null || sequenceNumber == 0 || timestamp == null) {
+      if (entityReference == null || eventName == null || timestamp == null) {
         throw new EventDeserializationException("Event payload does not contain necessary fields");
       }
+
+      if ((sequenceNumber == null) == (naturalKey == null)) {
+        throw new EventDeserializationException(
+            "Event payload must contain exactly one of %s and %s".formatted(SEQUENCE_NUMBER, NATURAL_KEY));
+      }
+
+      EventReference eventReference = sequenceNumber != null
+          ? new SequencedEventReference(entityReference, sequenceNumber, eventName)
+          : new UnsequencedEventReference(entityReference, naturalKey, eventName);
 
       var eventType = new EventType(
           entityReference.entityName(),
           eventName);
 
-      return Event.builder()
-          .entityReference(entityReference)
-          .eventName(eventName)
-          .sequenceNumber(sequenceNumber)
-          .timestamp(timestamp)
-          .payload(eventPayloadDeserializer.deserializePayload(payloadAsJson, eventType))
-          .build();
+      return new Event<>(
+          eventReference,
+          timestamp,
+          eventPayloadDeserializer.deserializePayload(payloadAsJson, eventType));
     }
   }
 

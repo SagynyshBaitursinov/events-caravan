@@ -1,5 +1,6 @@
 package dev.baitursinov.caravan.test;
 
+import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.test.event.handler.NumberCarryingEventsHandler;
 import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.Calculator;
 import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.CalculatorRepository;
@@ -47,7 +48,9 @@ class EventSourcedEntityTest extends AbstractSpringBootTest {
             .findFirst())
         .hasValueSatisfying(
             firstEvent ->
-                assertThat(firstEvent.sequenceNumber()).isEqualTo(1));
+                assertThat(firstEvent.eventReference())
+                    .isInstanceOfSatisfying(SequencedEventReference.class,
+                        reference -> assertThat(reference.sequenceNumber()).isEqualTo(1)));
 
     assertThat(
         numberCarryingEventsHandler.getEventsOfEntity(entityId).stream()
@@ -55,7 +58,9 @@ class EventSourcedEntityTest extends AbstractSpringBootTest {
             .findFirst())
         .hasValueSatisfying(
             firstEvent ->
-                assertThat(firstEvent.sequenceNumber()).isEqualTo(2));
+                assertThat(firstEvent.eventReference())
+                    .isInstanceOfSatisfying(SequencedEventReference.class,
+                        reference -> assertThat(reference.sequenceNumber()).isEqualTo(2)));
   }
 
   @Test

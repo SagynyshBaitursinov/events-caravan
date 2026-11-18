@@ -2,6 +2,8 @@ package dev.baitursinov.caravan.event.serialization.jackson;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.EventType;
+import dev.baitursinov.caravan.event.SequencedEventReference;
+import dev.baitursinov.caravan.event.UnsequencedEventReference;
 import dev.baitursinov.caravan.event.serialization.EventDeserializationException;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializationException;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
@@ -58,10 +60,66 @@ class JacksonEventDeserializerTest {
 
     assertThat(event.entityReference()).isEqualTo(new EntityReference("car", "1"));
     assertThat(event.eventName()).isEqualTo("turned-on");
-    assertThat(event.sequenceNumber()).isEqualTo(1L);
+    assertThat(event.eventReference())
+        .isEqualTo(new SequencedEventReference(new EntityReference("car", "1"), 1, "turned-on"));
     assertThat(event.payload()).isEqualTo(new CarTurnedOnPayload("red"));
     assertThat(payloadDeserializer.capturedEventType).isEqualTo(new EventType("car", "turned-on"));
     assertThat(payloadDeserializer.capturedPayload).isEqualToIgnoringWhitespace("{\"color\": \"red\"}");
+  }
+
+  @Test
+  void shouldDeserializeUnsequencedEventFromJson() throws Exception {
+    payloadDeserializer.payloadToReturn = new CarTurnedOnPayload("red");
+
+    var json = """
+        {
+          "entityReference": {"entityName": "car", "entityId": "1"},
+          "eventName": "turned-on",
+          "naturalKey": "a1b2",
+          "timestamp": "2026-01-01T10:15:30Z",
+          "payload": {"color": "red"}
+        }
+        """;
+
+    var event = deserializer.deserialize(json);
+
+    assertThat(event.eventReference())
+        .isEqualTo(new UnsequencedEventReference(new EntityReference("car", "1"), "a1b2", "turned-on"));
+    assertThat(event.payload()).isEqualTo(new CarTurnedOnPayload("red"));
+  }
+
+  @Test
+  void shouldThrowWhenBothSequenceNumberAndNaturalKeyArePresent() {
+    var json = """
+        {
+          "entityReference": {"entityName": "car", "entityId": "1"},
+          "eventName": "turned-on",
+          "sequenceNumber": 1,
+          "naturalKey": "a1b2",
+          "timestamp": "2026-01-01T10:15:30Z",
+          "payload": {"color": "red"}
+        }
+        """;
+
+    assertThatThrownBy(() -> deserializer.deserialize(json))
+        .isInstanceOf(EventDeserializationException.class)
+        .hasMessageContaining("exactly one of sequenceNumber and naturalKey");
+  }
+
+  @Test
+  void shouldThrowWhenNeitherSequenceNumberNorNaturalKeyIsPresent() {
+    var json = """
+        {
+          "entityReference": {"entityName": "car", "entityId": "1"},
+          "eventName": "turned-on",
+          "timestamp": "2026-01-01T10:15:30Z",
+          "payload": {"color": "red"}
+        }
+        """;
+
+    assertThatThrownBy(() -> deserializer.deserialize(json))
+        .isInstanceOf(EventDeserializationException.class)
+        .hasMessageContaining("exactly one of sequenceNumber and naturalKey");
   }
 
   @Test

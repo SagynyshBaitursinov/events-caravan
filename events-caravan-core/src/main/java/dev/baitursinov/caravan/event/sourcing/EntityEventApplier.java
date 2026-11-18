@@ -1,6 +1,7 @@
 package dev.baitursinov.caravan.event.sourcing;
 
 import dev.baitursinov.caravan.event.Event;
+import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.sourcing.applying.ApplyMethodsCollector;
 import dev.baitursinov.caravan.event.sourcing.applying.EventApplyingException;
 import lombok.AccessLevel;
@@ -13,8 +14,18 @@ import java.lang.reflect.Modifier;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class EntityEventApplier {
 
+  /**
+   * @throws EventApplyingException if the event is not sequenced, so it cannot be a part of the
+   *                                entity's history, or the entity has no matching apply method
+   */
   public static void apply(EventSourcedEntity entity,
                            Event<?> event) {
+    if (!(event.eventReference() instanceof SequencedEventReference sequenced)) {
+      throw new EventApplyingException(
+          "Cannot apply %s to %s, because it is not sequenced"
+              .formatted(event, entity.getClass().getName()));
+    }
+
     var applyMethod =
         ApplyMethodsCollector
             .applyEventMethodsOf(entity.getClass())
@@ -28,7 +39,7 @@ public final class EntityEventApplier {
 
     invoke(entity, event, applyMethod);
 
-    entity.setVersion(event.sequenceNumber());
+    entity.setVersion(sequenced.sequenceNumber());
   }
 
   private static void invoke(EventSourcedEntity entity,

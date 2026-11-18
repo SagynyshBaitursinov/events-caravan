@@ -9,8 +9,6 @@ import dev.baitursinov.caravan.event.Event;
  * {@link #isOfInterest(Event)}.
  * <p>
  * It's important that EventHandlers are idempotent and tolerant of out-of-order arrival.
- * sequenceNumber of Events per EntityReference are gapless and in increasing order. However, real idempotence and ordering must be
- * ensured by the application behavior.
  *
  * @param <T> the payload type this handler is interested in
  */

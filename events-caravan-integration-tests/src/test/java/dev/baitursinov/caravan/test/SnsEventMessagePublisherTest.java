@@ -2,7 +2,7 @@ package dev.baitursinov.caravan.test;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
-import dev.baitursinov.caravan.event.EventReference;
+import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.publisher.EventMessage;
 import dev.baitursinov.caravan.event.publisher.EventMessagePublicationException;
 import dev.baitursinov.caravan.event.publisher.EventMessagePublisher;
@@ -82,7 +82,7 @@ class SnsEventMessagePublisherTest extends AbstractSpringBootTest {
   void shouldReportOnlyEventsOfMissingTopicAsFailed() {
     var calculatorId = UUID.randomUUID().toString();
     var withoutTopic = new EventMessage(
-        new EventReference(new EntityReference("entity-without-topic", "1"), 1, "happened"),
+        new SequencedEventReference(new EntityReference("entity-without-topic", "1"), 1, "happened"),
         "{}");
 
     assertThatThrownBy(() -> publisher.publish(
@@ -128,7 +128,7 @@ class SnsEventMessagePublisherTest extends AbstractSpringBootTest {
   }
 
   private static Event<NumberAdditionRequest> numberAdditionRequest(String calculatorId, long number) {
-    return Event.<NumberAdditionRequest>builder()
+    return Event.<NumberAdditionRequest>sequenced()
         .entityReference(new EntityReference(NUMBER_ADDITION_REQUEST, UUID.randomUUID().toString()))
         .eventName(RECEIVED)
         .sequenceNumber(1)
@@ -138,7 +138,7 @@ class SnsEventMessagePublisherTest extends AbstractSpringBootTest {
   }
 
   private static Event<TestEventPayload> testEntityEvent(String testFieldValue) {
-    return Event.<TestEventPayload>builder()
+    return Event.<TestEventPayload>sequenced()
         .entityReference(new EntityReference(TEST_ENTITY, UUID.randomUUID().toString()))
         .eventName(TEST_EVENT)
         .sequenceNumber(1)

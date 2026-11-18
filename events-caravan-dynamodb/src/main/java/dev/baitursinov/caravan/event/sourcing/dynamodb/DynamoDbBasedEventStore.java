@@ -2,8 +2,8 @@ package dev.baitursinov.caravan.event.sourcing.dynamodb;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
-import dev.baitursinov.caravan.event.EventReference;
 import dev.baitursinov.caravan.event.EventType;
+import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
 import dev.baitursinov.caravan.event.producer.EventProducer;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
@@ -104,6 +104,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
   @Override
   public void produce(Event<?> event) {
     log.debug("Producing {}", event.eventReference());
+    sequenceNumberOf(event);
     try {
       dynamoDbClient.putItem(
           PutItemRequest.builder()
@@ -127,6 +128,8 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
       log.debug("Received empty list of events for producing");
       return;
     }
+
+    events.forEach(DynamoDbBasedEventStore::sequenceNumberOf);
 
     if (events.size() == 1) {
       produce(events.getFirst());
@@ -208,7 +211,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
   }
 
   private String eventReferenceDescription(Event<?> event) {
-    return "%s with sequenceNumber=%s".formatted(event.entityReference(), event.sequenceNumber());
+    return "%s with sequenceNumber=%s".formatted(event.entityReference(), sequenceNumberOf(event));
   }
 
   private Map<String, AttributeValue> mapEventToAttributes(Event<?> event) {
@@ -218,11 +221,11 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
         AttributeValue.fromS(
             toSlicedPartitionKeyValue(
                 event.entityReference(),
-                sliceIndexForSequenceNumber(event.sequenceNumber()))));
+                sliceIndexForSequenceNumber(sequenceNumberOf(event)))));
     attributes.put(
         SK,
         AttributeValue.fromN(
-            String.valueOf(event.sequenceNumber())));
+            String.valueOf(sequenceNumberOf(event))));
     attributes.put(
         EVENT_NAME_KEY,
         AttributeValue.fromS(
@@ -236,6 +239,18 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
         AttributeValue.fromS(
             eventPayloadSerializer.serializePayload(event)));
     return attributes;
+  }
+
+  /**
+   * @throws EventProductionException if the event is not sequenced, as only sequenced events
+   *                                  belong into the event store
+   */
+  private static long sequenceNumberOf(Event<?> event) {
+    if (!(event.eventReference() instanceof SequencedEventReference sequenced)) {
+      throw new EventProductionException(
+          "Cannot write %s, because it is not sequenced".formatted(event.eventReference()));
+    }
+    return sequenced.sequenceNumber();
   }
 
   private long sliceIndexForSequenceNumber(long sequenceNumber) {
@@ -306,7 +321,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
                                         Map<String, AttributeValue> attributeValues) {
     long sequenceNumber = Long.parseLong(attributeValues.get(SK).n());
     String eventName = attributeValues.get(EVENT_NAME_KEY).s();
-    return Event.builder()
+    return Event.sequenced()
         .entityReference(entityReference)
         .eventName(eventName)
         .sequenceNumber(sequenceNumber)
@@ -335,7 +350,7 @@ public class DynamoDbBasedEventStore implements EventStore, EventProducer {
     } catch (Exception exception) {
       throw new EventStoreException(
           "Could not deserialize payload for %s".formatted(
-              new EventReference(entityReference, sequenceNumber, eventName)),
+              new SequencedEventReference(entityReference, sequenceNumber, eventName)),
           exception);
     }
   }

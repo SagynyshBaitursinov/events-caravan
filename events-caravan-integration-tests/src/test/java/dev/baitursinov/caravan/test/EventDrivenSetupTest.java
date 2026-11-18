@@ -51,7 +51,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
     var testEventPayload = new TestEventPayload("123", "456");
     String entityId = UUID.randomUUID().toString();
 
-    var event1 = Event.builder()
+    var event1 = Event.sequenced()
         .entityReference(
             new EntityReference(TEST_ENTITY, entityId))
         .eventName(TEST_EVENT)
@@ -61,7 +61,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
         .build();
     eventProducer.produce(event1);
 
-    var event2 = Event.builder()
+    var event2 = Event.sequenced()
         .entityReference(
             new EntityReference(TEST_ENTITY, entityId))
         .eventName(TEST_EVENT)
@@ -80,7 +80,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
     var testEventPayload = new TestEventPayload(
         testEventFieldValue, anotherTestFieldValue);
 
-    var event = Event.builder()
+    var event = Event.sequenced()
         .entityReference(
             new EntityReference(
                 TEST_ENTITY, UUID.randomUUID().toString()))
@@ -113,7 +113,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
         testEventFieldValue,
         anotherTestFieldValue);
 
-    var event = Event.builder()
+    var event = Event.sequenced()
         .entityReference(
             new EntityReference(
                 TEST_ENTITY, UUID.randomUUID().toString()))
@@ -138,7 +138,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
     var testEventPayload = new AnotherTestEventPayloadRepresentation(
         "interesting test-value", "another-field-value");
 
-    var event = Event.builder()
+    var event = Event.sequenced()
         .entityReference(
             new EntityReference(
                 TEST_ENTITY, UUID.randomUUID().toString()))
@@ -156,7 +156,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
 
   @Test
   void shouldNotProduceEventOfUnregisteredType() {
-    var event = Event.builder()
+    var event = Event.sequenced()
         .entityReference(
             new EntityReference(
                 TEST_ENTITY, UUID.randomUUID().toString()))
@@ -178,7 +178,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
     var testEventPayload = new TestEventPayload(
         testEventFieldValue, anotherTestFieldValue);
 
-    var event = Event.builder()
+    var event = Event.sequenced()
         .entityReference(
             new EntityReference(
                 TEST_ENTITY, UUID.randomUUID().toString()))
@@ -209,7 +209,7 @@ class EventDrivenSetupTest extends AbstractSpringBootTest {
         testEventFieldValue,
         anotherTestFieldValue);
 
-    var event = Event.builder()
+    var event = Event.sequenced()
         .entityReference(
             new EntityReference(
                 TEST_ENTITY, UUID.randomUUID().toString()))

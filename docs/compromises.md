@@ -21,8 +21,9 @@ See [Set up an optional Entity-stream](guide/05-entity-stream.md).
 ## 2. At-least-once, unordered delivery
 
 Events delivery to consumers is at-least _(not exactly)_ once and unordered. Consumers own idempotency and, if
-needed, ordering. Every event message carries a gapless `sequenceNumber` starting at 1 per `entityReference`, which
-might be helpful for deduplication and reordering by an application. Ultimate deduplication and reordering is
+needed, ordering. Every sequenced event message carries a gapless `sequenceNumber` starting at 1 per `entityReference`, which
+might be helpful for deduplication and reordering by an application. Unsequenced events carry a `naturalKey`
+instead, which helps deduplication only: there is no order among them. Ultimate deduplication and reordering is
 recommended to be taken care of by an underlying domain layer. e.g. Do not brew _coffee#7_, if the _coffee#7_ is
 already in status _delivered_.
 

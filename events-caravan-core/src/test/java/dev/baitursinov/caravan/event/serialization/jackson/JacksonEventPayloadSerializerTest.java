@@ -50,7 +50,7 @@ class JacksonEventPayloadSerializerTest {
   }
 
   private Event<Object> event(Object payload) {
-    return Event.builder()
+    return Event.sequenced()
         .entityReference(new EntityReference("car", "1"))
         .eventName("turned-on")
         .sequenceNumber(1)

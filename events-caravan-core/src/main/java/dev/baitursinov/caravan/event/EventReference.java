@@ -2,34 +2,15 @@ package dev.baitursinov.caravan.event;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 
-import static dev.baitursinov.caravan.utils.TextUtils.hasText;
-import static java.util.Objects.requireNonNull;
-
 /**
- * Identifies a single {@link Event}, without its payload: the {@code sequenceNumber}-th event
- * named {@code eventName} recorded against {@code entityReference}.
+ * Identifies a single {@link Event}, without its payload: an event named {@code eventName}
+ * recorded against {@code entityReference}, told apart from the entity's other events either by
+ * its position in the entity's sequence ({@link SequencedEventReference}) or by an id of its own
+ * ({@link UnsequencedEventReference}).
  */
-public record EventReference(EntityReference entityReference,
-                             long sequenceNumber,
-                             String eventName) {
+public sealed interface EventReference permits SequencedEventReference, UnsequencedEventReference {
 
-  public EventReference {
-    requireNonNull(entityReference, "entityReference cannot be null");
+  EntityReference entityReference();
 
-    if (sequenceNumber <= 0) {
-      throw new IllegalArgumentException("sequenceNumber must be positive number");
-    }
-
-    if (!hasText(eventName)) {
-      throw new IllegalArgumentException("eventName cannot be empty");
-    }
-  }
-
-  @Override
-  public String toString() {
-    return "Event{"
-        + this.entityReference()
-        + ":" + this.sequenceNumber()
-        + "(" + this.eventName() + ")}";
-  }
+  String eventName();
 }
