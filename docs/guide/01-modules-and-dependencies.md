@@ -25,6 +25,13 @@ Add the starters your service needs:
         <version>${events-caravan-version}</version>
     </dependency>
 
+    <!-- only if this service produces unsequenced events -->
+    <dependency>
+        <groupId>dev.baitursinov</groupId>
+        <artifactId>events-caravan-sns-spring-boot-starter</artifactId>
+        <version>${events-caravan-version}</version>
+    </dependency>
+
     <!-- only if this service consumes events -->
     <dependency>
         <groupId>dev.baitursinov</groupId>
@@ -44,6 +51,10 @@ Add the starters your service needs:
    > mechanism.
 >
 >- `DynamoDbClient` / `SqsClient` / `SnsClient` beans are expected in the context for their corresponding modules to work.
+>
+>- A `SequencedEventProducer` is autoconfigured when there is a `SequencedEventWriter` (the DynamoDB starter provides
+   > one), and an `UnsequencedEventProducer` when there is an `UnsequencedEventWriter` (provided whenever there is an
+   > `EventMessagePublisher`, e.g. with the SNS starter).
 >
 >- Every autoconfigured component is `@ConditionalOnMissingBean`, supply your own bean to override them.
 

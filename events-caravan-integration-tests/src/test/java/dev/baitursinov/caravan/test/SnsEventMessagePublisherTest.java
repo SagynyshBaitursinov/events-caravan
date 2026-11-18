@@ -100,7 +100,7 @@ class SnsEventMessagePublisherTest extends AbstractSpringBootTest {
         numberAdditionRequest(calculatorId, 3L),
         numberAdditionRequest(calculatorId, 4L));
 
-    // Simulates a relay: builds messages from what an event store keeps, without the Event object
+    // Simulates a relay: builds messages from what a store (e.g. an outbox) keeps, without the Event object
     var messages = events.stream()
         .map(event -> new EventMessage(
             event.eventReference(),
@@ -128,10 +128,10 @@ class SnsEventMessagePublisherTest extends AbstractSpringBootTest {
   }
 
   private static Event<NumberAdditionRequest> numberAdditionRequest(String calculatorId, long number) {
-    return Event.<NumberAdditionRequest>sequenced()
+    return Event.<NumberAdditionRequest>unsequenced()
         .entityReference(new EntityReference(NUMBER_ADDITION_REQUEST, UUID.randomUUID().toString()))
         .eventName(RECEIVED)
-        .sequenceNumber(1)
+        .naturalKey(UUID.randomUUID().toString())
         .timestamp(ZonedDateTime.now())
         .payload(new NumberAdditionRequest(calculatorId, number))
         .build();

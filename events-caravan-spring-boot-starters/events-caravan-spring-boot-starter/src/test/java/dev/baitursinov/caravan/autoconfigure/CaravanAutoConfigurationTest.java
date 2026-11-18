@@ -11,7 +11,11 @@ import dev.baitursinov.caravan.event.consumer.handler.HandlerBasedEventConsumer;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
 import dev.baitursinov.caravan.event.producer.SequencedEventProducer;
 import dev.baitursinov.caravan.event.producer.SequencedEventWriter;
+import dev.baitursinov.caravan.event.producer.UnsequencedEventProducer;
+import dev.baitursinov.caravan.event.producer.UnsequencedEventWriter;
 import dev.baitursinov.caravan.event.producer.ValidatedEvents;
+import dev.baitursinov.caravan.event.publisher.EventMessage;
+import dev.baitursinov.caravan.event.publisher.EventMessagePublisher;
 import dev.baitursinov.caravan.event.serialization.EventDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
@@ -40,10 +44,13 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @NullMarked
 class CaravanAutoConfigurationTest {
@@ -52,6 +59,7 @@ class CaravanAutoConfigurationTest {
       CaravanEventRegistryAutoConfiguration.class,
       CaravanEventDrivenComponentsAutoConfiguration.class,
       CaravanEventProducersAutoConfiguration.class,
+      CaravanMessagePublishingAutoConfiguration.class,
       CaravanJacksonSerializationAutoConfiguration.class,
       CaravanEventSourcingAutoConfiguration.class,
       CaravanEntityStreamAutoConfiguration.class);
@@ -61,6 +69,16 @@ class CaravanAutoConfigurationTest {
       .withUserConfiguration(ApplicationConfiguration.class);
 
   static class RecordingSequencedEventWriter implements SequencedEventWriter {
+
+    final List<Event<?>> writtenEvents = new ArrayList<>();
+
+    @Override
+    public void write(ValidatedEvents events) {
+      writtenEvents.addAll(events.events());
+    }
+  }
+
+  static class RecordingUnsequencedEventWriter implements UnsequencedEventWriter {
 
     final List<Event<?>> writtenEvents = new ArrayList<>();
 
@@ -229,6 +247,37 @@ class CaravanAutoConfigurationTest {
         .build();
   }
 
+  private static Event<Object> unsequencedEvent(String eventName, Object payload) {
+    return Event.unsequenced()
+        .entityReference(new EntityReference("calculator", "1"))
+        .eventName(eventName)
+        .naturalKey(UUID.randomUUID().toString())
+        .timestamp(ZonedDateTime.now())
+        .payload(payload)
+        .build();
+  }
+
+  private static EventSerializer serializerGiving(String body) {
+    var eventSerializer = mock(EventSerializer.class);
+    when(eventSerializer.serialize(any(Event.class))).thenReturn(body);
+    return eventSerializer;
+  }
+
+  private static EventMessagePublisher recordingPublisher(List<EventMessage> publishedMessages) {
+    return new EventMessagePublisher() {
+
+      @Override
+      public void publish(EventMessage eventMessage) {
+        publishedMessages.add(eventMessage);
+      }
+
+      @Override
+      public void publish(List<EventMessage> eventMessages) {
+        publishedMessages.addAll(eventMessages);
+      }
+    };
+  }
+
   @Nested
   class Registry {
 
@@ -348,6 +397,95 @@ class CaravanAutoConfigurationTest {
             .isInstanceOf(EventProductionException.class);
         assertThat(applicationConfiguration.eventWriter.writtenEvents).containsExactly(validEvent);
       });
+    }
+
+    @Test
+    void shouldNotConfigureUnsequencedEventProducerWithoutAnEventMessagePublisher() {
+      contextRunner.run(context -> assertThat(context).doesNotHaveBean(UnsequencedEventProducer.class));
+    }
+
+    @Test
+    void shouldPublishUnsequencedEventsWithoutHandingThemToSequencedEventWriter() {
+      var publishedMessages = new ArrayList<EventMessage>();
+
+      contextRunner
+          .withBean(EventMessagePublisher.class, () -> recordingPublisher(publishedMessages))
+          .withBean(EventSerializer.class, () -> serializerGiving("serialized event"))
+          .run(context -> {
+            assertThat(context).hasSingleBean(UnsequencedEventProducer.class);
+            assertThat(context).hasSingleBean(SequencedEventProducer.class);
+            var applicationConfiguration = context.getBean(ApplicationConfiguration.class);
+            var unsequencedEventProducer = context.getBean(UnsequencedEventProducer.class);
+
+            var unsequencedEvent = unsequencedEvent("added", new NumberPayload(42));
+            unsequencedEventProducer.produce(unsequencedEvent);
+            unsequencedEventProducer.produce(List.of(unsequencedEvent));
+
+            assertThat(applicationConfiguration.eventWriter.writtenEvents).isEmpty();
+            assertThat(publishedMessages)
+                .hasSize(2)
+                .containsOnly(new EventMessage(unsequencedEvent.eventReference(), "serialized event"));
+
+            var event = event("added", new NumberPayload(42));
+            context.getBean(SequencedEventProducer.class).produce(event);
+
+            assertThat(applicationConfiguration.eventWriter.writtenEvents).containsExactly(event);
+            assertThat(publishedMessages).hasSize(2);
+          });
+    }
+
+    @Test
+    void shouldValidateUnsequencedEventsBeforePublishingThem() {
+      var publishedMessages = new ArrayList<EventMessage>();
+
+      contextRunner
+          .withBean(EventMessagePublisher.class, () -> recordingPublisher(publishedMessages))
+          .run(context -> {
+            var unsequencedEventProducer = context.getBean(UnsequencedEventProducer.class);
+
+            assertThatThrownBy(() -> unsequencedEventProducer.produce(unsequencedEvent("removed", new NumberPayload(42))))
+                .isInstanceOf(EventProductionException.class)
+                .hasMessageContaining("no registered payload class");
+            assertThat(publishedMessages).isEmpty();
+          });
+    }
+
+    @Test
+    void applicationCanSupplyOwnUnsequencedEventWriter() {
+      var publishedMessages = new ArrayList<EventMessage>();
+      var ownUnsequencedEventWriter = new RecordingUnsequencedEventWriter();
+
+      contextRunner
+          .withBean(EventMessagePublisher.class, () -> recordingPublisher(publishedMessages))
+          .withBean(UnsequencedEventWriter.class, () -> ownUnsequencedEventWriter)
+          .run(context -> {
+            assertThat(context).hasSingleBean(UnsequencedEventWriter.class);
+            var unsequencedEventProducer = context.getBean(UnsequencedEventProducer.class);
+            var event = unsequencedEvent("added", new NumberPayload(42));
+
+            unsequencedEventProducer.produce(event);
+            assertThatThrownBy(() -> unsequencedEventProducer.produce(unsequencedEvent("removed", new NumberPayload(42))))
+                .isInstanceOf(EventProductionException.class);
+
+            assertThat(ownUnsequencedEventWriter.writtenEvents).containsExactly(event);
+            assertThat(publishedMessages).isEmpty();
+            assertThat(context.getBean(ApplicationConfiguration.class).eventWriter.writtenEvents).isEmpty();
+          });
+    }
+
+    @Test
+    void shouldFailToPublishUnsequencedEventsWithoutAnEventSerializer() {
+      new ApplicationContextRunner()
+          .withConfiguration(AutoConfigurations.of(
+              CaravanEventRegistryAutoConfiguration.class,
+              CaravanMessagePublishingAutoConfiguration.class,
+              CaravanEventProducersAutoConfiguration.class))
+          .withBean(EventMessagePublisher.class, () -> recordingPublisher(new ArrayList<>()))
+          .run(context -> assertThat(context)
+              .hasFailed()
+              .getFailure()
+              .rootCause()
+              .hasMessageContaining(EventSerializer.class.getName()));
     }
 
     @Test

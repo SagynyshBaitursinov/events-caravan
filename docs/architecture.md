@@ -29,6 +29,29 @@ Guarantees traded away by this design are listed separately in [Compromises](com
 `EventType` and its payload are defined by combination of `entityName` and `eventName`. Payload class has to
 be [registered](guide/02-events-and-entities.md#register-your-events).
 
+An event is identified by its `EventReference`, which comes in two kinds:
+
+- **Sequenced** (`SequencedEventReference`, shown above): the `sequenceNumber`-th event of its entity. Every event
+  recorded by an `EventSourcedEntity` is sequenced, and only sequenced events are stored in the `EventStore`.
+- **Unsequenced** (`UnsequencedEventReference`): a fact independent of the entity's other events, carrying a
+  `naturalKey` instead of a `sequenceNumber`. Depending on implementing technology their production come with different 
+  guarantees than of sequenced events. See [Producing and propagating events](#producing-and-propagating-events) point 5.
+
+```json
+{
+  "entityReference": {
+    "entityName": "user",
+    "entityId": "42"
+  },
+  "eventName": "user-logged-in",
+  "naturalKey": "session-8f3a",
+  "timestamp": "2025-10-20T10:20:30.000Z",
+  "payload": {
+    "sessionId": "session-8f3a"
+  }
+}
+```
+
 ## Event sourcing and storage
 
 ![Event sourcing and storage diagram](../diagrams/event-sourcing.png)
@@ -59,15 +82,16 @@ be [registered](guide/02-events-and-entities.md#register-your-events).
    `EventSourcedEntity`, but it's recommended to limit to one event per operation. That saves the database from
    potential duty having to span a transaction across multiple partitions and writer nodes, which is a more complex and
    costly operation.
-3. Events that do not belong to an `EventSourcedEntity` can be produced using `EventProducer.produce(...)` interface
-   directly. See [usage](guide/02-events-and-entities.md#produce-events-without-an-entity)
-4. Every produced event is an immutable document inserted into database. Inserting an event *is* publishing it. The
+3. Every produced sequenced event is an immutable document inserted into database. Inserting an event *is* publishing it. The
    database's inserts-stream (CDC mechanism) is read by an events-publisher and events are
    eventually propagated to consumers. This way there's no dual-write problem, no 2PC, and no need to maintain a
    [transactional outbox table](https://microservices.io/patterns/data/transactional-outbox.html). The database's
    inserts-stream can be sharded together with the database itself, each shard naturally maintaining a separate stream.
-5. In the [reference implementation](aws-reference-implementation.md) `DynamoDB Streams` are read by a `AWS Lambda`
+4. In the [reference implementation](aws-reference-implementation.md) `DynamoDB Streams` are read by a `AWS Lambda`
    running on `Node.js` runtime publishing the event messages into an `SNS` topic per entityName.
+5. Unsequenced events take a shortcut: `UnsequencedEventProducer` publishes them synchronously into the message broker
+   through the same `EventMessagePublisher` (`SNS` topic per entityName in the reference implementation), bypassing the
+   database. Different `UnsequencedEventWriter` implementations may change this (e.g. introduce transactional-outbox).
 
 ## Event consumption
 
@@ -100,7 +124,7 @@ be [registered](guide/02-events-and-entities.md#register-your-events).
 
 1. Only uniqueness constraint and primary key index maintained by the underlying database is
    `(entityReference, sequenceNumber)`.
-2. Upon event production a `DuplicateEventProductionException` might be thrown for two reasons both having to do with
+2. Upon sequenced event production a `DuplicateEventProductionException` might be thrown for two reasons both having to do with
    entity modification in parallel or in short span of time:
     1. another `Event` of the same `sequenceNumber` was produced in parallel after the `EventSourcedEntity` was loaded.
     2. an entity was loaded in a stale state without the newest events due to inconsistency between database's reader

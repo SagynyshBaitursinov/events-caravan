@@ -133,8 +133,22 @@ final class CalculatorEventApplier {
 ## Produce events without an entity
 
 Some events are plain facts with no state to rebuild later, such as a received payment notification or a
-user's login. You can produce them with `EventProducer` directly, without an `EventSourcedEntity` or
-repository. Their events still have to be [registered](#register-your-events).
+user's login. You can produce them without an `EventSourcedEntity` or repository, in one of two ways:
+
+|                          | Sequenced: `SequencedEventProducer`               | Unsequenced: `UnsequencedEventProducer`                                        |
+|--------------------------|---------------------------------------------------|--------------------------------------------------------------------------------|
+| Identified by            | `entityReference` + `sequenceNumber`              | `entityReference` + `naturalKey`                                               |
+| Written to               | `EventStore`                                      | message broker, nothing is stored                                              |
+| Duplicates on production | rejected with `DuplicateEventProductionException` | delivered again, consumers could deduplicate using `naturalKey`                |
+| Batch                    | atomic: all or none                               | atomicity may be guaranteed by implementation, but not by reference SNS module |
+
+Either way, events still have to be [registered](#register-your-events): an event whose name is not registered, or
+whose payload class differs from the registered one, fails with `EventProductionException` before anything is
+written.
+
+### Sequenced events
+
+Choose them when the fact has to be kept, or when producing it must be idempotent at the source.
 
 ```java
 
@@ -142,13 +156,13 @@ repository. Their events still have to be [registered](#register-your-events).
 @RequiredArgsConstructor
 public class PaymentNotifications {
 
-  private final EventProducer eventProducer;
+  private final SequencedEventProducer sequencedEventProducer;
 
   public void paymentReceived(String paymentId, long amount) {
-    eventProducer.produce(
+    sequencedEventProducer.produce(
         Event.sequenced()
             .entityReference(new EntityReference("payment", paymentId))
-            .eventName("payment-received")
+            .eventName("received")
             .sequenceNumber(1)
             .timestamp(ZonedDateTime.now())
             .payload(new PaymentReceivedPayload(amount))
@@ -169,12 +183,48 @@ public class PaymentNotifications {
 >- `produce(List)` writes all events atomically: all or none. The DynamoDB implementation allows at most 100 events
    > per call.
 >
->- The autoconfigured `EventProducer` is wrapped in `ValidatingEventProducer`: an event whose name is not
-   > registered, or whose payload class differs from the registered one, fails with `EventProductionException`
-   > before anything is written.
->
 >- If you need to rebuild state from an entity's events, or to enforce rules across them, define an
    > [Event-sourced-entity](#define-an-event-sourced-entity) and save it through a repository instead.
+
+### Unsequenced events
+
+Choose them for fire-and-forget facts and commands to other services, where nobody relies on an event being the N-th
+thing that happened to its entity and nobody needs to load it back later to derive entity's state.
+
+```java
+
+@Service
+@RequiredArgsConstructor
+public class LoginTracking {
+
+  private final UnsequencedEventProducer unsequencedEventProducer;
+
+  public void userLoggedIn(String userId, String sessionId) {
+    unsequencedEventProducer.produce(
+        Event.unsequenced()
+            .entityReference(new EntityReference("user", userId))
+            .eventName("user-logged-in")
+            .naturalKey(sessionId)
+            .timestamp(ZonedDateTime.now())
+            .payload(new UserLoggedInPayload(sessionId))
+            .build());
+  }
+}
+```
+
+> [!IMPORTANT]
+>- Derive the `naturalKey` from the fact itself (a session id, an incoming request or message id), never generate
+   > a random one per call: a retry must carry the same `naturalKey`, so that consumers can recognize the duplicate. It
+   > has to be unique among events of the same name and entity.
+>
+>- The framework's core does not deduplicate by `naturalKey`. Every production of an event is delivered, and consumers that
+   > must not process it twice have to check the `naturalKey` themselves.
+>
+>- In reference implementation unsequenced events are published synchronously; once `produce` returns, the broker has accepted it. On
+   > `EventProductionException` events may or may not have been published, so retry them with the same `naturalKey`s.
+>
+>- Unsequenced events cannot be applied on an `EventSourcedEntity` via `@ApplyEvent`, and do not put entities into the
+   > [Entity-stream](05-entity-stream.md).
 
 ---
 Previous: [Modules and dependencies](01-modules-and-dependencies.md) · Next: [Repositories and snapshots](03-repositories-and-snapshots.md)

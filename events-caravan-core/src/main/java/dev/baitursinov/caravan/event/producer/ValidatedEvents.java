@@ -9,7 +9,7 @@ import java.util.List;
  * A batch of events that a producer has validated against the {@link EntityEventsRegistry}. It is
  * what {@link SequencedEventWriter}s and {@link UnsequencedEventWriter}s receive, and only
  * {@link SequencedEventProducer} and {@link UnsequencedEventProducer} can create one, so events
- * cannot reach a writer without having been validated, even when the writer is called directly.
+ * cannot reach a writer without having been validated.
  */
 public final class ValidatedEvents {
 

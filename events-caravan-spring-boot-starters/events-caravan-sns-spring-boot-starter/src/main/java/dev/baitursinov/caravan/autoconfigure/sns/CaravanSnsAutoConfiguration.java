@@ -1,5 +1,6 @@
 package dev.baitursinov.caravan.autoconfigure.sns;
 
+import dev.baitursinov.caravan.autoconfigure.CaravanMessagePublishingAutoConfiguration;
 import dev.baitursinov.caravan.event.publisher.EventMessagePublisher;
 import dev.baitursinov.caravan.event.publisher.sns.SnsEventMessagePublisher;
 import dev.baitursinov.caravan.event.publisher.sns.SnsTopicArnResolver;
@@ -9,7 +10,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import software.amazon.awssdk.services.sns.SnsClient;
 
-@AutoConfiguration
+@AutoConfiguration(before = CaravanMessagePublishingAutoConfiguration.class)
 @EnableConfigurationProperties(CaravanSnsPublishingConfigurationProperties.class)
 public class CaravanSnsAutoConfiguration {
 
