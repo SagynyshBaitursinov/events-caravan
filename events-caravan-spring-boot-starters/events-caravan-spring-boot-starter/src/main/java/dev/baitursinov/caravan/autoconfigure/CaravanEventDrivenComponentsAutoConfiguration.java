@@ -7,6 +7,7 @@ import dev.baitursinov.caravan.event.consumer.handler.HandlerBasedEventConsumer;
 import dev.baitursinov.caravan.event.serialization.EventDeserializer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.Bean;
 public class CaravanEventDrivenComponentsAutoConfiguration {
 
   @Bean
+  @ConditionalOnBean(EventDeserializer.class)
   @ConditionalOnMissingBean
   public EventMessageConsumer eventMessageConsumer(EventDeserializer eventDeserializer,
                                                    EventConsumer eventConsumer) {

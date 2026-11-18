@@ -36,6 +36,7 @@ import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotTaker;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -348,11 +349,26 @@ class CaravanAutoConfigurationTest {
     }
 
     @Test
-    void failsIfNoJsonMapperIsProvided() {
+    void doesNotConfigureJacksonSerializationWithoutJsonMapper() {
       new ApplicationContextRunner()
           .withConfiguration(autoConfigurations)
           .withUserConfiguration(ApplicationConfigurationWithoutJsonMapper.class)
-          .run(context -> assertThat(context).hasFailed());
+          .run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).doesNotHaveBean(EventSerializer.class);
+            assertThat(context).doesNotHaveBean(EventDeserializer.class);
+            assertThat(context).doesNotHaveBean(EventMessageConsumer.class);
+          });
+    }
+
+    @Test
+    void doesNotConfigureJacksonSerializationWithAmbiguousJsonMappers() {
+      contextRunner
+          .withBean("anotherJsonMapper", JsonMapper.class, () -> JsonMapper.builder().build())
+          .run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).doesNotHaveBean(EventSerializer.class);
+          });
     }
   }
 
@@ -366,11 +382,15 @@ class CaravanAutoConfigurationTest {
     }
 
     @Test
-    void failsWithoutEventStorageBackend() {
+    void doesNotSetUpEventSourcingWithoutEventStore() {
       new ApplicationContextRunner()
           .withConfiguration(autoConfigurations)
           .withUserConfiguration(ApplicationConfigurationWithoutStorageBackend.class)
-          .run(context -> assertThat(context).hasFailed());
+          .run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).doesNotHaveBean(EventSourcingRepositoryContext.class);
+            assertThat(context).hasSingleBean(SequencedEventProducer.class);
+          });
     }
 
     @Test
@@ -618,6 +638,84 @@ class CaravanAutoConfigurationTest {
           .withBean(EntityStreamWritingEventHandler.class, () -> ownHandler)
           .run(context ->
               assertThat(context).getBean(EntityStreamWritingEventHandler.class).isSameAs(ownHandler));
+    }
+  }
+
+  /**
+   * Applications only consume, only produce, or only produce one kind of events; none of them
+   * should need to configure what it does not use.
+   */
+  @Nested
+  class ApplicationShapes {
+
+    ApplicationContextRunner bareContextRunner = new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withBean(EntityEventsRegistration.class,
+            () -> new EntityEventsRegistration("calculator", Map.of("added", NumberPayload.class)));
+
+    @Test
+    void purelyConsumingApplicationNeedsNoProductionNorStorage() {
+      bareContextRunner
+          .withBean(JsonMapper.class, () -> JsonMapper.builder().build())
+          .run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(EventMessageConsumer.class);
+            assertThat(context).doesNotHaveBean(SequencedEventProducer.class);
+            assertThat(context).doesNotHaveBean(UnsequencedEventProducer.class);
+            assertThat(context).doesNotHaveBean(EventSourcingRepositoryContext.class);
+          });
+    }
+
+    @Test
+    void purelyUnsequencedProducingApplicationNeedsNoStorageNorDeserialization() {
+      bareContextRunner
+          .withBean(EventSerializer.class, () -> serializerGiving("serialized event"))
+          .withBean(EventMessagePublisher.class, () -> recordingPublisher(new ArrayList<>()))
+          .run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(UnsequencedEventProducer.class);
+            assertThat(context).doesNotHaveBean(SequencedEventProducer.class);
+            assertThat(context).doesNotHaveBean(EventSourcingRepositoryContext.class);
+            assertThat(context).doesNotHaveBean(EventMessageConsumer.class);
+          });
+    }
+
+    @Test
+    void purelySequencedProducingApplicationNeedsNoMessagePublisher() {
+      contextRunner
+          .run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(SequencedEventProducer.class);
+            assertThat(context).hasSingleBean(EventSourcingRepositoryContext.class);
+            assertThat(context).doesNotHaveBean(UnsequencedEventProducer.class);
+          });
+    }
+
+    @Test
+    void moduleProvidingOwnUnsequencedEventWriterReplacesMessagePublishingOne() {
+      bareContextRunner
+          .withConfiguration(AutoConfigurations.of(OutboxAutoConfiguration.class))
+          .withBean(EventSerializer.class, () -> serializerGiving("serialized event"))
+          .withBean(EventMessagePublisher.class, () -> recordingPublisher(new ArrayList<>()))
+          .run(context -> {
+            assertThat(context).hasSingleBean(UnsequencedEventWriter.class);
+            assertThat(context).getBean(UnsequencedEventWriter.class)
+                .isInstanceOf(RecordingUnsequencedEventWriter.class);
+            assertThat(context).hasSingleBean(UnsequencedEventProducer.class);
+          });
+    }
+  }
+
+  /**
+   * Stands for a module (e.g. a transactional outbox) writing unsequenced events its own way,
+   * relaying them into the {@link EventMessagePublisher} later.
+   */
+  @AutoConfiguration(before = CaravanMessagePublishingAutoConfiguration.class)
+  static class OutboxAutoConfiguration {
+
+    @Bean
+    UnsequencedEventWriter outboxUnsequencedEventWriter() {
+      return new RecordingUnsequencedEventWriter();
     }
   }
 }

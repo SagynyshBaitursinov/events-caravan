@@ -10,10 +10,12 @@ import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotStore;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotTaker;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
-@AutoConfiguration(after = CaravanEventDrivenComponentsAutoConfiguration.class)
+@AutoConfiguration
+@ConditionalOnBean(EventStore.class)
 public class CaravanEventSourcingAutoConfiguration {
 
   @Bean

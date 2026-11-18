@@ -16,13 +16,14 @@ import dev.baitursinov.caravan.event.sourcing.snapshot.jackson.JacksonSnapshotSe
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.context.annotation.Bean;
 import tools.jackson.databind.json.JsonMapper;
 
 @AutoConfiguration(
-    after = CaravanEventRegistryAutoConfiguration.class,
     afterName = "org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration")
 @ConditionalOnClass(JsonMapper.class)
+@ConditionalOnSingleCandidate(JsonMapper.class)
 public class CaravanJacksonSerializationAutoConfiguration {
 
   @Bean

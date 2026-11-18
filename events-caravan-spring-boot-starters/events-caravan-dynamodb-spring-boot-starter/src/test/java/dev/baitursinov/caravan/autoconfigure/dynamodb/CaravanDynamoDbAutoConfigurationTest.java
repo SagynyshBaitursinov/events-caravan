@@ -1,5 +1,6 @@
 package dev.baitursinov.caravan.autoconfigure.dynamodb;
 
+import dev.baitursinov.caravan.autoconfigure.CaravanEntityStreamAutoConfiguration;
 import dev.baitursinov.caravan.autoconfigure.CaravanEventProducersAutoConfiguration;
 import dev.baitursinov.caravan.autoconfigure.CaravanEventSourcingAutoConfiguration;
 import dev.baitursinov.caravan.event.EntityEventsRegistry;
@@ -13,6 +14,7 @@ import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedEventStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.DynamoDbBasedSnapshotStore;
 import dev.baitursinov.caravan.event.sourcing.dynamodb.entity.stream.DynamoDbBasedEntityStreamWriter;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWriter;
+import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamWritingEventHandler;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotDeserializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotSerializer;
 import dev.baitursinov.caravan.event.sourcing.snapshot.SnapshotStore;
@@ -152,15 +154,35 @@ class CaravanDynamoDbAutoConfigurationTest {
   void failsWhenDynamoDbClientIsNotProvided() {
     new ApplicationContextRunner()
         .withConfiguration(autoConfigurations)
+        .withPropertyValues("caravan.event.sourcing.event-store.dynamo-db.table-name=test-app_events")
         .run(context -> assertThat(context).hasFailed());
   }
 
   @Test
-  void failsWhenNoTableNamesAreConfigured() {
+  void configuresNothingWithoutTableNames() {
     new ApplicationContextRunner()
         .withConfiguration(autoConfigurations)
         .withUserConfiguration(ApplicationConfiguration.class)
-        .run(context -> assertThat(context).hasFailed());
+        .run(context -> {
+          assertThat(context).hasNotFailed();
+          assertThat(context).doesNotHaveBean(EventStore.class);
+          assertThat(context).doesNotHaveBean(SnapshotStore.class);
+          assertThat(context).doesNotHaveBean(EntityStreamWriter.class);
+        });
+  }
+
+  @Test
+  void purelyConsumingApplicationMayWriteEntityStreamWithoutEventStore() {
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withConfiguration(AutoConfigurations.of(CaravanEntityStreamAutoConfiguration.class))
+        .withUserConfiguration(ApplicationConfiguration.class)
+        .withPropertyValues("caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream")
+        .run(context -> {
+          assertThat(context).hasNotFailed();
+          assertThat(context).doesNotHaveBean(EventStore.class);
+          assertThat(context).hasSingleBean(EntityStreamWritingEventHandler.class);
+        });
   }
 
   @Test
@@ -256,14 +278,32 @@ class CaravanDynamoDbAutoConfigurationTest {
   }
 
   @Test
-  void applicationMaySupplyOwnEventWriter() {
+  void failsWhenApplicationSuppliesOwnEventWriterAlongsideConfiguredEventStore() {
+    contextRunner
+        .withConfiguration(AutoConfigurations.of(CaravanEventProducersAutoConfiguration.class))
+        .withBean(EntityEventsRegistry.class, () -> EntityEventsRegistry.createFor(List.of()))
+        .withBean(SequencedEventWriter.class, () -> mock(SequencedEventWriter.class))
+        .run(context -> assertThat(context).getFailure()
+            .rootCause()
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Exactly one SequencedEventWriter")
+            .hasMessageContaining(DynamoDbBasedEventStore.class.getName()));
+  }
+
+  @Test
+  void applicationMaySupplyOwnEventWriterWithoutConfiguringEventStore() {
     var ownEventWriter = mock(SequencedEventWriter.class);
 
-    contextRunner
+    new ApplicationContextRunner()
+        .withConfiguration(autoConfigurations)
+        .withConfiguration(AutoConfigurations.of(CaravanEventProducersAutoConfiguration.class))
+        .withUserConfiguration(ApplicationConfiguration.class)
+        .withBean(EntityEventsRegistry.class, () -> EntityEventsRegistry.createFor(List.of()))
         .withBean(SequencedEventWriter.class, () -> ownEventWriter)
         .run(context -> {
           assertThat(context).doesNotHaveBean(DynamoDbBasedEventStore.class);
-          assertThat(context).hasSingleBean(DynamoDbBasedSnapshotStore.class);
+          assertThat(context).getBean(SequencedEventWriter.class).isSameAs(ownEventWriter);
+          assertThat(context).hasSingleBean(SequencedEventProducer.class);
         });
   }
 
@@ -287,6 +327,24 @@ class CaravanDynamoDbAutoConfigurationTest {
             assertThat(context).getBean(DynamoDbEntityStreamConfigurationProperties.class)
                 .satisfies(properties ->
                     assertThat(properties.tableName()).isEqualTo("test-app_entity-stream")));
+  }
+
+  @Test
+  void entityStreamWritingHandlerIsBackedByDynamoDbEntityStream() {
+    contextRunner
+        .withConfiguration(AutoConfigurations.of(CaravanEntityStreamAutoConfiguration.class))
+        .withPropertyValues("caravan.event.sourcing.entity-stream.dynamo-db.table-name=test-app_entity-stream")
+        .run(context -> assertThat(context).hasSingleBean(EntityStreamWritingEventHandler.class));
+  }
+
+  @Test
+  void eventSourcingIsBackedByDynamoDbStores() {
+    contextRunner
+        .withConfiguration(AutoConfigurations.of(
+            CaravanEventProducersAutoConfiguration.class,
+            CaravanEventSourcingAutoConfiguration.class))
+        .withBean(EntityEventsRegistry.class, () -> EntityEventsRegistry.createFor(List.of()))
+        .run(context -> assertThat(context).hasSingleBean(EventSourcingRepositoryContext.class));
   }
 
   @Test

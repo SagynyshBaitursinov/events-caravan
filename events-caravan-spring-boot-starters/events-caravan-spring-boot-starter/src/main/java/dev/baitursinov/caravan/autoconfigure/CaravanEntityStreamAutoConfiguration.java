@@ -11,14 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 
-/**
- * Wires the entity stream into event consumption: when an application configures an
- * {@link EntityStreamWriter}, every entity's first event gets written in stream automatically,
- * provided its entityName has an {@link EntityStreamRegistration}.
- */
-@AutoConfiguration(
-    afterName = "dev.baitursinov.caravan.autoconfigure.dynamodb.CaravanDynamoDbAutoConfiguration",
-    before = CaravanEventDrivenComponentsAutoConfiguration.class)
+@AutoConfiguration
 public class CaravanEntityStreamAutoConfiguration {
 
   @Bean

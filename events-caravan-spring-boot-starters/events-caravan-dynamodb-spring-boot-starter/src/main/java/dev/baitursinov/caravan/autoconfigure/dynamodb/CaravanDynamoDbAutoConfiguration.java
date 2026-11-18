@@ -1,10 +1,8 @@
 package dev.baitursinov.caravan.autoconfigure.dynamodb;
 
-import dev.baitursinov.caravan.autoconfigure.CaravanEventDrivenComponentsAutoConfiguration;
+import dev.baitursinov.caravan.autoconfigure.CaravanEntityStreamAutoConfiguration;
 import dev.baitursinov.caravan.autoconfigure.CaravanEventProducersAutoConfiguration;
 import dev.baitursinov.caravan.autoconfigure.CaravanEventSourcingAutoConfiguration;
-import dev.baitursinov.caravan.autoconfigure.CaravanJacksonSerializationAutoConfiguration;
-import dev.baitursinov.caravan.event.producer.SequencedEventWriter;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializer;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.sourcing.EventStore;
@@ -28,9 +26,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
     before = {
         CaravanEventProducersAutoConfiguration.class,
         CaravanEventSourcingAutoConfiguration.class,
-        CaravanEventDrivenComponentsAutoConfiguration.class
-    },
-    after = CaravanJacksonSerializationAutoConfiguration.class)
+        CaravanEntityStreamAutoConfiguration.class
+    })
 @EnableConfigurationProperties({
     DynamoDbEventStoreConfigurationProperties.class,
     DynamoDbSnapshotStoreConfigurationProperties.class,
@@ -39,7 +36,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 public class CaravanDynamoDbAutoConfiguration {
 
   @Bean
-  @ConditionalOnMissingBean({EventStore.class, SequencedEventWriter.class})
+  @ConditionalOnProperty(prefix = DynamoDbEventStoreConfigurationProperties.PREFIX, name = "table-name")
+  @ConditionalOnMissingBean(EventStore.class)
   public DynamoDbBasedEventStore dynamoDbBasedEventStore(
       DynamoDbClient dynamoDbClient,
       EventPayloadSerializer eventPayloadSerializer,
