@@ -269,8 +269,7 @@ class EventSourcingRepositoryContextSetupTest {
     return new EventSourcingRepositoryContext(
         eventStore,
         eventProducer,
-        snapshotStore,
-        new ApplyEventMethodPayloadsValidator(entityEventsRegistry),
+        new ApplyEventMethodPayloadsValidator(entityEventsRegistry), snapshotStore,
         snapshotTakers);
   }
 
@@ -325,8 +324,7 @@ class EventSourcingRepositoryContextSetupTest {
     var contextWithoutSnapshotStore = new EventSourcingRepositoryContext(
         eventStore,
         eventProducer,
-        null,
-        new ApplyEventMethodPayloadsValidator(entityEventsRegistry),
+        new ApplyEventMethodPayloadsValidator(entityEventsRegistry), null,
         List.of());
 
     assertThatCode(() -> new CarRepository(contextWithoutSnapshotStore))
@@ -338,8 +336,7 @@ class EventSourcingRepositoryContextSetupTest {
     assertThatThrownBy(() -> new EventSourcingRepositoryContext(
         eventStore,
         eventProducer,
-        null,
-        new ApplyEventMethodPayloadsValidator(entityEventsRegistry),
+        new ApplyEventMethodPayloadsValidator(entityEventsRegistry), null,
         List.of(new CarSnapshotTaker())))
         .isInstanceOf(EventSourcedEntitySetupException.class)
         .hasMessageContaining("no SnapshotStore is configured")

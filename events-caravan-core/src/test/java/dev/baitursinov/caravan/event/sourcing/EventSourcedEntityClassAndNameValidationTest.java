@@ -177,8 +177,7 @@ class EventSourcedEntityClassAndNameValidationTest {
     return new EventSourcingRepositoryContext(
         eventStore,
         eventProducer,
-        snapshotStore,
-        new ApplyEventMethodPayloadsValidator(eventPayloadClassMap),
+        new ApplyEventMethodPayloadsValidator(eventPayloadClassMap), snapshotStore,
         snapshotTakers);
   }
 

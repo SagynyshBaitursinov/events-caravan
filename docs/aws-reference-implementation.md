@@ -75,13 +75,13 @@ caravan:
     sourcing:
       event-store:
         dynamo-db:
-          table-name: my-app_events
+          table-name: my-app_events      # absent by default: event store is off unless this is set
           partition-slice-size: 10000   # events per partition-key slice
           query-max-page-size: 1000     # events loaded into memory per page while replaying an entity
           consistent-read: false        # opt into strongly consistent reads if needed
       snapshot-store:
         dynamo-db:
-          table-name: my-app_snapshots
+          table-name: my-app_snapshots   # absent by default: snapshot store is off unless this is set
           consistent-read: false      # opt into strongly consistent reads if needed
       entity-stream:
         dynamo-db:
@@ -104,18 +104,24 @@ caravan:
 
 > [!NOTE]
 > All values except the table names, `queue-name-prefix` and `subscribed-entities` properties are shown at their
-> defaults and can be omitted. `entity-stream.dynamo-db.table-name` has no default: it is what turns the optional
-> [Entity-stream](guide/05-entity-stream.md) on.
+> defaults and can be omitted. `event-store.dynamo-db.table-name` turns the DynamoDB event store (and with it the
+> `SequencedEventWriter` and event sourcing) on, so a purely consuming application may use the DynamoDB starter for the
+> entity stream alone. Configuring it while the application supplies its own `SequencedEventWriter` fails startup, as
+> two writers are then available. `entity-stream.dynamo-db.table-name` has no default: it is what turns the optional
+> [Entity-stream](guide/05-entity-stream.md) on. Likewise `snapshot-store.dynamo-db.table-name` turns the snapshot store
+> on; it is required only when [snapshot takers](guide/03-repositories-and-snapshots.md#set-up-optional-snapshot-takers)
+> are declared, and startup fails if they are declared without it. The same goes for `EntityStreamRegistration` beans
+> declared without an entity-stream table name.
 
 > [!IMPORTANT]
->`event-store.dynamo-db.partition-slice-size` is baked into how items are keyed and must be fixed once the events
+> `event-store.dynamo-db.partition-slice-size` is baked into how items are keyed and must be fixed once the events
 > table is populated. See [Partition slicing](#partition-slicing-of-the-events-table).
 
 ## Infrastructure
 
 Events-caravan provides no infrastructure, and is infrastructure-agnostic. An environment deploying the reference
-implementation based on AWS must provide: the events and snapshots DynamoDB tables, plus the entity-stream DynamoDB
-table if [Entity-Stream](guide/05-entity-stream.md) is enabled. The events table should have
+implementation based on AWS must provide: the events DynamoDB table, plus the snapshots DynamoDB table if snapshot takers
+are declared, and the entity-stream DynamoDB table if [Entity-Stream](guide/05-entity-stream.md) is enabled. The events table should have
 `NEW_IMAGE` stream enabled, for which a `Node.js` based Lambda code is provided, which can be used as a reference for
 publishing events. It's used for integration-tests as well. The Lambda code itself is documented in
 the [Lambda's README](../dynamodb-sqs-events-publisher-lambda/README.md).

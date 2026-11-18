@@ -36,9 +36,9 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
 
   private final EventStore eventStore;
   private final SequencedEventProducer eventProducer;
+
   @Nullable
   private final SnapshotStore snapshotStore;
-
   @Nullable
   private final SnapshotTaker<T, ?> snapshotTaker;
 
@@ -109,7 +109,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
   }
 
   private void takeSnapshot(T entity) {
-    if (snapshotTaker() == null) {
+    if (snapshotTaker() == null || snapshotStore == null) {
       return;
     }
 
@@ -177,7 +177,7 @@ public abstract class EventSourcedRepository<T extends EventSourcedEntity> imple
 
   private Optional<T> getSnapshotState(EntityReference entityReference) {
     var snapshotTaker = snapshotTaker();
-    if (snapshotTaker == null) {
+    if (snapshotTaker == null || snapshotStore == null) {
       return Optional.empty();
     }
 

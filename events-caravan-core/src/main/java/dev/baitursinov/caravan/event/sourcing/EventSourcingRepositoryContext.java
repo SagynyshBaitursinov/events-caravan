@@ -25,14 +25,12 @@ public class EventSourcingRepositoryContext {
   private final Set<String> entityNames = new HashSet<>();
   private final EventStore eventStore;
   private final SequencedEventProducer eventProducer;
+  private final ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator;
   @Nullable
   private final SnapshotStore snapshotStore;
-  private final ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator;
   private final Map<Class<? extends EventSourcedEntity>, SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakerMap;
 
   /**
-   * @param snapshotStore the store snapshots are saved to and loaded from; {@code null} when no
-   *                      snapshots are taken
    * @throws EventSourcedEntitySetupException if two snapshot takers are given for the same
    *                                          entity class, one declares a non-positive
    *                                          snapshot frequency, or snapshot takers are given
@@ -40,8 +38,8 @@ public class EventSourcingRepositoryContext {
    */
   public EventSourcingRepositoryContext(EventStore eventStore,
                                         SequencedEventProducer eventProducer,
-                                        @Nullable SnapshotStore snapshotStore,
                                         ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator,
+                                        @Nullable SnapshotStore snapshotStore,
                                         List<SnapshotTaker<? extends EventSourcedEntity, ?>> snapshotTakers) {
     if (snapshotStore == null && !snapshotTakers.isEmpty()) {
       throw new EventSourcedEntitySetupException(
@@ -51,9 +49,9 @@ public class EventSourcingRepositoryContext {
 
     this.eventStore = eventStore;
     this.eventProducer = eventProducer;
-    this.snapshotStore = snapshotStore;
     this.applyEventMethodPayloadsValidator = applyEventMethodPayloadsValidator;
 
+    this.snapshotStore = snapshotStore;
     this.snapshotTakerMap = new HashMap<>(snapshotTakers.size());
     populateSnapshotTakerMap(snapshotTakers);
   }

@@ -38,8 +38,7 @@ public class CaravanEventSourcingAutoConfiguration {
     return new EventSourcingRepositoryContext(
         eventStore,
         eventProducer,
-        snapshotStore.getIfAvailable(),
-        applyEventMethodPayloadsValidator,
+        applyEventMethodPayloadsValidator, snapshotStore.getIfAvailable(),
         snapshotTakers.stream().toList());
   }
 }

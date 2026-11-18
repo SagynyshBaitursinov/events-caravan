@@ -57,6 +57,10 @@ Add the starters your service needs:
    > `EventMessagePublisher`, e.g. with the SNS starter).
 >
 >- Every autoconfigured component is `@ConditionalOnMissingBean`, supply your own bean to override them.
+>
+>- Each feature switches on only when its trigger is present (a property, a bean, or the starter itself), so a service
+   > that only consumes, or only produces events, needs to configure nothing else. Once a feature is on,
+   > what it requires has to be provided, or the application fails to start.
 
 Configuration properties and infrastructure of the reference implementation are described in
 [AWS reference implementation](../aws-reference-implementation.md).
