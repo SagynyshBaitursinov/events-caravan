@@ -21,8 +21,7 @@ infrastructure from scaling.
 - **DynamoDB** partitions natively by primary key, has no single leader node applications write through, and scales
   throughput per partition rather than globally, directly
   serving [Principle #1 (enable horizontal scaling)](philosophy.md). DynamoDB Streams give an ordered, per-shard
-  change feed for free, which is what lets an event item insert *be equal* to the publishing it
-  (see [Producing and propagating events](architecture.md#producing-and-propagating-events) point 4) without a
+  change feed for free, which is what lets an event item insert *be equal* to the publishing it (see [Producing and propagating events](architecture.md#producing-and-propagating-events) point 4) without a
   transactional outbox, serving [Principle #4 (one write destination)](philosophy.md).
 - **SNS/SQS** is a broker that does not need to understand the domain: SNS fans out by opaque message attributes, and
   SQS queues are owned and scaled independently by each consumer application. This is "dumb pipes"
@@ -32,11 +31,10 @@ infrastructure from scaling.
   [Principle #1](philosophy.md).
 
 None of this is AWS-specific in substance, only in the concrete API used, and
-per [Principle #9](philosophy.md) every integration point is an interface open for substitution
-(`EventStore`, `EventProducer`, `SnapshotStore`, event consumption, the publisher).
+per [Principle #9](philosophy.md) every integration point is an interface open for substitution (`EventStore`, `EventProducer`, `SnapshotStore`, event consumption, the publisher).
 
 > [!NOTE]
-> When operating applications on a high scale it might be worth switching to provisioned capacity of DynamoDB, 
+> When operating applications on a high scale it might be worth switching to provisioned capacity of DynamoDB,
 > with reserved instances. However, if very high-scale load is expected, it might be worthy to plan utilizing different
 > technologies not to pay AWS per request, but operate your own DB and Message broker. On the other hand that might
 > increase operational cost of the system.
@@ -55,7 +53,7 @@ Technologies with the following properties could substitute the reference implem
 
 ## Partition slicing of the events table
 
-"Hot" entities with long histories can make a partition and database shard where its events are stored too heavy. 
+"Hot" entities with long histories can make a partition and database shard where its events are stored too heavy.
 In the DynamoDB adapter partition-key is `entityName#entityId#sliceIndex` where
 one `sliceIndex` increments every N events defined by `partition-slice-size` property. Slice indexes are incremental,
 and sort-key is `sequenceNumber`, so all events are sorted in each sliced partition. Because `sliceIndex` is derived
@@ -66,7 +64,7 @@ of the table.
 
 Per [Compromise #4](compromises.md#4-loaded-state-may-be-stale), a loaded entity's state may be stale.
 With the DynamoDB adapter `consistent-read` could be used to reduce loading stale entity states, which can be enabled via
-[properties](#configuration-properties). Eventually consistent reads cost half as much, 
+[properties](#configuration-properties). Eventually consistent reads cost half as much,
 so avoid it unless frequent parallel writes to the same entities are anticipated.
 
 ## Configuration properties
