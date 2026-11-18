@@ -4,19 +4,19 @@ import dev.baitursinov.caravan.event.EventReference;
 
 import java.util.List;
 
-public class EventPublicationException extends RuntimeException {
+public class EventMessagePublicationException extends RuntimeException {
 
   private final List<EventReference> failedEventReferences;
 
-  public EventPublicationException(List<EventReference> failedEventReferences,
-                                   String message) {
+  public EventMessagePublicationException(List<EventReference> failedEventReferences,
+                                          String message) {
     super(message);
     this.failedEventReferences = List.copyOf(failedEventReferences);
   }
 
-  public EventPublicationException(List<EventReference> failedEventReferences,
-                                   String message,
-                                   Throwable cause) {
+  public EventMessagePublicationException(List<EventReference> failedEventReferences,
+                                          String message,
+                                          Throwable cause) {
     super(message, cause);
     this.failedEventReferences = List.copyOf(failedEventReferences);
   }

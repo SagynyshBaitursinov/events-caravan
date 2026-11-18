@@ -4,8 +4,8 @@ import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.EventReference;
 import dev.baitursinov.caravan.event.publisher.EventMessage;
+import dev.baitursinov.caravan.event.publisher.EventMessagePublicationException;
 import dev.baitursinov.caravan.event.publisher.EventMessagePublisher;
-import dev.baitursinov.caravan.event.publisher.EventPublicationException;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializer;
 import dev.baitursinov.caravan.event.serialization.EventSerializer;
 import dev.baitursinov.caravan.test.event.handler.AllTestFieldSavingEventHandler;
@@ -87,7 +87,7 @@ class SnsEventMessagePublisherTest extends AbstractSpringBootTest {
 
     assertThatThrownBy(() -> publisher.publish(
         List.of(withoutTopic, message(numberAdditionRequest(calculatorId, 9L)))))
-        .isInstanceOfSatisfying(EventPublicationException.class, exception ->
+        .isInstanceOfSatisfying(EventMessagePublicationException.class, exception ->
             assertThat(exception.failedEventReferences()).containsExactly(withoutTopic.eventReference()));
 
     awaitCalculatorNumber(calculatorId, 9L);
