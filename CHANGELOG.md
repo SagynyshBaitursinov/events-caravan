@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.0.0](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.2.1...events-caravan-v2.0.0) (2026-11-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **dynamodb:** renamed sharded entity reference to sliced. Same for slicing entity stream.
+
+### Features
+
+* **autoconfig:** switch features on only when their trigger is present ([91affbb](https://github.com/SagynyshBaitursinov/events-caravan/commit/91affbb6955c50128f737638b20b2d1e08e9c12c))
+* **core:** tell sequenced and unsequenced events apart by their reference ([64c7eeb](https://github.com/SagynyshBaitursinov/events-caravan/commit/64c7eeb397a769652bbe13349e493ccd43881f69))
+* **dynamodb:** renamed sharded entity reference to sliced. Same for slicing entity stream. ([40ec0fa](https://github.com/SagynyshBaitursinov/events-caravan/commit/40ec0fa514b37b1e1abcb51f913b82b46300f3f6))
+* **entity-stream:** fail startup on stream registrations without a writer ([85b7352](https://github.com/SagynyshBaitursinov/events-caravan/commit/85b7352c93a405f5298a9ba714c68b43bbc70a85))
+* **events:** Adding possibility of NoPayload event options, that do not serialize payloads. ([4356141](https://github.com/SagynyshBaitursinov/events-caravan/commit/4356141d76fb0e9bb71b6dbbf383adf9e0193b0e))
+* **producer:** publish unsequenced events straight to the message broker ([c7fd509](https://github.com/SagynyshBaitursinov/events-caravan/commit/c7fd509b68d0f4e7429e537443092b6b1cc4736f))
+* **sns:** add SNS event message publisher and Spring Boot starter ([da71ab8](https://github.com/SagynyshBaitursinov/events-caravan/commit/da71ab89c537027835fcdb2324e81b785ef026e4))
+* **sourcing:** make the snapshot store optional ([f732e53](https://github.com/SagynyshBaitursinov/events-caravan/commit/f732e53f1eb65f309f4009e709aa33415c2d4b18))
+* **sqs-starter:** resolve subscribed queues from the EntityEventsRegistry ([ce9ffa6](https://github.com/SagynyshBaitursinov/events-caravan/commit/ce9ffa623751841041161d80ee8c2a3a3e6928bc))
+
+
+### Bug Fixes
+
+* **deps:** bump the maven-dependencies group with 2 updates ([#22](https://github.com/SagynyshBaitursinov/events-caravan/issues/22)) ([29196fb](https://github.com/SagynyshBaitursinov/events-caravan/commit/29196fb005f31fbfd73f0ef33135da351c68c089))
+* **deps:** bump the maven-dependencies group with 4 updates ([#24](https://github.com/SagynyshBaitursinov/events-caravan/issues/24)) ([db2c961](https://github.com/SagynyshBaitursinov/events-caravan/commit/db2c9616007543020a2548a93f431519ee4450f9))
+
 ## [1.2.1](https://github.com/SagynyshBaitursinov/events-caravan/compare/events-caravan-v1.2.0...events-caravan-v1.2.1) (2026-10-31)
 
 
