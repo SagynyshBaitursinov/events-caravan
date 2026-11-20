@@ -2,6 +2,7 @@ package dev.baitursinov.caravan.event.serialization.jackson;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
+import dev.baitursinov.caravan.event.NoPayload;
 import dev.baitursinov.caravan.event.serialization.EventPayloadSerializationException;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,11 @@ class JacksonEventPayloadSerializerTest {
     assertThatThrownBy(() -> serializer.serializePayload(event))
         .isInstanceOf(EventPayloadSerializationException.class)
         .hasMessageContaining(event.eventReference().toString());
+  }
+
+  @Test
+  void shouldSerializeNothingForNoPayload() {
+    assertThat(serializer.serializePayload(event(NoPayload.INSTANCE))).isNull();
   }
 
   private Event<Object> event(Object payload) {

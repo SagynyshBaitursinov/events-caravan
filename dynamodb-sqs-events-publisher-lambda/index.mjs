@@ -71,9 +71,14 @@ function constructMessage(newImage, entityReference) {
         timestamp: newImage.timestamp.S
     });
 
+    const payloadKeyValue = newImage.payload
+        ? `,"payload":${newImage.payload.S}`
+        : '';
+
     return envelope.slice(0, -1)
         + `,"sequenceNumber":${newImage.sequenceNumber.N}`
-        + `,"payload":${newImage.payload.S}}`;
+        + payloadKeyValue
+        + '}';
 }
 
 function constructMessageAttributes(newImage, entityReference) {

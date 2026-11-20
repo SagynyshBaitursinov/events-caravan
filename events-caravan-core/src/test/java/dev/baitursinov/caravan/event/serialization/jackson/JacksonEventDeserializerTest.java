@@ -2,6 +2,7 @@ package dev.baitursinov.caravan.event.serialization.jackson;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.EventType;
+import dev.baitursinov.caravan.event.NoPayload;
 import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.UnsequencedEventReference;
 import dev.baitursinov.caravan.event.serialization.EventDeserializationException;
@@ -30,7 +31,7 @@ class JacksonEventDeserializerTest {
 
     @SuppressWarnings("DataFlowIssue")
     @Override
-    public Object deserializePayload(String payload, EventType eventType) throws EventPayloadDeserializationException {
+    public Object deserializePayload(@Nullable String payload, EventType eventType) throws EventPayloadDeserializationException {
       this.capturedPayload = payload;
       this.capturedEventType = eventType;
       if (exceptionToThrow != null) throw exceptionToThrow;
@@ -136,6 +137,45 @@ class JacksonEventDeserializerTest {
     assertThatThrownBy(() -> deserializer.deserialize(json))
         .isInstanceOf(EventDeserializationException.class)
         .hasMessageContaining("necessary fields");
+  }
+
+  @Test
+  void shouldPassAbsentPayloadAsNull() throws Exception {
+    payloadDeserializer.payloadToReturn = NoPayload.INSTANCE;
+
+    var json = """
+        {
+          "entityReference": {"entityName": "car", "entityId": "1"},
+          "eventName": "honked",
+          "sequenceNumber": 1,
+          "timestamp": "2026-01-01T10:15:30Z"
+        }
+        """;
+
+    var event = deserializer.deserialize(json);
+
+    assertThat(payloadDeserializer.capturedPayload).isNull();
+    assertThat(payloadDeserializer.capturedEventType).isEqualTo(new EventType("car", "honked"));
+    assertThat(event.payload()).isSameAs(NoPayload.INSTANCE);
+  }
+
+  @Test
+  void shouldPassJsonNullPayloadAsAbsent() throws Exception {
+    payloadDeserializer.payloadToReturn = NoPayload.INSTANCE;
+
+    var json = """
+        {
+          "entityReference": {"entityName": "car", "entityId": "1"},
+          "eventName": "honked",
+          "sequenceNumber": 1,
+          "timestamp": "2026-01-01T10:15:30Z",
+          "payload": null
+        }
+        """;
+
+    deserializer.deserialize(json);
+
+    assertThat(payloadDeserializer.capturedPayload).isNull();
   }
 
   @Test

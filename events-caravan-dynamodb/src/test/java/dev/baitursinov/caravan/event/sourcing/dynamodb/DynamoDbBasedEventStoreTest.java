@@ -5,6 +5,7 @@ import dev.baitursinov.caravan.event.EntityEventsRegistration;
 import dev.baitursinov.caravan.event.EntityEventsRegistry;
 import dev.baitursinov.caravan.event.Event;
 import dev.baitursinov.caravan.event.EventType;
+import dev.baitursinov.caravan.event.NoPayload;
 import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.event.producer.DuplicateEventProductionException;
 import dev.baitursinov.caravan.event.producer.EventProductionException;
@@ -78,7 +79,9 @@ class DynamoDbBasedEventStoreTest {
     producer = new SequencedEventProducer(
         eventStore,
         EntityEventsRegistry.createFor(List.of(
-            new EntityEventsRegistration("Entity", Map.of("Incremented", Incremented.class)))));
+            new EntityEventsRegistration("Entity", Map.of(
+                "Incremented", Incremented.class,
+                "Reset", NoPayload.class)))));
 
     clearInvocations(dynamoDbClient);
   }
@@ -184,6 +187,41 @@ class DynamoDbBasedEventStoreTest {
     assertThat(issuedPut.conditionExpression())
         .isEqualTo("attribute_not_exists(#pk) AND attribute_not_exists(#sk)");
     assertThat(issuedPut.expressionAttributeNames()).containsEntry("#pk", "entityReference").containsEntry("#sk", "sequenceNumber");
+  }
+
+  @Test
+  void producingEventWithNoPayloadPutsItemWithoutPayloadAttribute() {
+    when(eventPayloadSerializer.serializePayload(any())).thenReturn(null);
+
+    producer.produce(List.of(Event.sequenced()
+        .entityReference(ENTITY_REFERENCE)
+        .eventName("Reset")
+        .sequenceNumber(1)
+        .timestamp(ZonedDateTime.now())
+        .payload(NoPayload.INSTANCE)
+        .build()));
+
+    ArgumentCaptor<PutItemRequest> captor = ArgumentCaptor.forClass(PutItemRequest.class);
+    verify(dynamoDbClient).putItem(captor.capture());
+
+    assertThat(captor.getValue().item())
+        .containsKey("eventName")
+        .doesNotContainKey("payload");
+  }
+
+  @Test
+  @SneakyThrows
+  void readingItemWithoutPayloadAttributePassesNullPayloadToDeserializer() {
+    when(eventPayloadDeserializer.deserializePayload(any(), any(EventType.class))).thenReturn(NoPayload.INSTANCE);
+    var itemWithoutPayload = item(1);
+    itemWithoutPayload.remove("payload");
+    when(dynamoDbClient.query(any(QueryRequest.class)))
+        .thenReturn(QueryResponse.builder().items(List.of(itemWithoutPayload)).build());
+
+    var events = eventStore.getEventsOfEntity(ENTITY_REFERENCE, 0).toList();
+
+    assertThat(events).singleElement().satisfies(event -> assertThat(event.payload()).isSameAs(NoPayload.INSTANCE));
+    verify(eventPayloadDeserializer).deserializePayload(null, new EventType("Entity", "Incremented"));
   }
 
   @Test

@@ -3,6 +3,7 @@ package dev.baitursinov.caravan.event.serialization.jackson;
 import dev.baitursinov.caravan.event.EntityEventsRegistration;
 import dev.baitursinov.caravan.event.EntityEventsRegistry;
 import dev.baitursinov.caravan.event.EventType;
+import dev.baitursinov.caravan.event.NoPayload;
 import dev.baitursinov.caravan.event.serialization.EventPayloadDeserializationException;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,9 @@ class JacksonEventPayloadDeserializerTest {
   JsonMapper jsonMapper = JsonMapper.builder().build();
 
   EntityEventsRegistry entityEventsRegistry = EntityEventsRegistry.createFor(
-      List.of(new EntityEventsRegistration("car", Map.of("turned-on", CarTurnedOnPayload.class))));
+      List.of(new EntityEventsRegistration("car", Map.of(
+          "turned-on", CarTurnedOnPayload.class,
+          "honked", NoPayload.class))));
 
   JacksonEventPayloadDeserializer deserializer =
       new JacksonEventPayloadDeserializer(jsonMapper, entityEventsRegistry);
@@ -35,6 +38,40 @@ class JacksonEventPayloadDeserializerTest {
         new EventType("car", "turned-on"));
 
     assertThat(payload).isEqualTo(new CarTurnedOnPayload("red"));
+  }
+
+  @Test
+  void shouldDeserializeAbsentPayloadIntoNoPayload() throws Exception {
+    var payload = deserializer.deserializePayload(null, new EventType("car", "honked"));
+
+    assertThat(payload).isSameAs(NoPayload.INSTANCE);
+  }
+
+  @Test
+  void shouldThrowWhenNoPayloadEventHasPayload() {
+    assertThatThrownBy(() -> deserializer.deserializePayload(
+        "{\"color\": \"red\"}",
+        new EventType("car", "honked")))
+        .isInstanceOf(EventPayloadDeserializationException.class)
+        .hasMessage("Payload of EventType[entityName=car, eventName=honked] must be absent, as its payload class is NoPayload");
+  }
+
+  @Test
+  void shouldThrowWhenPayloadIsAbsent() {
+    assertThatThrownBy(() -> deserializer.deserializePayload(
+        null,
+        new EventType("car", "turned-on")))
+        .isInstanceOf(EventPayloadDeserializationException.class)
+        .hasMessage("Payload of EventType[entityName=car, eventName=turned-on] is missing");
+  }
+
+  @Test
+  void shouldThrowWhenPayloadIsJsonNull() {
+    assertThatThrownBy(() -> deserializer.deserializePayload(
+        "null",
+        new EventType("car", "turned-on")))
+        .isInstanceOf(EventPayloadDeserializationException.class)
+        .hasMessage("Payload of EventType[entityName=car, eventName=turned-on] must not be null");
   }
 
   @Test

@@ -3,6 +3,7 @@ package dev.baitursinov.caravan.event.sourcing.applying;
 import dev.baitursinov.caravan.event.EntityEventsRegistration;
 import dev.baitursinov.caravan.event.EntityEventsRegistry;
 import dev.baitursinov.caravan.event.Event;
+import dev.baitursinov.caravan.event.NoPayload;
 import dev.baitursinov.caravan.event.sourcing.EntityName;
 import dev.baitursinov.caravan.event.sourcing.EventSourcedEntity;
 import dev.baitursinov.caravan.event.sourcing.EventSourcedEntitySetupException;
@@ -122,6 +123,34 @@ class ApplyEventMethodPayloadsValidatorTest {
     }
   }
 
+  @SuppressWarnings("EmptyMethod")
+  @EntityName("horn")
+  static class NoPayloadEventEntity extends EventSourcedEntity {
+
+    @ApplyEvent("honked")
+    void applyHonked(Event<NoPayload> event) {
+    }
+
+    @Override
+    public String entityId() {
+      return "1";
+    }
+  }
+
+  @SuppressWarnings("EmptyMethod")
+  @EntityName("horn")
+  static class WrongApplyForNoPayloadEventEntity extends EventSourcedEntity {
+
+    @ApplyEvent("honked")
+    void applyHonked(Event<OtherPayload> event) {
+    }
+
+    @Override
+    public String entityId() {
+      return "1";
+    }
+  }
+
   ApplyEventMethodPayloadsValidator applyEventMethodPayloadsValidator;
   EntityEventsRegistry entityEventsRegistry;
 
@@ -141,6 +170,25 @@ class ApplyEventMethodPayloadsValidatorTest {
   void passesWhenApplyMethodsMatchRegisteredEvents() {
     assertThatCode(() -> applyEventMethodPayloadsValidator.validate("car", ValidEntity.class))
         .doesNotThrowAnyException();
+  }
+
+  @Test
+  void passesWhenApplyMethodTakesEventOfNoPayloadForNoPayloadRegisteredEvent() {
+    var validator = new ApplyEventMethodPayloadsValidator(EntityEventsRegistry.createFor(
+        List.of(new EntityEventsRegistration("horn", Map.of("honked", NoPayload.class)))));
+
+    assertThatCode(() -> validator.validate("horn", NoPayloadEventEntity.class))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void throwsWhenApplyMethodDoesNotTakeEventOfNoPayloadForNoPayloadRegisteredEvent() {
+    var validator = new ApplyEventMethodPayloadsValidator(EntityEventsRegistry.createFor(
+        List.of(new EntityEventsRegistration("horn", Map.of("honked", NoPayload.class)))));
+
+    assertThatThrownBy(() -> validator.validate("horn", WrongApplyForNoPayloadEventEntity.class))
+        .isInstanceOf(EventSourcedEntitySetupException.class)
+        .hasMessage("@ApplyEvent Event parameter's payload class must be of type dev.baitursinov.caravan.event.NoPayload, which is not the case for dev.baitursinov.caravan.event.sourcing.applying.ApplyEventMethodPayloadsValidatorTest$WrongApplyForNoPayloadEventEntity.applyHonked");
   }
 
   @Test

@@ -20,6 +20,7 @@ import java.time.ZonedDateTime;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static tools.jackson.core.JsonToken.PROPERTY_NAME;
+import static tools.jackson.core.JsonToken.VALUE_NULL;
 
 @RequiredArgsConstructor
 public class JacksonEventDeserializer implements EventDeserializer {
@@ -67,7 +68,9 @@ public class JacksonEventDeserializer implements EventDeserializer {
           case SEQUENCE_NUMBER -> sequenceNumber = jsonParser.getValueAsLong();
           case NATURAL_KEY -> naturalKey = jsonParser.getValueAsString();
           case TIMESTAMP -> timestamp = ZonedDateTime.parse(jsonParser.getValueAsString());
-          case PAYLOAD -> payloadAsJson = extractRawJson(jsonParser);
+          case PAYLOAD -> payloadAsJson = jsonParser.currentToken() == VALUE_NULL
+              ? null
+              : extractRawJson(jsonParser);
           default -> jsonParser.skipChildren();
         }
       }

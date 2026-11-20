@@ -1,7 +1,9 @@
 package dev.baitursinov.caravan.test;
 
+import dev.baitursinov.caravan.event.NoPayload;
 import dev.baitursinov.caravan.event.SequencedEventReference;
 import dev.baitursinov.caravan.test.event.handler.NumberCarryingEventsHandler;
+import dev.baitursinov.caravan.test.event.handler.ResetEventsHandler;
 import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.Calculator;
 import dev.baitursinov.caravan.test.event.sourcing.entity.calculator.CalculatorRepository;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,9 @@ class EventSourcedEntityTest extends AbstractSpringBootTest {
 
   @Autowired
   NumberCarryingEventsHandler numberCarryingEventsHandler;
+
+  @Autowired
+  ResetEventsHandler resetEventsHandler;
 
   @Test
   void versionUpdatingTest() {
@@ -61,6 +66,34 @@ class EventSourcedEntityTest extends AbstractSpringBootTest {
                 assertThat(firstEvent.eventReference())
                     .isInstanceOfSatisfying(SequencedEventReference.class,
                         reference -> assertThat(reference.sequenceNumber()).isEqualTo(2)));
+  }
+
+  @Test
+  void eventWithNoPayloadIsAppliedStoredAndConsumed() {
+    String entityId = UUID.randomUUID().toString();
+    var entity = Calculator.createNew(entityId);
+
+    entity.addNumber(5L);
+    entity.reset();
+    repository.save(entity);
+    assertThat(entity.getCurrentNumber()).isZero();
+
+    var loaded = repository.findBy(entityId).orElseThrow();
+    assertThat(loaded.getCurrentNumber()).isZero();
+    assertThat(loaded.version()).isEqualTo(2L);
+
+    await()
+        .atMost(Duration.ofSeconds(60))
+        .pollInterval(Duration.ofMillis(50))
+        .untilAsserted(() ->
+            assertThat(resetEventsHandler.getEventsOfEntity(entityId))
+                .singleElement()
+                .satisfies(reset -> {
+                  assertThat(reset.payload()).isSameAs(NoPayload.INSTANCE);
+                  assertThat(reset.eventReference())
+                      .isInstanceOfSatisfying(SequencedEventReference.class,
+                          reference -> assertThat(reference.sequenceNumber()).isEqualTo(2));
+                }));
   }
 
   @Test

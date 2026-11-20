@@ -2,6 +2,7 @@ package dev.baitursinov.caravan.event.sourcing;
 
 import dev.baitursinov.caravan.entity.Entity;
 import dev.baitursinov.caravan.event.Event;
+import dev.baitursinov.caravan.event.NoPayload;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.ZonedDateTime;
@@ -82,6 +83,10 @@ public abstract class EventSourcedEntity extends Entity {
     EntityEventApplier.apply(this, event);
 
     notProducedEvents.add(event);
+  }
+
+  protected final void recordEvent(String eventName) {
+    recordEvent(eventName, NoPayload.INSTANCE);
   }
 
   private <E> Event<E> buildEvent(String eventName,

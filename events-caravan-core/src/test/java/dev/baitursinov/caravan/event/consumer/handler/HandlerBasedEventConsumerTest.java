@@ -2,6 +2,7 @@ package dev.baitursinov.caravan.event.consumer.handler;
 
 import dev.baitursinov.caravan.entity.EntityReference;
 import dev.baitursinov.caravan.event.Event;
+import dev.baitursinov.caravan.event.NoPayload;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +37,36 @@ class HandlerBasedEventConsumerTest {
 
     @Override
     public void handle(Event<CarTurnedOnPayload> event) {
+      handledEvents.add(event);
+    }
+  }
+
+  static class RecordingNoPayloadEventHandler implements EventHandler<NoPayload> {
+
+    final List<Event<NoPayload>> handledEvents = new ArrayList<>();
+
+    @Override
+    public boolean isOfInterest(Event<NoPayload> event) {
+      return true;
+    }
+
+    @Override
+    public void handle(Event<NoPayload> event) {
+      handledEvents.add(event);
+    }
+  }
+
+  static class RecordingCatchAllEventHandler implements EventHandler<Object> {
+
+    final List<Event<Object>> handledEvents = new ArrayList<>();
+
+    @Override
+    public boolean isOfInterest(Event<Object> event) {
+      return true;
+    }
+
+    @Override
+    public void handle(Event<Object> event) {
       handledEvents.add(event);
     }
   }
@@ -110,6 +141,31 @@ class HandlerBasedEventConsumerTest {
 
     assertThat(carHandler.handledEvents).containsExactly(event);
     assertThat(uninterestedCarHandler.handledEvents).isEmpty();
+  }
+
+  @Test
+  void shouldInvokeNoPayloadAndCatchAllHandlersForEventWithNoPayload() {
+    var carHandler = new RecordingEventHandler();
+    var noPayloadHandler = new RecordingNoPayloadEventHandler();
+    var catchAllHandler = new RecordingCatchAllEventHandler();
+    var consumer = new HandlerBasedEventConsumer(List.of(carHandler, noPayloadHandler, catchAllHandler));
+    var event = event(NoPayload.INSTANCE);
+
+    consumer.consume(event);
+
+    assertThat(noPayloadHandler.handledEvents).containsExactly(event);
+    assertThat(catchAllHandler.handledEvents).hasSize(1);
+    assertThat(carHandler.handledEvents).isEmpty();
+  }
+
+  @Test
+  void shouldNotInvokeNoPayloadHandlerForEventWithPayload() {
+    var noPayloadHandler = new RecordingNoPayloadEventHandler();
+    var consumer = new HandlerBasedEventConsumer(List.of(noPayloadHandler));
+
+    consumer.consume(event(new CarTurnedOnPayload()));
+
+    assertThat(noPayloadHandler.handledEvents).isEmpty();
   }
 
   @SuppressWarnings("unchecked")

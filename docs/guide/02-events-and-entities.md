@@ -2,6 +2,7 @@
 
 - [Register your Events](#register-your-events)
 - [Define an Event-sourced-entity](#define-an-event-sourced-entity)
+- [Events without payload](#events-without-payload)
 - [Produce events without an entity](#produce-events-without-an-entity)
 
 ## Register your Events
@@ -129,6 +130,36 @@ final class CalculatorEventApplier {
 >- `@EventApplier` accepts several classes, e.g. `@EventApplier({OrderPlacementApplier.class, OrderShippingApplier.class})`.
 >- Each event name may have only one apply method across the entity class and all its `@EventApplier` classes.
    > Duplicates fail at startup.
+
+## Events without payload
+
+When the event name alone says everything that happened, register `NoPayload` as its payload class:
+
+```java
+new EntityEventsRegistration(
+    "calculator",
+    Map.of(
+        "number-added", NumberCarryingPayload.class,
+        "reset", NoPayload.class));
+```
+
+Record it with `recordEvent(eventName)` and apply it with an `Event<NoPayload>` parameter:
+
+```java
+public void reset() {
+  recordEvent("reset");
+}
+
+@ApplyEvent("reset")
+private void applyReset(Event<NoPayload> event) {
+  this.currentNumber = 0;
+}
+```
+
+> [!NOTE]
+>- `payload()` of such an event is `NoPayload.INSTANCE`, never `null`.
+>- Nothing is stored or sent for it: the `payload` attribute and JSON field are omitted, and `NoPayload.INSTANCE` is restored when the event is read back.
+>- Such events are dispatched to `EventHandler<NoPayload>` handlers.
 
 ## Produce events without an entity
 

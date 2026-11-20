@@ -234,10 +234,12 @@ public class DynamoDbBasedEventStore implements EventStore, SequencedEventWriter
         TIMESTAMP_KEY,
         AttributeValue.fromS(
             TIMESTAMP_FORMATTER.format(event.timestamp())));
-    attributes.put(
-        PAYLOAD_KEY,
-        AttributeValue.fromS(
-            eventPayloadSerializer.serializePayload(event)));
+    var serializedPayload = eventPayloadSerializer.serializePayload(event);
+    if (serializedPayload != null) {
+      attributes.put(
+          PAYLOAD_KEY,
+          AttributeValue.fromS(serializedPayload));
+    }
     return attributes;
   }
 
@@ -344,8 +346,9 @@ public class DynamoDbBasedEventStore implements EventStore, SequencedEventWriter
                                     String eventName,
                                     long sequenceNumber) {
     try {
+      var payloadAttribute = attributeValues.get(PAYLOAD_KEY);
       return eventPayloadDeserializer.deserializePayload(
-          attributeValues.get(PAYLOAD_KEY).s(),
+          payloadAttribute == null ? null : payloadAttribute.s(),
           new EventType(entityReference.entityName(), eventName));
     } catch (Exception exception) {
       throw new EventStoreException(

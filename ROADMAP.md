@@ -10,7 +10,5 @@
 7. Provide optional capability not to send Event payload into message broker, but only reference to be used for fetching
    the event details from the event-store.
 8. Support to have `@ApplyEvent` parameter as unwrapped payload (without `Event<T>`).
-9. Add possibility to have `Void` payload of events and no Event parameter to `@ApplyEvent`.
-10. Introduce grouping of EventHandlers per queue groups.
-11. Loading events directly via a provided API could be interesting for apps.
-12. Consider possibility of adding Enums as Event names.
+9. Introduce grouping of EventHandlers per queue groups.
+10. Loading events directly via a provided API could be interesting for apps.

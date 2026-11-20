@@ -1,6 +1,7 @@
 package dev.baitursinov.caravan.test.event.registration;
 
 import dev.baitursinov.caravan.event.EntityEventsRegistration;
+import dev.baitursinov.caravan.event.NoPayload;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.EntityStreamRegistration;
 import dev.baitursinov.caravan.event.sourcing.entity.stream.TimeBucket;
 import dev.baitursinov.caravan.test.value.NumberCarryingPayload;
@@ -16,6 +17,7 @@ public class CalculatorEventsConfiguration {
 
   public static final String NUMBER_ADDED = "number-added";
   public static final String NUMBER_SUBTRACTED = "number-subtracted";
+  public static final String RESET = "reset";
 
   @Bean
   public EntityEventsRegistration calculatorEventsRegistration() {
@@ -23,7 +25,8 @@ public class CalculatorEventsConfiguration {
         CALCULATOR,
         Map.of(
             NUMBER_ADDED, NumberCarryingPayload.class,
-            NUMBER_SUBTRACTED, NumberCarryingPayload.class));
+            NUMBER_SUBTRACTED, NumberCarryingPayload.class,
+            RESET, NoPayload.class));
   }
 
   @Bean

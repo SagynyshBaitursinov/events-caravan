@@ -14,7 +14,8 @@ import java.util.Map;
  * validates event production and event-sourcing apply methods.
  *
  * @param entityName          the entity type these events belong to
- * @param eventToPayloadClass maps each event name to its payload class
+ * @param eventToPayloadClass maps each event name to its payload class, {@link NoPayload} for
+ *                            events carrying no details besides their metadata
  */
 public record EntityEventsRegistration(String entityName,
                                        Map<String, Class<?>> eventToPayloadClass) {

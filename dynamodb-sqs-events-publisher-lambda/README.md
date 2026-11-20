@@ -39,13 +39,13 @@ ever has to be wired in.
 The stream must carry the new image of each record (`StreamViewType=NEW_IMAGE`). Records are written by
 `DynamoDbBasedEventStore.mapEventToAttributes` as:
 
-| Attribute         | Type | Content                                                          |
-|-------------------|------|------------------------------------------------------------------|
-| `entityReference` | `S`  | Partition key, `entityName#entityId#sliceIndex`                  |
-| `sequenceNumber`  | `N`  | Sort key, gapless and starting at 1 per entity                   |
-| `eventName`       | `S`  | Name of the event                                                |
-| `timestamp`       | `S`  | ISO-8601 instant in UTC, always `uuuu-MM-dd'T'HH:mm:ss.SSS'Z'`   |
-| `payload`         | `S`  | The event payload, already serialized to JSON by the event store |
+| Attribute         | Type | Content                                                                                                            |
+|-------------------|------|--------------------------------------------------------------------------------------------------------------------|
+| `entityReference` | `S`  | Partition key, `entityName#entityId#sliceIndex`                                                                  |
+| `sequenceNumber`  | `N`  | Sort key, gapless and starting at 1 per entity                                                                     |
+| `eventName`       | `S`  | Name of the event                                                                                                  |
+| `timestamp`       | `S`  | ISO-8601 instant in UTC, always `uuuu-MM-dd'T'HH:mm:ss.SSS'Z'`                                                     |
+| `payload`         | `S`  | The event payload, already serialized to JSON by the event store; absent for events with `NoPayload` payload class |
 
 The table is insert-only by design, and the event source mapping should filter on stream `eventName: INSERT` (see
 below). Records of any other type are skipped anyway.
@@ -78,7 +78,8 @@ The message body mirrors `dev.baitursinov.caravan.event.Event`:
 ```
 
 `payload` is spliced into the body as the raw JSON string stored in the record — the lambda never parses or
-re-serializes it.
+re-serializes it. If the record has no `payload` attribute (events with `NoPayload` payload class), the field is omitted
+from the body.
 
 Every message carries two String message attributes, `entityName` and `eventName`, so consumers can narrow their
 subscriptions with SNS filter policies instead of discarding messages after delivery.

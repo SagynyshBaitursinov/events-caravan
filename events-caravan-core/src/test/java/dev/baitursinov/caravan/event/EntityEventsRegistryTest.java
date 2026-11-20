@@ -135,6 +135,15 @@ class EntityEventsRegistryTest {
   }
 
   @Test
+  void shouldAllowNoPayload() {
+    var entityEventsRegistry = EntityEventsRegistry.createFor(List.of(
+        new EntityEventsRegistration("car", Map.of("honked", NoPayload.class))));
+
+    assertThat(entityEventsRegistry.payloadClassFor(new EventType("car", "honked")))
+        .contains(NoPayload.class);
+  }
+
+  @Test
   void shouldRejectAbstractClassPayload() {
     assertThatThrownBy(() -> EntityEventsRegistry.createFor(
         List.of(new EntityEventsRegistration("car", Map.of("turned-on", AbstractPayload.class)))))
